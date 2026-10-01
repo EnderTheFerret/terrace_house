@@ -1,0 +1,9 @@
+node_modules
+dist
+data
+cache
+logs
+content
+workflows
+apps/web/public
+package-lock.json

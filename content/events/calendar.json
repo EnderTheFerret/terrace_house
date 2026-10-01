@@ -1,0 +1,67 @@
+{
+  "events": [
+    {
+      "id": "cal-hanami", "type": "hanami", "title": "cherry blossom viewing", "tags": ["calendar", "group", "outing", "romance"], "calendar": true,
+      "slots": ["slot1", "slot2", "slot3"], "location": "park", "activity": ["wander", "invite", "date"],
+      "roles": { "a": {}, "b": {}, "c": {} }, "pre": [{ "cityEvent": "hanami" }], "weight": 6,
+      "drama": { "affinity": [["a", "b", 5], ["b", "c", 4]], "romance": [["a", "b", 4]], "mood": [["a", 0.2], ["b", 0.2], ["c", 0.2]] },
+      "beats": ["open", "smalltalk", "joke", "flirt", "choice", "silence", "close"], "intents": ["flirt", "joke", "honest", "support"],
+      "premise": "A blue tarp under a cherry tree in Sakuragaoka Park. {a} brought onigiri; petals keep landing in {b}'s drink; {c} is taking photos.",
+      "freeze": true
+    },
+    {
+      "id": "cal-beach", "type": "beach-day", "title": "summer beach day", "tags": ["calendar", "group", "outing", "fun"], "calendar": true,
+      "slots": ["slot1", "slot2"], "location": "beach", "activity": ["wander", "invite", "date"],
+      "roles": { "a": {}, "b": {}, "c": {} }, "pre": [{ "cityEvent": "beach-day" }, { "weather": ["sunny", "cloudy"] }], "weight": 6,
+      "drama": { "affinity": [["a", "b", 5], ["c", "a", 3]], "romance": [["b", "a", 4]], "mood": [["a", 0.25], ["b", 0.25], ["c", 0.25]] },
+      "beats": ["open", "joke", "tease", "choice", "flirt", "close"], "intents": ["joke", "flirt", "tease", "support"],
+      "premise": "Shiokaze Beach, hot sand, a borrowed parasol. {a} tries to teach {b} to surf while {c} watches the bags.",
+      "freeze": true
+    },
+    {
+      "id": "cal-fireworks", "type": "fireworks", "title": "harbor fireworks festival", "tags": ["calendar", "romance", "peak", "outing"], "calendar": true,
+      "slots": ["slot3"], "location": "riverside", "activity": ["date", "invite", "wander"],
+      "roles": { "a": {}, "b": { "gender": "attractedTo:a" } }, "pre": [{ "cityEvent": "fireworks" }], "weight": 8,
+      "drama": { "romance": [["a", "b", 9], ["b", "a", 8]], "affinity": [["a", "b", 4]] },
+      "beats": ["open", "smalltalk", "silence", "flirt", "choice", "reveal", "close"], "intents": ["flirt", "honest", "confess", "listen"],
+      "premise": "Yukata, crowds, the river lit up. {a} and {b} lose the others somewhere between the takoyaki stand and the bridge.",
+      "peak": true, "freeze": true, "effects": [{ "date": ["a", "b"] }]
+    },
+    {
+      "id": "cal-matsuri", "type": "matsuri", "title": "autumn matsuri", "tags": ["calendar", "group", "outing", "fun"], "calendar": true,
+      "slots": ["slot2", "slot3"], "location": "shrine", "activity": ["wander", "invite", "date"],
+      "roles": { "a": {}, "b": {}, "c": {} }, "pre": [{ "cityEvent": "matsuri" }], "weight": 6,
+      "drama": { "affinity": [["a", "b", 4], ["a", "c", 4]], "tension": [["b", "c", 3]], "mood": [["a", 0.2], ["b", 0.15], ["c", 0.15]] },
+      "beats": ["open", "joke", "tease", "choice", "smalltalk", "close"], "intents": ["joke", "tease", "flirt", "support"],
+      "premise": "Drums, lanterns, a goldfish-scooping stall. {a} wins a goldfish and has to decide whether to give it to {b} or {c}.",
+      "freeze": true, "effects": [{ "reference": { "kind": "running-gag", "text": "the house goldfish" } }]
+    },
+    {
+      "id": "cal-lights", "type": "lights", "title": "christmas lights", "tags": ["calendar", "romance", "outing"], "calendar": true,
+      "slots": ["slot3"], "location": "arcade", "activity": ["date", "wander", "invite"],
+      "roles": { "a": {}, "b": { "gender": "attractedTo:a" } }, "pre": [{ "cityEvent": "christmas" }], "weight": 6,
+      "drama": { "romance": [["a", "b", 7], ["b", "a", 6]], "affinity": [["b", "a", 3]] },
+      "beats": ["open", "smalltalk", "flirt", "choice", "silence", "close"], "intents": ["flirt", "honest", "joke", "confess"],
+      "premise": "The old arcade glows with fairy lights. {a} and {b} walk under them with cheap hot chocolate.",
+      "freeze": true, "effects": [{ "date": ["a", "b"] }]
+    },
+    {
+      "id": "cal-hatsumode", "type": "hatsumode", "title": "new year shrine visit", "tags": ["calendar", "group", "reflection"], "calendar": true,
+      "slots": ["morning", "slot1", "slot2"], "location": "shrine", "activity": ["wander", "invite", "date"],
+      "roles": { "a": {}, "b": {}, "c": {} }, "pre": [{ "cityEvent": "hatsumode" }], "weight": 6,
+      "drama": { "affinity": [["a", "b", 3], ["b", "c", 3], ["c", "a", 3]], "trust": [["a", "b", 3]] },
+      "beats": ["open", "smalltalk", "reveal", "choice", "comfort", "close"], "intents": ["honest", "joke", "support", "listen"],
+      "premise": "Cold air, the shrine bell, omikuji fortunes. {a} draws 'great curse' and {b} and {c} can't stop laughing.",
+      "freeze": true, "effects": [{ "reference": { "kind": "inside-joke", "text": "the great-curse fortune" } }]
+    },
+    {
+      "id": "cal-typhoon", "type": "typhoon", "title": "typhoon day", "tags": ["calendar", "group", "house-bound", "close-quarters"], "calendar": true,
+      "slots": ["slot1", "slot2", "slot3"], "location": "living",
+      "roles": { "a": {}, "b": {}, "c": {} }, "pre": [{ "typhoon": true }], "weight": 9,
+      "drama": { "affinity": [["a", "b", 5], ["b", "c", 4]], "tension": [["a", "c", 4]], "trust": [["a", "b", 4], ["b", "a", 4]] },
+      "beats": ["open", "smalltalk", "interrupt", "silence", "choice", "reveal", "close"], "intents": ["support", "joke", "honest", "flirt"],
+      "premise": "A typhoon has shut down the trains. Windows taped, candles out, the power flickering. {a}, {b} and {c} play cards by flashlight.",
+      "freeze": true, "effects": [{ "reference": { "kind": "inside-joke", "text": "the typhoon card game" } }]
+    }
+  ]
+}

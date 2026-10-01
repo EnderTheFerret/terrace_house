@@ -1,0 +1,188 @@
+{
+  "archetypes": [
+    {
+      "id": "quiet-craftsman", "label": "quiet craftsman", "occupations": ["carpenter", "ceramicist", "bike mechanic", "line cook"],
+      "traits": [0.45, 0.85, 0.2, 0.55, 0.35], "attachment": "avoidant", "conflictStyle": "avoid", "humor": "dry",
+      "values": ["security", "loyalty", "ambition", "family"], "formality": 0.35, "sentenceLen": 5,
+      "fillers": ["mm", "hm"], "fillerRate": 0.15, "trailing": "ellipsis", "slang": [], "catchphrases": ["Works fine.", "Leave it to me."],
+      "exemplars": ["Fixed it. Was loose.", "...Not bad. Not good either.", "You hungry? I can make something."],
+      "goals": [{ "text": "open their own workshop", "kind": "career" }, { "text": "save money without anyone noticing", "kind": "savings" }],
+      "secrets": ["owes a large debt to a former business partner", "dropped out of a famous apprenticeship"],
+      "fears": ["being seen as a failure"], "tells": ["fidgets with their hands", "goes back to work mid-sentence"],
+      "hobbies": ["woodworking", "fishing", "old radios"], "tastes": [0.6, -0.2, 0.2, 0.8, 0.4, 0.0],
+      "arcTemplate": "tpl-secret", "voiceNotes": "Few words, dry, shows care by doing things.", "gossipiness": 0.1
+    },
+    {
+      "id": "hype-creator", "label": "hype creator", "occupations": ["streamer", "dance instructor", "content creator", "DJ"],
+      "traits": [0.65, 0.2, 0.92, 0.6, 0.35], "attachment": "secure", "conflictStyle": "deflect-with-humor", "humor": "slapstick",
+      "values": ["fun", "freedom", "ambition", "harmony"], "formality": 0.05, "sentenceLen": 9,
+      "fillers": ["like", "okay okay", "no but"], "fillerRate": 0.45, "trailing": "exclaim", "slang": ["vibe", "unreal", "lowkey"], "catchphrases": ["Let's gooo!", "Clip it!"],
+      "exemplars": ["Wait wait wait, say that again for the camera!", "This is the best day of my life. Again!", "Okay, okay, I'm serious now. ...Mostly."],
+      "goals": [{ "text": "grow an audience", "kind": "audience" }, { "text": "go viral once", "kind": "audience" }],
+      "secrets": ["was fired from a talent agency for faking metrics", "has never actually been in a relationship"],
+      "fears": ["silence"], "tells": ["over-laughs", "changes the subject to a challenge"],
+      "hobbies": ["dancing", "video editing", "skating"], "tastes": [0.5, 0.7, 0.6, 0.4, 0.8, -0.3],
+      "arcTemplate": "tpl-secret", "voiceNotes": "Fast, slangy, everything is a bit.", "gossipiness": 0.55
+    },
+    {
+      "id": "gentle-mediator", "label": "gentle mediator", "occupations": ["architect", "pharmacist", "school counselor", "librarian"],
+      "traits": [0.6, 0.75, 0.5, 0.88, 0.3], "attachment": "secure", "conflictStyle": "mediate", "humor": "self-deprecating",
+      "values": ["harmony", "family", "honesty", "security"], "formality": 0.8, "sentenceLen": 12,
+      "fillers": ["well", "I suppose"], "fillerRate": 0.2, "trailing": "none", "slang": [], "catchphrases": ["Shall we talk it through?"],
+      "exemplars": ["I think we all want the same thing here, don't we?", "Please, go ahead. I'm in no rush.", "I'm hopeless at this sort of thing, I'm afraid."],
+      "goals": [{ "text": "find a long-term partner", "kind": "marriage" }, { "text": "keep the peace", "kind": "friends" }],
+      "secrets": ["is considering moving abroad for work", "broke off an engagement last year"],
+      "fears": ["being alone at forty"], "tells": ["adjusts their collar", "asks a question back"],
+      "hobbies": ["sketching", "tea", "gardening"], "tastes": [0.2, 0.3, -0.4, 0.6, -0.2, 0.6],
+      "arcTemplate": "tpl-crossroads", "voiceNotes": "Polite, careful, summarizes feelings.", "gossipiness": 0.05
+    },
+    {
+      "id": "anxious-caretaker", "label": "anxious caretaker", "occupations": ["nurse", "daycare teacher", "dental hygienist", "vet tech"],
+      "traits": [0.5, 0.65, 0.45, 0.85, 0.8], "attachment": "anxious", "conflictStyle": "passive-aggressive", "humor": "none",
+      "values": ["loyalty", "harmony", "family", "security"], "formality": 0.55, "sentenceLen": 8,
+      "fillers": ["um", "sorry,", "I mean"], "fillerRate": 0.5, "trailing": "question", "slang": [], "catchphrases": [],
+      "exemplars": ["Sorry, is it okay if I sit here?", "I made extra, if anyone... no? Okay!", "I'm fine. Really. It's fine."],
+      "goals": [{ "text": "find genuine love", "kind": "partner" }, { "text": "learn to say no", "kind": "honesty" }],
+      "secrets": ["still talks to an ex every night", "is quietly applying for a transfer back home"],
+      "fears": ["being too much"], "tells": ["apologizes preemptively", "checks their phone"],
+      "hobbies": ["baking", "dramas", "journaling"], "tastes": [0.1, 0.9, -0.5, 0.3, 0.2, 0.4],
+      "arcTemplate": "tpl-ex-returns", "voiceNotes": "Soft, apologetic, hints rather than asks.", "gossipiness": 0.45
+    },
+    {
+      "id": "blunt-artist", "label": "blunt artist", "occupations": ["indie musician", "tattoo artist", "illustrator", "photographer"],
+      "traits": [0.92, 0.35, 0.55, 0.3, 0.45], "attachment": "secure", "conflictStyle": "confront", "humor": "teasing",
+      "values": ["honesty", "freedom", "ambition", "fun"], "formality": 0.2, "sentenceLen": 7,
+      "fillers": ["look", "honestly"], "fillerRate": 0.2, "trailing": "none", "slang": [], "catchphrases": ["Be real.", "Boring."],
+      "exemplars": ["That's a nice answer. Now the true one.", "The light in here at six is the only honest thing in this house.", "Don't be cute. Answer."],
+      "goals": [{ "text": "make one great piece of work", "kind": "creative" }, { "text": "have a real conversation", "kind": "honesty" }],
+      "secrets": ["joined mostly for exposure", "has a gallery contract they might lose"],
+      "fears": ["being ordinary"], "tells": ["hums", "turns the question around"],
+      "hobbies": ["sketching", "vinyl", "night walks"], "tastes": [0.4, -0.3, 0.8, 0.5, 0.3, 0.2],
+      "arcTemplate": "tpl-breakthrough", "voiceNotes": "Wry, direct, a little lyrical.", "gossipiness": 0.2
+    },
+    {
+      "id": "sunny-athlete", "label": "sunny athlete", "occupations": ["volleyball coach", "personal trainer", "lifeguard", "firefighter"],
+      "traits": [0.4, 0.7, 0.8, 0.75, 0.2], "attachment": "secure", "conflictStyle": "confront", "humor": "slapstick",
+      "values": ["fun", "loyalty", "ambition", "harmony"], "formality": 0.3, "sentenceLen": 7,
+      "fillers": ["yeah", "alright"], "fillerRate": 0.25, "trailing": "exclaim", "slang": ["let's go"], "catchphrases": ["One more rep!"],
+      "exemplars": ["Morning run, who's in? Nobody? Cool, cool.", "Ate four onigiri. Still hungry!", "Hey. You good? You look off."],
+      "goals": [{ "text": "make the regional team", "kind": "career" }, { "text": "get everyone up early once", "kind": "friends" }],
+      "secrets": ["has a knee injury that might end their career"],
+      "fears": ["sitting still"], "tells": ["stretches when nervous", "laughs too loud"],
+      "hobbies": ["running", "volleyball", "camping"], "tastes": [0.6, 0.3, 0.4, 0.6, 0.6, 0.2],
+      "arcTemplate": "tpl-crossroads", "voiceNotes": "Upbeat, simple, physical.", "gossipiness": 0.2
+    },
+    {
+      "id": "cool-strategist", "label": "cool strategist", "occupations": ["consultant", "law student", "stock analyst", "data scientist"],
+      "traits": [0.55, 0.9, 0.45, 0.35, 0.25], "attachment": "avoidant", "conflictStyle": "confront", "humor": "dry",
+      "values": ["ambition", "security", "honesty", "freedom"], "formality": 0.7, "sentenceLen": 10,
+      "fillers": ["frankly", "objectively"], "fillerRate": 0.15, "trailing": "none", "slang": [], "catchphrases": ["Let's be efficient."],
+      "exemplars": ["Objectively, that was a bad decision. But I respect it.", "I scheduled time for fun on Thursday.", "You're asking the wrong question."],
+      "goals": [{ "text": "land a partnership track job", "kind": "career" }, { "text": "prove they can relax", "kind": "friends" }],
+      "secrets": ["was rejected by every firm they list on their resume"],
+      "fears": ["losing control"], "tells": ["checks their watch", "goes very precise"],
+      "hobbies": ["chess", "running", "podcasts"], "tastes": [0.3, -0.2, 0.2, 0.7, -0.1, 0.5],
+      "arcTemplate": "tpl-secret", "voiceNotes": "Crisp, analytical, dry.", "gossipiness": 0.15
+    },
+    {
+      "id": "dreamy-romantic", "label": "dreamy romantic", "occupations": ["florist", "bookshop clerk", "pastry chef", "wedding planner"],
+      "traits": [0.8, 0.4, 0.5, 0.8, 0.6], "attachment": "anxious", "conflictStyle": "avoid", "humor": "self-deprecating",
+      "values": ["family", "harmony", "fun", "loyalty"], "formality": 0.45, "sentenceLen": 11,
+      "fillers": ["oh", "kind of"], "fillerRate": 0.3, "trailing": "ellipsis", "slang": [], "catchphrases": ["It's like a movie..."],
+      "exemplars": ["Don't you think the rain makes everything feel like a movie?", "I bought too many flowers again. Here, take one...", "Oh no, I'm crying at the commercial."],
+      "goals": [{ "text": "fall in love properly", "kind": "partner" }, { "text": "plan the perfect date", "kind": "partner" }],
+      "secrets": ["has a fiancé back home they have not broken up with"],
+      "fears": ["being ordinary in love"], "tells": ["blushes and laughs", "talks about a movie instead"],
+      "hobbies": ["flower arranging", "old films", "letter writing"], "tastes": [0.1, 0.9, -0.3, 0.2, 0.3, 0.6],
+      "arcTemplate": "tpl-ex-returns", "voiceNotes": "Warm, dreamy, a little dramatic.", "gossipiness": 0.4
+    },
+    {
+      "id": "class-clown", "label": "class clown", "occupations": ["comedy writer", "bartender", "game tester", "radio assistant"],
+      "traits": [0.7, 0.3, 0.85, 0.65, 0.5], "attachment": "anxious", "conflictStyle": "deflect-with-humor", "humor": "self-deprecating",
+      "values": ["fun", "harmony", "loyalty", "freedom"], "formality": 0.15, "sentenceLen": 10,
+      "fillers": ["so", "basically"], "fillerRate": 0.35, "trailing": "question", "slang": ["classic"], "catchphrases": ["Classic me."],
+      "exemplars": ["I tripped on nothing. Classic me.", "So basically I'm a disaster, but a fun disaster?", "Okay that hurt my feelings, but in a funny way."],
+      "goals": [{ "text": "get taken seriously once", "kind": "career" }, { "text": "make everyone laugh at dinner", "kind": "friends" }],
+      "secrets": ["was secretly in therapy for burnout"],
+      "fears": ["being nobody's first choice"], "tells": ["makes a joke at their own expense", "laughs alone"],
+      "hobbies": ["improv", "retro games", "karaoke"], "tastes": [0.7, 0.5, 0.5, 0.5, 0.9, -0.4],
+      "arcTemplate": "tpl-homesick", "voiceNotes": "Self-deprecating jokes masking nerves.", "gossipiness": 0.5
+    },
+    {
+      "id": "homebody-gamer", "label": "homebody gamer", "occupations": ["programmer", "translator", "animator", "pharmacy clerk"],
+      "traits": [0.6, 0.55, 0.15, 0.6, 0.55], "attachment": "avoidant", "conflictStyle": "passive-aggressive", "humor": "dry",
+      "values": ["freedom", "security", "honesty", "fun"], "formality": 0.4, "sentenceLen": 6,
+      "fillers": ["uh", "I guess"], "fillerRate": 0.3, "trailing": "ellipsis", "slang": ["gg"], "catchphrases": ["gg."],
+      "exemplars": ["I was going to come, but... I guess I'm already in pajamas.", "That's a lot of people. Pass.", "...It's fine. Someone just took my yogurt. It's fine."],
+      "goals": [{ "text": "ship their indie game", "kind": "creative" }, { "text": "go outside once a week", "kind": "friends" }],
+      "secrets": ["their parents think they work at a bank"],
+      "fears": ["crowds", "being laughed at"], "tells": ["mumbles", "looks at the floor"],
+      "hobbies": ["gaming", "model kits", "anime"], "tastes": [0.6, 0.6, 0.1, 0.5, 0.7, -0.2],
+      "arcTemplate": "tpl-homesick", "voiceNotes": "Mumbling, deadpan, quietly sarcastic.", "gossipiness": 0.15
+    },
+    {
+      "id": "elegant-heiress", "label": "elegant heiress", "occupations": ["gallery assistant", "model", "interior designer", "sommelier"],
+      "traits": [0.7, 0.6, 0.6, 0.4, 0.35], "attachment": "avoidant", "conflictStyle": "passive-aggressive", "humor": "teasing",
+      "values": ["freedom", "ambition", "fun", "security"], "formality": 0.75, "sentenceLen": 9,
+      "fillers": ["darling", "hm"], "fillerRate": 0.15, "trailing": "none", "slang": [], "catchphrases": ["How charming."],
+      "exemplars": ["How charming. You made curry. Again.", "I don't do group chats, darling.", "Let's not pretend we're all friends here."],
+      "goals": [{ "text": "be seen for their own work", "kind": "career" }, { "text": "live without family money", "kind": "savings" }],
+      "secrets": ["their family cut them off before they moved in"],
+      "fears": ["being pitied"], "tells": ["laughs lightly", "changes topic to someone else's flaw"],
+      "hobbies": ["wine", "galleries", "tennis"], "tastes": [0.3, 0.2, -0.2, 0.7, 0.5, 0.4],
+      "arcTemplate": "tpl-secret", "voiceNotes": "Poised, teasing, slightly cold.", "gossipiness": 0.6
+    },
+    {
+      "id": "earnest-student", "label": "earnest student", "occupations": ["grad student", "trainee chef", "medical resident", "apprentice carpenter"],
+      "traits": [0.65, 0.7, 0.5, 0.75, 0.55], "attachment": "anxious", "conflictStyle": "avoid", "humor": "none",
+      "values": ["ambition", "family", "honesty", "harmony"], "formality": 0.6, "sentenceLen": 10,
+      "fillers": ["ah", "actually"], "fillerRate": 0.3, "trailing": "question", "slang": [], "catchphrases": ["I'll do my best!"],
+      "exemplars": ["Ah, I read about this! Is it true that you have to rest the meat?", "I'll do my best! ...What are we doing?", "Actually, could you teach me?"],
+      "goals": [{ "text": "pass their final exam", "kind": "career" }, { "text": "make a real friend", "kind": "friends" }],
+      "secrets": ["failed the exam once already"],
+      "fears": ["disappointing their parents"], "tells": ["over-explains", "nods too much"],
+      "hobbies": ["flashcards", "jogging", "piano"], "tastes": [0.3, 0.6, 0.0, 0.4, 0.2, 0.5],
+      "arcTemplate": "tpl-crossroads", "voiceNotes": "Eager, polite, curious.", "gossipiness": 0.25
+    },
+    {
+      "id": "wanderer", "label": "wanderer", "occupations": ["travel writer", "yoga teacher", "barista", "deckhand"],
+      "traits": [0.85, 0.25, 0.65, 0.6, 0.3], "attachment": "avoidant", "conflictStyle": "avoid", "humor": "dry",
+      "values": ["freedom", "fun", "honesty", "harmony"], "formality": 0.25, "sentenceLen": 9,
+      "fillers": ["eh", "you know"], "fillerRate": 0.25, "trailing": "ellipsis", "slang": [], "catchphrases": ["Wherever the wind goes."],
+      "exemplars": ["I've slept on worse floors. In Laos, there was this one...", "Eh, plans are suggestions.", "You know, you could just... leave. People do."],
+      "goals": [{ "text": "decide whether to settle down", "kind": "partner" }, { "text": "finish their travel book", "kind": "creative" }],
+      "secrets": ["has never stayed anywhere longer than six months"],
+      "fears": ["being trapped"], "tells": ["looks out the window", "tells a travel story"],
+      "hobbies": ["hiking", "photography", "street food"], "tastes": [0.4, 0.2, 0.7, 0.6, 0.3, 0.5],
+      "arcTemplate": "tpl-crossroads", "voiceNotes": "Laid-back, anecdotal, noncommittal.", "gossipiness": 0.2
+    },
+    {
+      "id": "big-sister", "label": "big sister", "occupations": ["hair stylist", "restaurant manager", "office manager", "midwife"],
+      "traits": [0.5, 0.8, 0.7, 0.7, 0.3], "attachment": "secure", "conflictStyle": "confront", "humor": "teasing",
+      "values": ["loyalty", "family", "honesty", "harmony"], "formality": 0.35, "sentenceLen": 8,
+      "fillers": ["listen", "okay"], "fillerRate": 0.25, "trailing": "none", "slang": [], "catchphrases": ["Listen to your big sister."],
+      "exemplars": ["Listen. You're doing it again. Text him back.", "Who left the rice cooker on? I'm not mad. I'm a little mad.", "Okay, sit. Tell me everything."],
+      "goals": [{ "text": "date someone who takes care of them for once", "kind": "partner" }, { "text": "get the house running properly", "kind": "friends" }],
+      "secrets": ["is divorced and has not told anyone"],
+      "fears": ["being needed but not wanted"], "tells": ["starts tidying", "gives advice instead of answering"],
+      "hobbies": ["cooking", "karaoke", "hot springs"], "tastes": [0.5, 0.3, 0.5, 0.7, 0.5, 0.3],
+      "arcTemplate": "tpl-secret", "voiceNotes": "Warm but bossy, teasing, protective.", "gossipiness": 0.35
+    }
+  ],
+  "names": {
+    "woman": ["Aoi", "Hina", "Rina", "Yuna", "Emi", "Nanami", "Kana", "Misaki", "Saki", "Haruka", "Ayaka", "Chiharu", "Natsuki", "Riko"],
+    "man": ["Haruto", "Yuto", "Daichi", "Sota", "Riku", "Takumi", "Kenta", "Hiroki", "Ryo", "Yamato", "Kosuke", "Taiga", "Itsuki", "Naoki"],
+    "nonbinary": ["Hikaru", "Makoto", "Nao", "Tsubasa", "Yuki", "Akira"],
+    "family": ["Ishida", "Kono", "Sakurai", "Tanabe", "Ueno", "Mizuno", "Ogawa", "Nishida", "Hoshino", "Kitamura", "Arai", "Takeda"]
+  },
+  "hometowns": ["Sapporo", "Nagoya", "Kobe", "Hiroshima", "Matsuyama", "Kagoshima", "Niigata", "Okinawa", "Kyoto", "Nagano", "Akita", "Kochi"],
+  "appearance": {
+    "hairStyle": ["short crop", "long straight", "ponytail", "wavy bob", "buzz cut", "messy medium", "twin braids", "undercut", "long wavy", "neat side part"],
+    "hairColor": ["black", "dark brown", "chestnut", "ash blonde", "pink-dyed", "navy-dyed", "silver-dyed", "auburn"],
+    "eyeColor": ["dark brown", "brown", "hazel", "grey", "amber"],
+    "build": ["slim", "athletic", "petite", "tall", "broad", "average"],
+    "outfit": ["hoodie and jeans", "linen shirt", "denim jacket", "striped sweater", "track jacket", "flannel shirt", "turtleneck", "summer dress", "overalls", "blazer"],
+    "accessory": ["none", "glasses", "beanie", "earrings", "headphones", "cap", "scarf", "wristwatch"],
+    "skinTone": ["fair", "light", "light tan", "tan", "deep tan", "brown"]
+  }
+}

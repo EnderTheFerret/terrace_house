@@ -1,0 +1,14 @@
+{
+  "startMonth": 4,
+  "startDay": 1,
+  "daysPerEpisode": 15,
+  "events": [
+    { "id": "hanami", "name": "cherry blossom viewing", "month": 4, "dayFrom": 1, "dayTo": 14, "node": "park", "eventTemplate": "cal-hanami" },
+    { "id": "beach-day", "name": "summer beach day", "month": 7, "dayFrom": 15, "dayTo": 31, "node": "beach", "eventTemplate": "cal-beach" },
+    { "id": "fireworks", "name": "harbor fireworks festival", "month": 8, "dayFrom": 1, "dayTo": 20, "node": "riverside", "eventTemplate": "cal-fireworks" },
+    { "id": "matsuri", "name": "autumn matsuri", "month": 10, "dayFrom": 1, "dayTo": 25, "node": "shrine", "eventTemplate": "cal-matsuri" },
+    { "id": "christmas", "name": "christmas lights", "month": 12, "dayFrom": 8, "dayTo": 25, "node": "arcade", "eventTemplate": "cal-lights" },
+    { "id": "hatsumode", "name": "new year shrine visit", "month": 1, "dayFrom": 1, "dayTo": 15, "node": "shrine", "eventTemplate": "cal-hatsumode" },
+    { "id": "typhoon", "name": "typhoon day", "month": 9, "dayFrom": 1, "dayTo": 30, "eventTemplate": "cal-typhoon" }
+  ]
+}

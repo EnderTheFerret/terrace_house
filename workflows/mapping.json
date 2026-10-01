@@ -1,0 +1,11 @@
+{
+  "_comment": "Maps logical inputs to node ids/input names in txt2img.api.json. Swap the workflow and edit this file; no code changes needed. Omit a key to leave that input untouched.",
+  "positive": { "node": "6", "input": "text" },
+  "negative": { "node": "7", "input": "text" },
+  "seed": { "node": "9", "input": "seed" },
+  "width": { "node": "8", "input": "width" },
+  "height": { "node": "8", "input": "height" },
+  "batch": { "node": "8", "input": "batch_size" },
+  "checkpoint": { "node": "1", "input": "unet_name" },
+  "output": { "node": "11" }
+}

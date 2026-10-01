@@ -1,0 +1,101 @@
+{
+  "events": [
+    {
+      "id": "dishes-pile", "type": "dishes", "title": "the dishes tower", "tags": ["domestic", "conflict", "chores"], "domestic": true,
+      "slots": ["morning", "evening"], "location": "kitchen",
+      "roles": { "a": {}, "b": {} }, "pre": [{ "house": "dishes", "min": 60 }], "weight": 2.2,
+      "drama": { "tension": [["a", "b", 6]], "affinity": [["a", "b", -2]] },
+      "beats": ["open", "probe", "deflect", "choice", "close"], "intents": ["confront", "support", "joke", "deflect"],
+      "premise": "The sink is a tower of plates. {a} stares at it, then at {b}, who cooked last night.",
+      "effects": [{ "house": { "dishes": -50 } }]
+    },
+    {
+      "id": "labeled-food", "type": "labeled-food", "title": "who ate the pudding", "tags": ["domestic", "conflict", "comedy"], "domestic": true,
+      "slots": ["morning", "slot3", "evening"], "location": "kitchen",
+      "roles": { "a": {}, "b": {} }, "pre": [{ "ateFoodOf": ["b", "a"] }], "weight": 2.5,
+      "drama": { "tension": [["a", "b", 8]], "trust": [["a", "b", -4]], "affinity": [["a", "b", -3]] },
+      "beats": ["open", "probe", "deflect", "choice", "conflict", "close"], "intents": ["confront", "apologize", "joke", "deflect"],
+      "premise": "{a}'s pudding, clearly labeled with their name in marker, is gone. {b} is holding a small spoon.",
+      "effects": [{ "reference": { "kind": "running-gag", "text": "the stolen pudding" } }]
+    },
+    {
+      "id": "bathroom-queue", "type": "bathroom-queue", "title": "bathroom queue", "tags": ["domestic", "comedy", "morning"], "domestic": true,
+      "slots": ["morning"], "location": "bathroom",
+      "roles": { "a": {}, "b": {} }, "pre": [{ "house": "bathroomQueue", "min": 3 }, { "weekend": false }], "weight": 1.8,
+      "drama": { "tension": [["a", "b", 5]], "mood": [["a", -0.05]] },
+      "beats": ["open", "interrupt", "joke", "choice", "close"], "intents": ["joke", "confront", "support"],
+      "premise": "7:42 a.m. {a} knocks on the bathroom door for the third time. {b} has been in there twenty-five minutes."
+    },
+    {
+      "id": "night-noise", "type": "noise", "title": "noise at night", "tags": ["domestic", "conflict"], "domestic": true,
+      "slots": ["evening"], "location": "living",
+      "roles": { "a": {}, "b": {} }, "pre": [{ "house": "noise", "min": 45 }], "weight": 1.8,
+      "drama": { "tension": [["a", "b", 7]], "affinity": [["a", "b", -2]] },
+      "beats": ["open", "probe", "deflect", "choice", "close"], "intents": ["confront", "joke", "apologize"],
+      "premise": "Past midnight, {b} is still laughing on a video call in the living room. {a} comes down in pajamas.",
+      "effects": [{ "house": { "noise": -25 } }]
+    },
+    {
+      "id": "aircon-war", "type": "aircon", "title": "the aircon war", "tags": ["domestic", "comedy", "conflict"], "domestic": true,
+      "slots": ["slot3", "evening"], "location": "living",
+      "roles": { "a": {}, "b": {} }, "pre": [{ "season": ["summer", "winter"] }], "weight": 1.3,
+      "drama": { "tension": [["a", "b", 5], ["b", "a", 3]] },
+      "beats": ["open", "tease", "conflict", "choice", "joke", "close"], "intents": ["joke", "confront", "support"],
+      "premise": "The remote says 24. {a} sets it to 27. Ten minutes later it says 22. {b} is wearing a hoodie, smiling innocently.",
+      "effects": [{ "reference": { "kind": "running-gag", "text": "the thermostat war" } }]
+    },
+    {
+      "id": "laundry-mixup", "type": "laundry", "title": "laundry mix-up", "tags": ["domestic", "comedy", "awkward"], "domestic": true,
+      "slots": ["morning", "slot3"], "location": "rooftop",
+      "roles": { "a": {}, "b": {} }, "pre": [{ "house": "laundry", "min": 50 }], "weight": 1.5,
+      "drama": { "affinity": [["a", "b", 2]], "tension": [["b", "a", 3]] },
+      "beats": ["open", "interrupt", "joke", "choice", "close"], "intents": ["joke", "apologize", "flirt"],
+      "premise": "{a} takes in the rooftop laundry and realizes the pink shirt they're holding was white this morning. It's {b}'s.",
+      "effects": [{ "house": { "laundry": -40 } }]
+    },
+    {
+      "id": "grocery-budget", "type": "grocery-budget", "title": "grocery budget meeting", "tags": ["domestic", "money", "house-meeting"], "domestic": true,
+      "slots": ["morning", "evening"], "location": "kitchen",
+      "roles": { "a": {}, "b": {} }, "pre": [{ "house": "groceryBudget", "max": 4000 }], "weight": 2,
+      "drama": { "tension": [["a", "b", 5], ["b", "a", 4]], "trust": [["a", "b", -2]] },
+      "beats": ["open", "probe", "conflict", "choice", "close"], "intents": ["honest", "confront", "support"],
+      "premise": "The shared grocery envelope is nearly empty. {a} spreads the receipts on the table; one is for very expensive wagyu, signed by {b}.",
+      "effects": [{ "house": { "groceryBudget": 8000 } }, { "money": -1500 }]
+    },
+    {
+      "id": "grocery-run", "type": "grocery-run", "title": "grocery run", "tags": ["domestic", "errand", "light"], "domestic": true,
+      "slots": ["slot1", "slot2", "slot3"], "location": "kitchen",
+      "roles": { "a": {}, "b": {} }, "pre": [{ "house": "fridgeTotal", "max": 14 }], "weight": 2.2,
+      "drama": { "affinity": [["a", "b", 4], ["b", "a", 3]] },
+      "beats": ["open", "smalltalk", "tease", "choice", "close"], "intents": ["joke", "flirt", "support"],
+      "premise": "The fridge is down to mustard and hope. {a} and {b} grab tote bags and walk to the market.",
+      "effects": [{ "fridge": { "rice": 4, "egg": 6, "cabbage": 2, "onion": 3, "pork": 2, "chicken": 2, "tofu": 2, "carrot": 2, "potato": 2, "noodles": 2, "scallion": 2 } }, { "house": { "groceryBudget": -3500 } }]
+    },
+    {
+      "id": "trash-day", "type": "trash-day", "title": "trash day forgotten", "tags": ["domestic", "chores", "outsider"], "domestic": true,
+      "slots": ["morning"], "location": "entrance",
+      "roles": { "a": {}, "b": {} }, "pre": [{ "house": "trash", "min": 60 }], "weight": 1.6,
+      "drama": { "tension": [["a", "b", 6]] },
+      "beats": ["open", "interrupt", "probe", "choice", "close"], "intents": ["confront", "joke", "support"],
+      "premise": "The garbage truck is leaving the corner. {a} sprints after it with two bags; {b} watches from the doorway in slippers.",
+      "effects": [{ "house": { "trash": -60 } }]
+    },
+    {
+      "id": "house-rules", "type": "house-meeting", "title": "house rules meeting", "tags": ["domestic", "group", "house-meeting"], "domestic": true,
+      "slots": ["evening"], "location": "living",
+      "roles": { "a": {}, "b": {}, "c": {} }, "pre": [{ "house": "dishes", "min": 40 }, { "chance": 0.5 }], "weight": 1.4,
+      "drama": { "tension": [["a", "c", 4], ["c", "a", 4]], "trust": [["b", "a", 2]] },
+      "beats": ["open", "probe", "conflict", "choice", "comfort", "close"], "intents": ["honest", "support", "joke", "confront"],
+      "premise": "{a} calls a house meeting with a whiteboard and colored markers. {c} sits down with the energy of someone on trial; {b} brought snacks.",
+      "effects": [{ "house": { "dishes": -30, "trash": -30 } }]
+    },
+    {
+      "id": "rice-cooker", "type": "rice-cooker", "title": "the rice cooker incident", "tags": ["domestic", "comedy"], "domestic": true,
+      "slots": ["morning", "evening"], "location": "kitchen",
+      "roles": { "a": {}, "b": {} }, "pre": [{ "chance": 0.25 }], "weight": 0.8,
+      "drama": { "tension": [["a", "b", 3]], "affinity": [["b", "a", 2]] },
+      "beats": ["open", "probe", "joke", "choice", "close"], "intents": ["joke", "confront", "apologize"],
+      "premise": "Someone left the rice cooker on 'keep warm' for three days. {a} lifts the lid. {b} slowly backs out of the kitchen."
+    }
+  ]
+}

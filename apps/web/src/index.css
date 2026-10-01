@@ -1,0 +1,181 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-pixel: 'DotGothic16', ui-monospace, monospace;
+  --color-cream: #fdf6ec;
+  --color-paper: #fffaf3;
+  --color-ink: #3a2e3f;
+  --color-ink-soft: #6b5d70;
+  --color-rose: #e07a6a;
+  --color-mint: #8fd3b8;
+  --color-sky: #9fd3e6;
+  --color-lilac: #c9b4ef;
+  --color-butter: #f6d48f;
+  --color-peach: #f7b98a;
+}
+
+:root {
+  --text-scale: 1;
+  color-scheme: light;
+}
+
+html {
+  font-size: calc(16px * var(--text-scale));
+}
+
+body {
+  margin: 0;
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-pixel);
+  -webkit-font-smoothing: none;
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+}
+
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* pixel 9-slice look with box-shadows (no images needed) */
+.px-panel {
+  background: var(--color-paper);
+  box-shadow:
+    0 0 0 3px var(--color-ink),
+    5px 5px 0 3px rgb(58 46 63 / 0.18);
+}
+.px-panel-soft {
+  background: var(--color-paper);
+  box-shadow: 0 0 0 2px var(--color-ink-soft);
+}
+
+.px-btn {
+  background: var(--color-paper);
+  box-shadow:
+    0 0 0 2px var(--color-ink),
+    3px 3px 0 2px rgb(58 46 63 / 0.25);
+  padding: 0.35rem 0.8rem;
+  text-transform: lowercase;
+  transition: transform 80ms;
+  cursor: pointer;
+}
+.px-btn:hover:not(:disabled) {
+  background: #fff1dd;
+}
+.px-btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 2px var(--color-ink);
+}
+.px-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.px-btn-primary {
+  background: var(--color-rose);
+  color: #fff;
+}
+.px-btn-primary:hover:not(:disabled) {
+  background: #e98c7d;
+}
+
+:focus-visible {
+  outline: 3px dashed var(--color-rose);
+  outline-offset: 3px;
+}
+
+.caption {
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-soft);
+}
+
+.blink {
+  animation: blink 1s steps(2) infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+.fade-in {
+  animation: fadein 400ms ease-out both;
+}
+@keyframes fadein {
+  from {
+    opacity: 0;
+  }
+}
+.crossfade-img {
+  transition: opacity 600ms ease;
+}
+.freeze-zoom {
+  animation: freezezoom 4s ease-out both;
+}
+@keyframes freezezoom {
+  from {
+    transform: scale(1);
+    filter: saturate(1);
+  }
+  to {
+    transform: scale(1.12);
+    filter: saturate(0.85) contrast(1.05);
+  }
+}
+.bob {
+  animation: bob 1.6s steps(2) infinite;
+}
+@keyframes bob {
+  50% {
+    transform: translateY(-2px);
+  }
+}
+.slide-up {
+  animation: slideup 300ms ease-out both;
+}
+@keyframes slideup {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+.luggage {
+  animation: luggage 3.2s linear both;
+}
+@keyframes luggage {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-120%);
+  }
+}
+
+.rain-overlay {
+  background-image: repeating-linear-gradient(105deg, rgb(255 255 255 / 0.35) 0 1px, transparent 1px 9px);
+  animation: rain 0.5s linear infinite;
+}
+@keyframes rain {
+  to {
+    background-position: -20px 40px;
+  }
+}
+
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-soft) transparent;
+}
+
+input[type='range'] {
+  accent-color: var(--color-rose);
+}

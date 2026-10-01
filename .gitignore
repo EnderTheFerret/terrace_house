@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+data/
+logs/
+cache/
+*.log
+.vite/
+coverage/
+*.tsbuildinfo

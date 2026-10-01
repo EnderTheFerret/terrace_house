@@ -1,0 +1,38 @@
+{
+  "name": "shared-roof",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Shared Roof — a reality-show life-sim in top-down pixel art. Local-first, mock mode needs no services.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs real",
+    "dev:mock": "node scripts/dev.mjs mock",
+    "build": "npm run typecheck && npm run build -w apps/web",
+    "start": "npm run start -w apps/server",
+    "typecheck": "tsc -p packages/shared && tsc -p apps/server && tsc -p apps/web",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "replay": "tsx scripts/replay.ts",
+    "smoke": "tsx scripts/smoke.ts",
+    "sim": "tsx scripts/sim.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.0",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "prettier": "^3.9.9",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^5.0.3"
+  }
+}

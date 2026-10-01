@@ -1,0 +1,249 @@
+{
+  "cast": [
+    {
+      "id": "ren",
+      "name": "Ren Aizawa",
+      "age": 28,
+      "gender": "man",
+      "interestedIn": ["woman"],
+      "occupation": "line cook",
+      "hometown": "Onomichi",
+      "appearance": { "hairStyle": "short messy", "hairColor": "black", "eyeColor": "dark brown", "build": "lean", "outfit": "white cook t-shirt and canvas apron", "accessory": "kitchen towel over shoulder", "skinTone": "light tan" },
+      "voiceNotes": "Short, dry sentences that trail off. Rarely says how he feels; offers food instead. Never gushes.",
+      "portraitSeed": 1101,
+      "contractEp": 20,
+      "persona": {
+        "traits": [0.45, 0.85, 0.2, 0.55, 0.4],
+        "attachment": "avoidant",
+        "conflictStyle": "avoid",
+        "values": ["family", "loyalty", "ambition", "security", "honesty"],
+        "needsProfile": { "energy": 9, "hunger": 11, "social": 3, "privacy": 9, "romance": 2, "achievement": 7 },
+        "goals": {
+          "long": { "id": "ren-own-restaurant", "text": "save enough to reopen the family restaurant", "kind": "savings" },
+          "short": { "id": "ren-new-dish", "text": "perfect a new dish someone here actually likes", "kind": "career" }
+        },
+        "secret": { "factId": "secret-ren", "content": "Ren's family restaurant closed and he is secretly saving to reopen it.", "exposureCost": 0.5 },
+        "fears": ["being pitied", "letting his parents down"],
+        "tells": ["wipes the counter that is already clean", "answers with a question about food"],
+        "speech": {
+          "sentenceLen": { "mean": 5, "sd": 2 },
+          "formality": 0.35,
+          "fillers": ["mm", "...right"],
+          "fillerRate": 0.15,
+          "humor": "dry",
+          "catchphrase": { "text": "Eat first. Talk later.", "maxRate": 0.08 },
+          "trailing": "ellipsis",
+          "chat": { "stampRate": 0.05, "punctuation": "none", "replyLatency": "slow", "readIgnoreProb": 0.35 },
+          "exemplars": ["There's rice left. If you want it...", "It's fine. Just salt.", "Didn't make it for you. Made too much."],
+          "doNot": ["long speeches", "exclamation marks", "talking about feelings directly"],
+          "slang": []
+        },
+        "routine": {
+          "jobSlots": [{ "slot": "slot2", "weekdays": [2, 3, 4, 5] }, { "slot": "slot3", "weekdays": [2, 3, 4, 5] }],
+          "habits": [{ "slot": "evening", "action": "cook", "room": "kitchen" }, { "slot": "morning", "action": "cook", "room": "kitchen" }],
+          "hobbies": ["knife sharpening", "night fishing", "old cookbooks"],
+          "tastes": [0.6, -0.2, 0.3, 0.9, 0.4, 0.1]
+        },
+        "backstory": "Grew up behind the counter of his parents' small eatery in a port town. When it closed two years ago he moved to the city and works double shifts at a busy grill. He joined the house because rent was cheap and someone at work dared him. He keeps a notebook of recipes he never shows anyone.",
+        "homesickness": 0.55,
+        "gossipiness": 0.1
+      }
+    },
+    {
+      "id": "kaito",
+      "name": "Kaito Morimoto",
+      "age": 24,
+      "gender": "man",
+      "interestedIn": ["woman"],
+      "occupation": "surf instructor turned content creator",
+      "hometown": "Shonan",
+      "appearance": { "hairStyle": "wavy shoulder-length", "hairColor": "sun-bleached brown", "eyeColor": "brown", "build": "athletic", "outfit": "oversized graphic tee and board shorts", "accessory": "shell necklace", "skinTone": "tan" },
+      "voiceNotes": "Fast, slangy, hype-heavy. Turns everything into a bit or a clip. Jokes when things get serious.",
+      "portraitSeed": 1202,
+      "contractEp": 18,
+      "persona": {
+        "traits": [0.65, 0.2, 0.92, 0.6, 0.35],
+        "attachment": "secure",
+        "conflictStyle": "deflect-with-humor",
+        "values": ["fun", "freedom", "ambition", "loyalty", "harmony"],
+        "needsProfile": { "energy": 8, "hunger": 12, "social": 12, "privacy": 2, "romance": 5, "achievement": 6 },
+        "goals": {
+          "long": { "id": "kaito-audience", "text": "hit a big follower milestone before leaving", "kind": "audience" },
+          "short": { "id": "kaito-viral", "text": "get one genuinely viral moment out of the house", "kind": "audience" }
+        },
+        "secret": { "factId": "secret-kaito", "content": "Kaito's online success is exaggerated; most of his followers are bought.", "exposureCost": 0.7 },
+        "fears": ["being boring", "people seeing the numbers"],
+        "tells": ["over-laughs", "pulls out his phone to change the subject"],
+        "speech": {
+          "sentenceLen": { "mean": 9, "sd": 3 },
+          "formality": 0.05,
+          "fillers": ["like", "bro", "no but"],
+          "fillerRate": 0.45,
+          "humor": "slapstick",
+          "catchphrase": { "text": "That's content, right there!", "maxRate": 0.1 },
+          "trailing": "exclaim",
+          "chat": { "stampRate": 0.6, "punctuation": "heavy", "replyLatency": "instant", "readIgnoreProb": 0.05 },
+          "exemplars": ["No way, no way, that's insane! Do it again, I wasn't filming!", "Bro, the sunset tonight? Unreal. We gotta go.", "Okay okay, serious face. ...Nah, I can't."],
+          "doNot": ["formal phrasing", "long silences", "admitting the numbers are fake unless the scene is about it"],
+          "slang": ["lowkey", "vibe", "unreal", "no cap"]
+        },
+        "routine": {
+          "jobSlots": [{ "slot": "slot1", "weekdays": [0, 6] }],
+          "habits": [{ "slot": "morning", "action": "exercise", "room": "rooftop" }, { "slot": "slot3", "action": "hobby", "room": "living" }],
+          "hobbies": ["surfing", "editing videos", "skateboarding"],
+          "tastes": [0.5, 0.6, 0.7, 0.4, 0.8, -0.3]
+        },
+        "backstory": "Taught surfing for six summers and started posting clips of tourists wiping out. A few went big; since then he has been chasing that feeling. He bought followers once to look legit for a sponsor, and now cannot stop. He is genuinely kind to anyone who looks lonely, then films it.",
+        "homesickness": 0.2,
+        "gossipiness": 0.55
+      }
+    },
+    {
+      "id": "shun",
+      "name": "Shun Hayakawa",
+      "age": 31,
+      "gender": "man",
+      "interestedIn": ["woman"],
+      "occupation": "architect",
+      "hometown": "Kanazawa",
+      "appearance": { "hairStyle": "neat side part", "hairColor": "dark brown", "eyeColor": "brown", "build": "tall and slim", "outfit": "navy knit sweater over collared shirt", "accessory": "thin round glasses", "skinTone": "fair" },
+      "voiceNotes": "Polite, measured, slightly formal. Asks careful questions and summarizes what others feel. Rarely talks about himself.",
+      "portraitSeed": 1303,
+      "contractEp": 22,
+      "persona": {
+        "traits": [0.6, 0.75, 0.5, 0.88, 0.3],
+        "attachment": "secure",
+        "conflictStyle": "mediate",
+        "values": ["harmony", "family", "honesty", "security", "loyalty"],
+        "needsProfile": { "energy": 7, "hunger": 10, "social": 7, "privacy": 5, "romance": 6, "achievement": 6 },
+        "goals": {
+          "long": { "id": "shun-marriage", "text": "find someone to build a life with", "kind": "marriage" },
+          "short": { "id": "shun-peace", "text": "keep the house from splitting into camps", "kind": "friends" }
+        },
+        "secret": { "factId": "secret-shun", "content": "Shun's parents arranged a marriage meeting back home, and he hasn't said no yet.", "exposureCost": 0.4 },
+        "fears": ["that he has run out of time to marry", "being everyone's counselor and no one's partner"],
+        "tells": ["adjusts his glasses", "answers a question with a question about the other person"],
+        "speech": {
+          "sentenceLen": { "mean": 12, "sd": 3 },
+          "formality": 0.8,
+          "fillers": ["well", "I suppose"],
+          "fillerRate": 0.2,
+          "humor": "self-deprecating",
+          "catchphrase": null,
+          "trailing": "none",
+          "chat": { "stampRate": 0.15, "punctuation": "normal", "replyLatency": "erratic", "readIgnoreProb": 0.05 },
+          "exemplars": ["I think what you're saying is that you felt left out. Is that fair?", "Please, take the last one. I've had plenty.", "I'm afraid I'm not very good at this kind of thing."],
+          "doNot": ["slang", "raising his voice", "gossiping"],
+          "slang": []
+        },
+        "routine": {
+          "jobSlots": [{ "slot": "slot1", "weekdays": [1, 2, 3, 4, 5] }, { "slot": "slot2", "weekdays": [1, 2, 3, 4, 5] }],
+          "habits": [{ "slot": "evening", "action": "tidy", "room": "living" }, { "slot": "slot3", "action": "hobby", "room": "rooftop" }],
+          "hobbies": ["sketching buildings", "pour-over coffee", "tending balcony plants"],
+          "tastes": [0.2, 0.3, -0.4, 0.6, -0.2, 0.6]
+        },
+        "backstory": "Designs quiet public libraries for a mid-size firm. Watched all his university friends marry, and became the friend who gives the best wedding speech. He moved into the house as a deliberate experiment in meeting people outside work. He is the one housemates come to at 1 a.m.",
+        "homesickness": 0.35,
+        "gossipiness": 0.05
+      }
+    },
+    {
+      "id": "mio",
+      "name": "Mio Fujisawa",
+      "age": 25,
+      "gender": "woman",
+      "interestedIn": ["man"],
+      "occupation": "nurse",
+      "hometown": "Sendai",
+      "appearance": { "hairStyle": "long with soft bangs", "hairColor": "chestnut brown", "eyeColor": "hazel", "build": "petite", "outfit": "pastel cardigan over a long skirt", "accessory": "small hair clip", "skinTone": "fair" },
+      "voiceNotes": "Soft, apologetic, lots of fillers. Hints instead of asking. When pushed too far, one blunt sentence.",
+      "portraitSeed": 1404,
+      "contractEp": 20,
+      "persona": {
+        "traits": [0.5, 0.65, 0.45, 0.85, 0.8],
+        "attachment": "anxious",
+        "conflictStyle": "passive-aggressive",
+        "values": ["loyalty", "harmony", "family", "security", "honesty"],
+        "needsProfile": { "energy": 10, "hunger": 10, "social": 8, "privacy": 4, "romance": 8, "achievement": 4 },
+        "goals": {
+          "long": { "id": "mio-love", "text": "find genuine love, not just someone who is nice to her", "kind": "partner" },
+          "short": { "id": "mio-ex", "text": "stop answering her ex's messages", "kind": "honesty" }
+        },
+        "secret": { "factId": "secret-mio", "content": "Mio is still in contact with her ex and hasn't told anyone.", "exposureCost": 0.6 },
+        "fears": ["being too much for people", "being replaced"],
+        "tells": ["apologizes before anyone accuses her", "checks her phone face-down"],
+        "speech": {
+          "sentenceLen": { "mean": 8, "sd": 3 },
+          "formality": 0.55,
+          "fillers": ["um", "sorry,", "I mean"],
+          "fillerRate": 0.5,
+          "humor": "none",
+          "catchphrase": null,
+          "trailing": "question",
+          "chat": { "stampRate": 0.45, "punctuation": "normal", "replyLatency": "instant", "readIgnoreProb": 0.02 },
+          "exemplars": ["Um, sorry, is anyone using the bath? It's okay if you are!", "I just thought... maybe you'd want to come too? It's fine if not.", "No. Actually, no. That's not okay."],
+          "doNot": ["swearing", "teasing", "direct demands unless she has snapped"],
+          "slang": []
+        },
+        "routine": {
+          "jobSlots": [{ "slot": "slot1", "weekdays": [1, 3, 5] }, { "slot": "slot2", "weekdays": [1, 3, 5] }],
+          "habits": [{ "slot": "evening", "action": "hobby", "room": "living" }, { "slot": "slot3", "action": "text", "room": "bedroomW" }],
+          "hobbies": ["baking", "romance dramas", "collecting stationery"],
+          "tastes": [0.1, 0.9, -0.5, 0.3, 0.2, 0.4]
+        },
+        "backstory": "Works rotating shifts in a pediatric ward and is the colleague everyone leans on. Her last relationship ended when he moved away; he still messages late at night and she still answers. She joined the house hoping to fall for someone the slow way, and notices every small kindness, sometimes ones that weren't meant.",
+        "homesickness": 0.5,
+        "gossipiness": 0.45
+      }
+    },
+    {
+      "id": "sora",
+      "name": "Sora Kuramoto",
+      "age": 26,
+      "gender": "woman",
+      "interestedIn": ["man"],
+      "occupation": "cafe worker and indie musician",
+      "hometown": "Fukuoka",
+      "appearance": { "hairStyle": "asymmetric bob", "hairColor": "black with teal tips", "eyeColor": "dark brown", "build": "slim", "outfit": "vintage band tee, denim jacket, cargo pants", "accessory": "silver ear cuffs", "skinTone": "light" },
+      "voiceNotes": "Wry, direct, sometimes lyrical. Hates small talk, asks the question nobody wants to answer.",
+      "portraitSeed": 1505,
+      "contractEp": 19,
+      "persona": {
+        "traits": [0.92, 0.35, 0.55, 0.3, 0.45],
+        "attachment": "secure",
+        "conflictStyle": "confront",
+        "values": ["honesty", "freedom", "ambition", "fun", "loyalty"],
+        "needsProfile": { "energy": 8, "hunger": 9, "social": 6, "privacy": 7, "romance": 4, "achievement": 8 },
+        "goals": {
+          "long": { "id": "sora-album", "text": "finish the album she keeps restarting", "kind": "creative" },
+          "short": { "id": "sora-real", "text": "have one conversation here that isn't fake", "kind": "honesty" }
+        },
+        "secret": { "factId": "secret-sora", "content": "Sora joined the house mainly for exposure to promote her music.", "exposureCost": 0.45 },
+        "fears": ["becoming background music", "being as fake as she accuses others of being"],
+        "tells": ["goes quiet and hums", "turns the question back on the asker"],
+        "speech": {
+          "sentenceLen": { "mean": 7, "sd": 4 },
+          "formality": 0.2,
+          "fillers": ["look", "honestly"],
+          "fillerRate": 0.2,
+          "humor": "teasing",
+          "catchphrase": { "text": "Say the real thing.", "maxRate": 0.08 },
+          "trailing": "none",
+          "chat": { "stampRate": 0.1, "punctuation": "none", "replyLatency": "erratic", "readIgnoreProb": 0.4 },
+          "exemplars": ["You don't actually think that. Say the real thing.", "Rain on the roof sounds like a kick drum someone forgot to turn off.", "Cute. Now answer the question."],
+          "doNot": ["fake politeness", "gushing", "small talk for more than one line"],
+          "slang": []
+        },
+        "routine": {
+          "jobSlots": [{ "slot": "slot1", "weekdays": [0, 2, 4, 6] }],
+          "habits": [{ "slot": "slot3", "action": "hobby", "room": "rooftop" }, { "slot": "evening", "action": "hobby", "room": "rooftop" }],
+          "hobbies": ["songwriting", "record digging", "night walks"],
+          "tastes": [0.4, -0.3, 0.8, 0.5, 0.3, 0.2]
+        },
+        "backstory": "Plays small bars and pulls espresso by day. Two EPs, one review, and a drawer of half-songs. A friend told her the show would get her heard, so she applied; she hasn't admitted that to herself, let alone the house. She trusts people who argue back.",
+        "homesickness": 0.25,
+        "gossipiness": 0.2
+      }
+    }
+  ]
+}
