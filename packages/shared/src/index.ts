@@ -30,3 +30,4 @@ export * from './sim/season';
 export * from './pixel';
 export * from './engine/view';
 export * from './engine/cooking';
+export * from './engine/talk';

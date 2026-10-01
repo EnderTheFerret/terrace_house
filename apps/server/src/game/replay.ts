@@ -1,6 +1,7 @@
 // Deterministic replay of an events_log: re-applies engine steps in the same order the session used.
 import {
   autoChoices, createGame, finishSlot, panelPrediction, planSlot, proposeOutcome, recordCommentary, resolveScene, applyCooking,
+  joinNewPlayer, recordChat, recordPlayerWords,
   type EventInstance, type GameState,
 } from '@shared-roof/shared';
 
@@ -44,6 +45,15 @@ export function replayEvents(events: LoggedEvent[]): GameState {
         break;
       case 'end-slot':
         s = finishSlot(s!);
+        break;
+      case 'words':
+        s = recordPlayerWords(s!, p.listeners, p.words);
+        break;
+      case 'chat':
+        s = recordChat(s!, p.a, p.b, p.lines);
+        break;
+      case 'new-player':
+        s = joinNewPlayer(s!, p.setup);
         break;
     }
   }

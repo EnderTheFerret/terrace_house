@@ -132,6 +132,15 @@ export function flag(s: GameState, name: string) {
   return s.world.flags[name];
 }
 
+/**
+ * Leaving follows the show: marked in episode E, announces to the house in E+1 (one last day), leaves the morning of E+2.
+ * True on the day they walk out the door.
+ */
+export function departing(s: GameState, id: string) {
+  const f = s.world.flags[`leaving_${id}`];
+  return typeof f === 'number' && s.world.episode >= f + 2;
+}
+
 export function coupleOf(s: GameState, id: string) {
   return s.couples.find((c) => c.status === 'dating' && (c.a === id || c.b === id));
 }

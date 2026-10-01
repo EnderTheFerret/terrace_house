@@ -4,8 +4,10 @@ import {
   PlayerAction, SceneResponse, Intent as IntentSchema, autoChoices, captionFor, confessionPreview, createGame, finishSlot, firstName,
   panelPrediction, planSlot, predictionText, projectForPlayer, proposeOutcome, recordCommentary, resolveScene, content, placeName,
   type Commentary, type EventInstance, type GameState, type Intent, type LineContext, type NewGameOptions, type PlannedScene,
-  type PlayerSetup, type PredictionCond,
+  type PlayerSetup, type PredictionCond, type Emotion, type Beat, classifyIntent, joinNewPlayer, recordChat, recordPlayerWords, replyBeatType,
+  MAX_TYPED_EXCHANGES,
 } from '@shared-roof/shared';
+import { z } from 'zod';
 import type { Store } from '../db';
 import { Budget } from '../llm/structured';
 import { Generator, speakerName, type Line } from './generate';
@@ -16,7 +18,12 @@ import { config } from '../config';
 
 export type Emit = (event: string, data: unknown) => void;
 
-type Phase = 'new' | 'awaiting-response' | 'awaiting-choice' | 'post' | 'done';
+/** SEASON_LENGTH=0: the house never closes; housemates keep rotating. */
+const ENDLESS = 9999;
+const REPLY_EMOTION: Partial<Record<Intent, Emotion>> = { flirt: 'shy', confront: 'annoyed', apologize: 'tender', support: 'tender', joke: 'happy', tease: 'happy', confess: 'nervous', decline: 'sad', listen: 'tender' };
+const ChoiceSchema = z.object({ intent: IntentSchema.optional(), text: z.string().trim().min(1).max(200).optional(), done: z.boolean().optional() });
+
+type Phase = 'new' | 'awaiting-response' | 'awaiting-choice' | 'reply' | 'post' | 'done';
 
 interface SceneRun {
   id: string;
@@ -33,6 +40,14 @@ interface SceneRun {
   commentary?: Commentary;
   freeze?: { caption: string; image?: string };
   rendered: boolean;
+  /** what the player typed in this scene, in order */
+  said: string[];
+  /** typed words waiting for a reply (phase 'reply') */
+  pendingText?: string;
+  /** the player ended a typed conversation: their choice beat is already spoken */
+  skipPlayerBeat?: boolean;
+  /** a phone message typed before the scene started */
+  openingText?: string;
 }
 
 export interface SceneSummary {
@@ -59,6 +74,8 @@ export class GameSession {
   lastEpisodeShown = 0;
   logSeq = 0;
   busy = false;
+  intermissionSince = 0;
+  pendingIntermission: 'mid' | 'end' | null = null;
 
   constructor(
     public store: Store,
@@ -84,7 +101,7 @@ export class GameSession {
   newGame(o: { seed?: number; player?: PlayerSetup; randomizeCast?: boolean }) {
     const seed = o.seed ?? (config.seed ? Number(config.seed) : Math.floor(Math.random() * 2 ** 31));
     const gameId = `g${Date.now().toString(36)}${seed.toString(36)}`;
-    const opts: NewGameOptions = { seed, player: o.player, randomizeCast: o.randomizeCast, seasonLength: config.seasonLength, gameId };
+    const opts: NewGameOptions = { seed, player: o.player, randomizeCast: o.randomizeCast, seasonLength: config.seasonLength > 0 ? config.seasonLength : ENDLESS, gameId };
     this.state = createGame(opts);
     this.runs.clear();
     this.order = [];
@@ -92,7 +109,19 @@ export class GameSession {
     this.logSeq = 0;
     this.log('new', opts);
     this.digestSince = 0;
+    this.intermissionSince = 0;
     this.lastEpisodeShown = 0;
+    this.prefetchPortraits();
+    this.autosave();
+    return this.view();
+  }
+
+  /** After the player's character graduates, their next character moves in. */
+  newPlayer(setup: PlayerSetup) {
+    const s = this.requireState();
+    this.state = joinNewPlayer(s, setup);
+    this.log('new-player', { setup });
+    this.digestSince = this.state.world.tick;
     this.prefetchPortraits();
     this.autosave();
     return this.view();
@@ -107,6 +136,7 @@ export class GameSession {
     this.runs.clear();
     this.order = [];
     this.digestSince = r.state.world.tick;
+    this.intermissionSince = r.state.world.tick;
     this.prefetchPortraits();
     return this.view();
   }
@@ -117,6 +147,7 @@ export class GameSession {
     this.state = r.state;
     this.logSeq = r.row.log_seq;
     this.digestSince = r.state.world.tick;
+    this.intermissionSince = r.state.world.tick;
     return true;
   }
 
@@ -141,9 +172,10 @@ export class GameSession {
   act(raw: unknown) {
     const s = this.requireState();
     if (s.seasonOver) throw new Error('season is over');
+    if (s.awaitingPlayer) throw new Error('your next housemate has to move in first');
     if (this.order.some((id) => this.runs.get(id)!.phase !== 'done')) throw new Error('scenes still pending');
     const action = PlayerAction.parse(raw);
-    this.budget.reset();
+    this.budget = new Budget(config.llmCallsPerSlot);
     this.digestSince = s.world.tick;
     const { state, plan } = planSlot(s, action);
     this.state = state;
@@ -161,6 +193,8 @@ export class GameSession {
         transcript: [],
         ctx: { place: placeName(p.event.location), catchphraseUses: {}, lineCounts: {} },
         rendered: p.render,
+        said: [],
+        openingText: action.type === 'text' && p.event.isPlayerScene && action.text?.trim() ? action.text.trim() : undefined,
       };
       this.runs.set(run.id, run);
       this.order.push(run.id);
@@ -217,12 +251,28 @@ export class GameSession {
     return this.summaries().find((x) => x.id === id);
   }
 
+  /**
+   * The player's turn: pick an intent button, type their own words (the housemate answers, then it's their turn
+   * again, up to MAX_TYPED_EXCHANGES), or end a typed conversation.
+   */
   choose(id: string, raw: unknown) {
     const run = this.runs.get(id);
     if (!run || run.phase !== 'awaiting-choice') throw new Error('no choice pending for this scene');
-    const intent = IntentSchema.parse(raw);
-    if (!run.ev.intents.includes(intent)) throw new Error('intent not offered in this scene');
-    run.playerIntent = intent;
+    const c = ChoiceSchema.parse(typeof raw === 'string' ? { intent: raw } : raw);
+    if (c.text) {
+      if (run.said.length >= MAX_TYPED_EXCHANGES) throw new Error('that conversation has run its course');
+      run.pendingText = c.text;
+      run.phase = 'reply';
+      return;
+    }
+    if (c.done) {
+      if (!run.said.length) throw new Error('say something first');
+      run.skipPlayerBeat = true;
+      run.phase = 'post';
+      return;
+    }
+    if (!c.intent || !run.ev.intents.includes(c.intent)) throw new Error('intent not offered in this scene');
+    run.playerIntent = c.intent;
     run.phase = 'post';
   }
 
@@ -230,6 +280,7 @@ export class GameSession {
     const s = this.requireState();
     if (this.order.some((id) => this.runs.get(id)!.phase !== 'done')) throw new Error('scenes still pending');
     const prevEp = s.world.episode;
+    const prevSlot = s.world.slot;
     this.state = finishSlot(s);
     this.log('end-slot', {});
     this.runs.clear();
@@ -237,7 +288,21 @@ export class GameSession {
     this.autosave();
     const ns = this.state;
     if (ns.world.episode !== prevEp) this.prefetchPortraits();
-    return { view: this.view(), newEpisode: ns.world.episode !== prevEp || ns.seasonOver, seasonOver: ns.seasonOver };
+    const newEpisode = ns.world.episode !== prevEp || ns.seasonOver;
+    // the show cuts to the studio halfway through the day and after the last scene
+    this.pendingIntermission = newEpisode ? 'end' : prevSlot === 'slot2' ? 'mid' : null;
+    return { view: this.view(), newEpisode, seasonOver: ns.seasonOver, intermission: this.pendingIntermission };
+  }
+
+  /** Studio intermission over the footage since the last one. Text only: never touches game state. */
+  async intermission() {
+    const s = this.requireState();
+    const at = this.pendingIntermission;
+    if (!at) throw new Error('no intermission pending');
+    this.pendingIntermission = null;
+    const r = await this.gen.intermission(s, at, this.intermissionSince, new Budget(2));
+    this.intermissionSince = s.world.tick;
+    return { at, ...r.commentary, source: r.source };
   }
 
   // ------------------------------------------------------------ scene streaming
@@ -248,13 +313,14 @@ export class GameSession {
     if (!run) throw new Error('unknown scene');
     if (this.busy) throw new Error('another scene segment is running');
     this.busy = true;
+    const release = this.images.hold(); // one GPU: dialogue first, images after the segment
     try {
       if (run.phase === 'awaiting-response') {
         emit('respond', { id, options: ['join', 'eavesdrop', 'ignore'], premise: run.ev.premise });
         return;
       }
       if (run.phase === 'awaiting-choice') {
-        emit('choice', { id, intents: run.ev.intents });
+        emit('choice', this.choiceEvent(run));
         return;
       }
       if (run.phase === 'done') {
@@ -284,20 +350,55 @@ export class GameSession {
         run.choiceIndex = playerIn ? (sheet.choiceIndex >= 0 ? sheet.choiceIndex : Math.min(2, sheet.beats.length - 1)) : -1;
         const pre = run.choiceIndex >= 0 ? run.beats.slice(0, run.choiceIndex) : run.beats;
         await this.realize(run, pre, pre.map(() => undefined), emit);
-        if (run.choiceIndex >= 0) {
+        if (run.choiceIndex >= 0 && run.openingText) {
+          // a message typed on the phone before the conversation opened
+          run.pendingText = run.openingText;
+          run.openingText = undefined;
+          run.phase = 'reply';
+        } else if (run.choiceIndex >= 0) {
           run.phase = 'awaiting-choice';
-          emit('choice', { id, intents: run.ev.intents });
+          emit('choice', this.choiceEvent(run));
           return;
-        }
-        run.phase = 'post';
+        } else run.phase = 'post';
       }
+      if (run.phase === 'reply') return await this.reply(run, emit);
       if (run.phase === 'post') await this.finishScene(run, emit);
     } finally {
       this.busy = false;
+      release();
     }
   }
 
-  private async realize(run: SceneRun, beats: NonNullable<SceneRun['beats']>, intents: (Intent | undefined)[], emit: Emit) {
+  private choiceEvent(run: SceneRun) {
+    return { id: run.id, intents: run.ev.intents, canType: run.said.length < MAX_TYPED_EXCHANGES, canEnd: run.said.length > 0 };
+  }
+
+  /** The player's typed words, then the housemate's answer to them; then it's the player's turn again. */
+  private async reply(run: SceneRun, emit: Emit) {
+    const s = this.requireState();
+    const text = run.pendingText!;
+    run.pendingText = undefined;
+    const intent = classifyIntent(text, run.ev.intents);
+    run.playerIntent = intent;
+    run.said.push(text);
+    const P = s.playerId;
+    const idx = run.transcript.length;
+    emit('line-start', { index: idx, speaker: P, name: speakerName(s, P), caption: null, emotion: 'neutral', beatType: 'smalltalk', subtext: null });
+    emit('token', { index: idx, token: text });
+    run.transcript.push({ speaker: P, text, source: 'player' });
+    emit('line-end', { index: idx, speaker: P, text, caption: null, source: 'player' });
+    // the last housemate who spoke answers (else whoever else is in the scene)
+    const responder = [...run.transcript].reverse().find((l) => l.speaker !== P && s.characters[l.speaker])?.speaker ?? run.ev.participants.find((x) => x !== P);
+    if (responder && s.characters[responder]) {
+      this.budget.cap++; // typed talk is the player's call: each answer gets its own LLM call
+      const beat: Beat = { speaker: responder, intent: 'answer the player', emotion: REPLY_EMOTION[intent] ?? 'neutral', beatType: replyBeatType(intent, s.characters[responder]), subtext: '', depth: run.ev.depthCeiling, topic: run.beats?.[0]?.topic ?? 'small talk' };
+      await this.realize(run, [beat], [undefined], emit, { text, intent });
+    }
+    run.phase = 'awaiting-choice';
+    emit('choice', this.choiceEvent(run));
+  }
+
+  private async realize(run: SceneRun, beats: NonNullable<SceneRun['beats']>, intents: (Intent | undefined)[], emit: Emit, replyTo?: { text: string; intent: Intent }) {
     if (!beats.length) return;
     const s = this.requireState();
     const others = run.ev.participants;
@@ -313,7 +414,7 @@ export class GameSession {
       beats,
       run.transcript,
       intents,
-      { ...run.ctx, listener: listenerFor(beats[0].speaker), fact: this.factFor(run, beats[0].speaker), outcomeHint: run.result?.confession === 'rejected' ? 'rejected' : undefined },
+      { ...run.ctx, listener: listenerFor(beats[0].speaker), fact: this.factFor(run, beats[0].speaker), outcomeHint: run.result?.confession === 'rejected' ? 'rejected' : undefined, replyTo },
       this.budget,
       (i, speaker) => {
         if (started.has(i)) return;
@@ -346,7 +447,9 @@ export class GameSession {
     const conf = content().eventById.get(ev.templateId)!.effects.find((e) => e.confession);
     const preview = conf ? confessionPreview(s, ev.roles[conf.confession![0]], ev.roles[conf.confession![1]], ac.choices) : undefined;
     if (preview) run.result = { confession: preview };
-    const rest = run.beats!.slice(Math.max(0, run.choiceIndex));
+    let rest = run.beats!.slice(Math.max(0, run.choiceIndex));
+    // after a typed conversation the player has already spoken: skip their scripted line
+    if (run.skipPlayerBeat && rest[0]?.speaker === s.playerId) rest = rest.slice(1);
     const intents = rest.map((b, i) => (i === 0 && run.choiceIndex >= 0 && b.speaker === s.playerId ? run.playerIntent : undefined));
     await this.realize(run, rest, intents, emit);
     s = this.requireState();
@@ -358,6 +461,17 @@ export class GameSession {
     run.result = { confession: rs.result.effects.confession, leaving: rs.result.effects.leaving, secretRevealed: rs.result.effects.secretRevealed, noticed: rs.result.noticed };
     this.state = s;
     this.log('scene', { eventId: ev.id, response: run.response, playerIntent: run.playerIntent, choices: ac.choices, proposal: rs.result.proposal });
+    // housemates remember what you actually said; phone conversations stay in the chat thread
+    if (run.said.length) {
+      this.state = recordPlayerWords(this.state, ev.participants, run.said);
+      this.log('words', { listeners: ev.participants, words: run.said });
+    }
+    if (ev.location === 'phone' && ev.participants.length === 2) {
+      const [a, b] = ev.participants;
+      const lines = run.transcript.map((l) => ({ speaker: l.speaker, text: l.text }));
+      this.state = recordChat(this.state, a, b, lines);
+      this.log('chat', { a, b, lines });
+    }
     emit('outcome', { id: ev.id, ...run.result, cues: this.cues(run) });
     // studio commentary (panel reacts; never hints, never mutates state except predictions bookkeeping)
     const pp = panelPrediction(this.requireState());
@@ -376,7 +490,8 @@ export class GameSession {
     this.log('commentary', { eventId: ev.id, prediction, calledBack: callbacks });
     run.commentary = { ...cm.commentary, prediction: prediction ? { text: prediction.text } : undefined };
     if (ev.freeze) {
-      const img = this.images.request(freezeRequest(this.state, ev), PRIORITY.freeze);
+      const lead = this.state.characters[ev.participants[0]];
+      const img = this.images.request(freezeRequest(this.state, ev, lead && this.images.localFile(portraitRequest(lead))), PRIORITY.freeze);
       run.freeze = { caption: cm.commentary.freezeFrame?.caption ?? 'that moment', image: img.key };
       emit('freeze', { id: ev.id, caption: run.freeze.caption, image: img });
     }

@@ -18,6 +18,7 @@
     "start": "npm run start -w apps/server",
     "typecheck": "tsc -p packages/shared && tsc -p apps/server && tsc -p apps/web",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "lint": "eslint .",
     "format": "prettier --write .",
     "replay": "tsx scripts/replay.ts",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^24.19.0",
     "eslint": "^10.11.0",
     "eslint-plugin-react-hooks": "^7.1.1",

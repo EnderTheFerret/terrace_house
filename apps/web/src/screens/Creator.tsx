@@ -6,7 +6,11 @@ import { Btn, Panel } from '../components/ui';
 import { PixelImage, ProcPortrait, useImage } from '../components/pixel';
 import { api } from '../api';
 
-const OCCUPATIONS = ['graphic designer', 'barista', 'nursing student', 'office worker', 'photographer', 'chef in training', 'sales clerk', 'programmer', 'florist', 'hair stylist', 'yoga instructor', 'musician'];
+const OCCUPATIONS = [...new Set(content().jobs.map((j) => j.title))].sort();
+
+/** Closest archetype to a trait vector: "your type". */
+const dist = (a: number[], b: number[]) => a.reduce((d, t, i) => d + (t - b[i]) ** 2, 0);
+const nearestType = (traits: number[]) => [...content().archetypes].sort((x, y) => dist(x.traits, traits) - dist(y.traits, traits))[0];
 const HOBBIES = ['sketching', 'karaoke', 'baking', 'running', 'reading', 'gaming', 'surfing', 'photography', 'film', 'gardening', 'hiking', 'guitar'];
 const EXTRA_OPTS: Record<string, string[]> = { hairStyle: ['shoulder-length bob', 'short messy', 'long with soft bangs'], outfit: ['oversized cardigan and jeans', 'white cook t-shirt and canvas apron', 'vintage band tee and denim jacket'] };
 
@@ -37,9 +41,11 @@ function CreatorPortrait({ id, age, gender, appearance, seed, lowRes }: { id: st
 }
 
 export function Creator() {
-  const { newGame, busy, setScreen, health } = useGame();
+  const { newGame, joinAsNewPlayer, busy, setScreen, health, view } = useGame();
+  // after your character graduates you create the next one; the cast is already there
+  const next = !!view?.awaitingPlayer;
   const [step, setStep] = useState(0);
-  const [p, setP] = useState<PlayerSetup>({ ...DEFAULT_PLAYER, portraitSeed: 4242 });
+  const [p, setP] = useState<PlayerSetup>({ ...DEFAULT_PLAYER, name: next ? '' : DEFAULT_PLAYER.name, portraitSeed: next ? Math.floor(Math.random() * 99999) : 4242 });
   const [custom, setCustom] = useState('');
   const [randomCast, setRandomCast] = useState(false);
   const [seed, setSeed] = useState('');
@@ -50,16 +56,19 @@ export function Creator() {
   const ageOk = p.age >= 20 && p.age <= 35;
   const nameOk = p.name.trim().length > 0;
   const tags = useMemo(() => compileAppearanceTags({ age: p.age, gender: p.gender, appearance: p.appearance }), [p.age, p.gender, p.appearance]);
-  const steps = ['identity', 'personality', 'tastes', 'appearance', 'housemates'];
+  const steps = next ? ['identity', 'personality', 'tastes', 'appearance'] : ['identity', 'personality', 'tastes', 'appearance', 'housemates'];
   const canNext = step === 0 ? ageOk && nameOk && p.interestedIn.length > 0 : true;
 
-  const start = () => void newGame({ player: { ...p, name: p.name.trim(), occupation: custom.trim() || p.occupation }, randomizeCast: randomCast, seed: seed ? Number(seed) : undefined });
+  const start = () =>
+    next
+      ? void joinAsNewPlayer({ ...p, name: p.name.trim(), occupation: custom.trim() || p.occupation })
+      : void newGame({ player: { ...p, name: p.name.trim(), occupation: custom.trim() || p.occupation }, randomizeCast: randomCast, seed: seed ? Number(seed) : undefined });
 
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-4 border-b-[3px] border-ink bg-paper px-4 py-2">
         <button className="px-btn text-xs" onClick={() => setScreen('title')}>back</button>
-        <h1 className="text-lg lowercase">new housemate</h1>
+        <h1 className="text-lg lowercase">{next ? 'your next housemate moves in' : 'new housemate'}</h1>
         <ol className="ml-4 flex gap-2 text-xs" aria-label="steps">
           {steps.map((s, i) => (
             <li key={s} className={`px-2 ${i === step ? 'bg-rose text-white' : 'caption'}`} aria-current={i === step ? 'step' : undefined}>
@@ -112,6 +121,17 @@ export function Creator() {
           {step === 1 && (
             <Panel title="personality">
               <div className="flex max-w-lg flex-col gap-3 text-sm">
+                <fieldset>
+                  <legend className="caption mb-1 text-xs">start from a type (then fine-tune the sliders)</legend>
+                  <div className="flex flex-wrap gap-1">
+                    {content().archetypes.map((a) => (
+                      <button key={a.id} type="button" className={`px-btn text-xs ${nearestType(p.traits).id === a.id ? 'px-btn-primary' : ''}`} title={a.voiceNotes} onClick={() => set({ traits: [...a.traits], occupation: OCCUPATIONS.includes(a.occupations[0]) ? a.occupations[0] : p.occupation })}>
+                        {a.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="caption mt-1 text-xs">closest type: {nearestType(p.traits).label} — {nearestType(p.traits).voiceNotes}</p>
+                </fieldset>
                 {TRAIT_NAMES.map((t, i) => (
                   <label key={t} className="grid grid-cols-[10rem_1fr_3rem] items-center gap-2">
                     {t}
@@ -223,7 +243,7 @@ export function Creator() {
         <Btn disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
           previous
         </Btn>
-        {step < 4 ? (
+        {step < steps.length - 1 ? (
           <Btn primary disabled={!canNext} onClick={() => setStep((s) => s + 1)}>
             next
           </Btn>

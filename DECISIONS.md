@@ -53,8 +53,9 @@ Choices made where the spec was silent or where the user overrode it. Newest at 
   scene costs ~5 calls (beats, lines×2, deltas, commentary) and fits `LLM_CALLS_PER_SLOT=6`.
 
 ## Gameplay details decided during playtests
-- Part-time jobs are drop-in shifts at work-capable spots (café, konbini, grill, records, live house) paying a fixed
-  wage per slot, instead of a contracted weekly schedule.
+- Part-time jobs: drop-in shifts at work-capable spots (café, konbini, grill, records, live house) pay a fixed wage per
+  slot; signing a contract fixes that slot on three weekdays (sign day, +2, +4; episodes advance the weekday by one) at
+  1.25× wage. Two missed shifts end the contract; typhoon days are excused.
 - Talking to someone who is in a bedroom or the bathroom moves the conversation to the living room.
 - Freeze-frames only end scenes whose template is marked `freeze` (peaks, arrivals, farewells, dates), even if the LLM
   offers a caption.
@@ -63,6 +64,37 @@ Choices made where the spec was silent or where the user overrode it. Newest at 
 - Model warm-up request at server start in real mode (the first structured call otherwise pays the load time).
 - Mock-mode freeze-frames composite the participants' procedural pixel busts over the procedural location.
 - Arrival scenes show an intro card (portrait, name, age, job, hometown) for a few seconds.
+- Departures follow the show's rhythm: marked in episode E → announcement to the house in E+1 (the leaver stays
+  available for scenes that day) → farewell at the door and departure the morning of E+2. A leaver with romance ≥ 45
+  toward an attracted, unattached housemate gets one rooftop "last confession" (slot3/evening); a yes marks the other
+  person leaving on the same day (or offers the player "graduate together").
+- Studio intermissions are text only and never touch game state (no prediction bookkeeping), so replay is unaffected.
+  They cover log entries since the previous intermission (salience ≥ 0.45, top 3).
+- Top-down sprites stay 16×20 procedural pixel art (shared with the server); activity emotes come from the NPC's
+  current action, only for housemates the player can see.
+
+## Free-text talk and the player's next character
+- Typed words become an intent through keyword cues (`classifyIntent`), restricted to the intents the scene offers, so
+  the engine and replay stay deterministic; the LLM still reads the exact words when writing the reply. Each typed
+  exchange gets its own LLM call on top of the slot budget (it is the player's explicit action). Max 4 exchanges.
+- What the player typed is stored as a memory for every listener and logged as a `words` event; phone transcripts are
+  logged as `chat` events. Replay applies both, so `npm run replay` still reproduces saves exactly.
+- Graduating no longer ends the season: the player's character departs like any housemate (their partner too, whose
+  place is refilled), the game waits (`awaitingPlayer`), and `joinNewPlayer` adds the next player character as a
+  stranger (`player-2`, `player-3`…; the previous one stays in the cast history with `isPlayer=false`). Logged as
+  `new-player` for replay.
+- Leaving "with" someone is only honoured for your partner or a leaver who asked; otherwise you leave alone.
+- Replacements now arrive for every departure until the season's last episode (was: none in the last 3 episodes).
+  `SEASON_LENGTH=0` runs an endless season (internally 9999 episodes; the top bar hides the total).
+- Jobs are data (`content/jobs.json`): workplace + shift + day pattern → `routine.jobSlots`. Unknown occupations keep
+  the old keyword workplace guess and a random weekday schedule. Generated ids get a suffix when a first name repeats.
+
+## Images on one GPU
+- Consistent faces use Qwen-Image-Edit 2511 with the portrait as a reference image rather than IP-Adapter: the user's
+  ComfyUI has the edit model and its Lightning LoRA but no SDXL checkpoint for the installed SDXL IP-Adapter weights.
+  The reference workflow is a second workflow/mapping pair; requests without a reference keep the txt2img workflow.
+- While a scene segment streams, the image queue starts no jobs except the player's portrait, and asks ComfyUI to
+  `/free` its models if it generated anything since the last free. Dialogue latency beats image latency.
 
 ## Dependencies (non-trivial)
 - `fastify` + `@fastify/static`: HTTP + SSE + static images.
@@ -70,3 +102,4 @@ Choices made where the spec was silent or where the user overrode it. Newest at 
 - `zod` v4: schemas + `z.toJSONSchema` for Ollama structured output.
 - `zustand`, `react`, `vite`, `tailwindcss`: required stack.
 - `@fontsource/dotgothic16`: offline pixel font (OFL).
+- `@playwright/test` (dev): browser E2E tests, run on the system Edge (`channel: 'msedge'`) so no browser download.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { content } from '../content';
-import { isOpen, node, reachability, shortestTimes, ACTIVITY_MINUTES } from './city';
+import { isOpen, node, reachability, shiftToday, shortestTimes, ACTIVITY_MINUTES, WAGE } from './city';
 import { SLOT_MINUTES } from './core';
 import { createGame, planSlot } from './loop';
 
@@ -45,6 +45,25 @@ describe('city exploration', () => {
     expect(state.world.carUsedBy).toBe('player');
     expect(state.world.money).toBeLessThan(s0.world.money);
     expect(state.characters.ren.location).toBe('lighthouse');
+  });
+  it('part-time contract: fixed weekly shifts pay more; two missed shifts and you are let go', () => {
+    const s0 = createGame({ seed: 7 });
+    s0.world.slot = 'slot1';
+    const { state: signed } = planSlot(s0, { type: 'goOut', node: 'konbini', activity: 'work', contract: true });
+    const job = signed.world.playerJob!;
+    expect(job).toMatchObject({ nodeId: 'konbini', slot: 'slot1' });
+    expect(job.weekdays).toHaveLength(3);
+    expect(signed.world.money - s0.world.money).toBeGreaterThan(WAGE.konbini - 300); // contract wage minus fare
+    // a later scheduled shift: working pays the contract wage, skipping counts as a miss
+    const onShift = structuredClone(signed);
+    onShift.world.weekday = job.weekdays[1];
+    expect(shiftToday(job, onShift.world.weekday, 'slot1')).toBe(true);
+    const worked = planSlot(onShift, { type: 'goOut', node: 'konbini', activity: 'work' }).state;
+    expect(worked.world.money - onShift.world.money).toBeGreaterThanOrEqual(job.wage - 300);
+    const miss1 = planSlot(onShift, { type: 'idle' }).state;
+    expect(miss1.world.playerJob).not.toBeNull();
+    const miss2 = planSlot({ ...miss1, world: { ...miss1.world, slot: 'slot1' } }, { type: 'idle' }).state;
+    expect(miss2.world.playerJob).toBeNull();
   });
   it('unreachable destinations are refused (player stays home)', () => {
     const s0 = createGame({ seed: 7 });

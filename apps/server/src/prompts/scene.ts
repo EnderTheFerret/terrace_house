@@ -71,6 +71,8 @@ export function linesPrompt(
   beats: Beat[],
   transcript: { speaker: string; text: string }[],
   intents: (Intent | undefined)[],
+  /** the player's own typed words that line 1 answers */
+  replyTo?: string,
 ): string {
   const last: Record<string, string[]> = {};
   for (const l of transcript) (last[l.speaker] ??= []).push(l.text);
@@ -83,7 +85,14 @@ export function linesPrompt(
   return assemble(
     [
       ...contextSections(s, ev, last),
-      { text: sofar ? `Conversation so far:\n${sofar}` : '', priority: 60 },
+      { text: sofar ? `Conversation so far:\n${sofar}` : '', priority: replyTo ? 99 : 60, required: !!replyTo },
+      {
+        text: replyTo
+          ? `${firstName(s, s.playerId)} just said, in their own words: "${replyTo.replace(/"/g, "'")}". Line 1 answers exactly that, the way this person really would given how they feel about ${firstName(s, s.playerId)}: they may agree, push back, dodge, tease or open up. Never ignore it, never repeat it back verbatim, never speak for ${firstName(s, s.playerId)}.`
+          : '',
+        priority: 100,
+        required: !!replyTo,
+      },
       {
         text: [
           'Write exactly one line per beat, in order, each on its own line formatted as `speaker_id: text`.',

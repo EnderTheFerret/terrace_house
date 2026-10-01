@@ -92,15 +92,20 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     const b = z.object({ seed: z.number().int().optional(), player: PlayerSetupSchema.optional(), randomizeCast: z.boolean().optional() }).parse(req.body ?? {});
     return { view: session.newGame(b), scenes: [] };
   });
+  app.post('/api/game/new-player', async (req) => {
+    const b = z.object({ player: PlayerSetupSchema }).parse(req.body ?? {});
+    return { view: session.newPlayer(b.player), scenes: [] };
+  });
   app.get('/api/game', async (_req, reply) => {
     if (!session.state) return reply.status(404).send({ error: 'no game' });
     return { view: session.view(), scenes: session.summaries() };
   });
   app.post('/api/game/action', async (req) => session.act((req.body as { action?: unknown })?.action));
   app.post('/api/game/end-slot', async () => session.endSlot());
+  app.post('/api/studio/intermission', async () => session.intermission());
   app.post('/api/scene/:id/respond', async (req) => ({ scene: session.respond((req.params as { id: string }).id, (req.body as { response?: unknown })?.response) }));
   app.post('/api/scene/:id/choose', async (req) => {
-    session.choose((req.params as { id: string }).id, (req.body as { intent?: unknown })?.intent);
+    session.choose((req.params as { id: string }).id, req.body ?? {}); // { intent } | { text } | { done }
     return { ok: true };
   });
   app.get('/api/scene/:id/stream', async (req, reply) => {

@@ -84,12 +84,34 @@ The script downsamples and palette-quantizes each image into true pixel art and 
 `apps/web/public/assets/manifest.json`. The server serves these before queueing anything, in both modes. Pass a
 substring to regenerate only some files, for example `... jobs.json portraits/kaito`.
 
-## 6. Extension point: reference images / IP-Adapter
+## 6. Reference images: consistent faces
 
-Not implemented. To add it: create a workflow with a LoadImage → IPAdapter (or Qwen-Image-Edit reference) branch, add a
-`"reference": { "node": "<LoadImage id>", "input": "image" }` entry to `mapping.json`, upload the character's approved
-portrait with ComfyUI's `/upload/image` endpoint inside `ComfyBackend.generate`, and set that input to the returned
-filename. `patchWorkflow` in `apps/server/src/image/comfy.ts` is the only function that needs a new mapping key.
+Freeze-frames are generated with the lead character's approved portrait (prebaked or previously generated) as a
+reference image, so their face, hair and outfit carry over. The default reference workflow is
+`workflows/ref_edit.api.json` (Qwen-Image-Edit 2511 + its Lightning 8-step LoRA, `TextEncodeQwenImageEditPlus` with
+the portrait as `image1`). It needs, in addition to the files above:
+
+| node | file | folder |
+|---|---|---|
+| UNETLoader | `qwen_image_edit_2511_fp8mixed.safetensors` | `models/diffusion_models/` |
+| LoraLoaderModelOnly | `Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors` | `models/loras/` |
+
+How it works: when an image request carries a `reference` file, `ComfyBackend.generate` uploads it with
+`POST /upload/image`, writes the returned name into the node named by `"reference"` in `workflows/ref_mapping.json`,
+and runs the reference workflow; every other request uses the normal txt2img workflow. Cache keys include the
+reference, so a new portrait means a new freeze-frame.
+
+- Disable it with `COMFY_REF_WORKFLOW=off`.
+- Prefer SDXL + IP-Adapter (FaceID)? Export an API-format graph with a `LoadImage` → IPAdapter branch, point
+  `COMFY_REF_WORKFLOW` / `COMFY_REF_MAPPING` at it, and give the mapping a `"reference": { "node", "input" }` entry.
+- Cost: switching between Qwen-Image and Qwen-Image-Edit reloads a model (first edit image ≈ 50 s on a 16 GB card).
+- Limit: one reference face per image; the second person in a two-shot relies on the fixed tag order.
+
+## 6b. Sharing one GPU with Ollama
+
+While a scene's dialogue is streaming, the image queue starts no new jobs (the player's own portrait in the creator
+is the exception) and asks ComfyUI to unload its models (`POST /free`), so the LLM gets the whole card. Queued images
+continue as soon as the segment ends. The trade-off is a model reload for the next image.
 
 ## 7. When ComfyUI is down
 

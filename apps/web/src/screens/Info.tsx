@@ -34,6 +34,8 @@ export function Bible() {
               <dl className="mt-2 grid grid-cols-[5.5rem_1fr] gap-x-2 gap-y-1 text-xs">
                 <dt className="caption">hobbies</dt>
                 <dd>{b.hobbies?.join(', ') ?? '— spend more time together'}</dd>
+                <dt className="caption">work</dt>
+                <dd>{b.work ?? '— you only know the job title'}</dd>
                 <dt className="caption">wants</dt>
                 <dd>{b.goals?.join(' · ') ?? '— they haven’t opened up yet'}</dd>
                 <dt className="caption">fears</dt>

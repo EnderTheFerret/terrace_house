@@ -23,19 +23,23 @@
   player only speaks at their choice beat); intents now carry an explicit guide; freeze-frames only on freeze-worthy
   scenes; talking to someone in a bedroom/bathroom happens in the living room; model warm-up at server start.
 - **M8** — 69 prebaked assets generated with the user's ComfyUI (Qwen-Image + Lightning), pixelated and quantized.
+- **M9 show format + gaps** — studio intermissions (mid-episode and end, LLM or templates); departures follow the show (announcement to the house, one last day, last confession / leaving together, farewell next morning); welcome party for newcomers; part-time contracts with fixed weekly shifts; shaded top-down sprites with activity emotes; Qwen-Image-Edit reference workflow for consistent faces in freeze-frames (verified on the user's ComfyUI: one image, 52 s incl. model load); image queue holds and ComfyUI unloads its models while dialogue streams; Playwright E2E suite (3 tests). Bug found on the way: ComfyBackend polled `/history` in a tight loop once the websocket failed (could exhaust memory); now sleeps between polls.
 
-## Test inventory (`npm test`)
+- **M10 talk & turnover** — type your own words in scenes and on the phone (housemates answer what you said, remember it); graduate alone or with your partner and continue as a new character; replacements for every departure; 77-job catalogue with real shift schedules; 24 personality archetypes + type presets in the creator; goal-complete graduations; endless season option. Tests: 6 engine tests (intent reading, replies, memories/threads, graduation → new player, partner validation, replacements), a session test that types, texts, graduates, moves in and replays exactly, and 2 new E2E tests.
+
+## Test inventory (`npm test`, `npm run test:e2e`)
 - shared: rng, content, calendar, clamping, memory compaction, director scoring, leave rules, cast generator, purity,
-  predictions, cooking (scores in [0,1], monotone, DAG, co-op, reception), city (Dijkstra, hours, money, car), mock
+  predictions, cooking (scores in [0,1], monotone, DAG, co-op, reception), city (Dijkstra, hours, money, car, job contracts), mock
   schema validity, commentary 100% valid, voice distinctness + catchphrase caps, appearance-prompt safety, 200-seed idle
   sweep (ranges, knowledge invariant, gossip source chains, NPC romance fraction, meaningful events/departures/arcs,
   schema validity), 30-seed active sweep, determinism.
-- server: prompt budgets/order/knowledge, line parsing, structured retry/fallback/budget, Ollama request shape +
+- server: prompt budgets/order/knowledge, intermission (template fallback, host opens/closes, state untouched), reference workflow upload + patch, queue hold during dialogue, line parsing, structured retry/fallback/budget, Ollama request shape +
   NDJSON streaming, Comfy workflow patching, image queue priority/fallback/cancel, full episode with Ollama + ComfyUI
   down, deterministic replay, save/load + migration, HTTP validation (age ≥ 20 enforced).
 
 ## Known gaps
-- Real-mode latency on one GPU shared with ComfyUI is high (tens of seconds for the first lines of a scene).
-- Character consistency for live-generated images relies on fixed seeds and tag order (no IP-Adapter).
-- No automated browser (E2E) tests; UI verified by hand in mock and real mode.
-- Part-time jobs are drop-in shifts rather than contracts with a fixed weekly schedule.
+- Real mode on one GPU: dialogue now gets the card (queue hold + ComfyUI `/free`), but the next image pays a model
+  reload. `gemma4:12b` intermissions take ~9–15 s; a 4B model is faster still.
+- Reference faces: one reference per image (the lead); the second person in a two-shot relies on tag order.
+  Portraits/locations do not use references (they are the references).
+- E2E covers the main loop, intermissions and contracts in mock mode only; real-mode UI is still checked by hand.

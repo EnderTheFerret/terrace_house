@@ -1,6 +1,6 @@
 // MockLlm content: deterministic template generators for every structured output (beat sheets, lines, deltas,
 // commentary, chat). Keyed by beatType × emotion × persona speech. Pure; seeded Rng only.
-import type { Beat, BeatSheet, BeatType, Character, Commentary, Depth, Emotion, EventInstance, GameState, Intent, PredictionCond, Reaction, Speech } from '../model';
+import type { Beat, BeatSheet, BeatType, Character, Commentary, Depth, Emotion, EventInstance, GameState, Intent, LogEntry, PredictionCond, Reaction, Speech } from '../model';
 import type { Rng } from '../rng';
 import { clamp, fill, truncate } from '../util';
 import { content } from '../content';
@@ -155,6 +155,40 @@ export interface LineContext {
   lineCounts: Record<string, number>;
   fact?: string;
   outcomeHint?: 'accepted' | 'rejected';
+  /** the player's typed words this line answers */
+  replyTo?: { text: string; intent: Intent };
+}
+
+const STOP = new Set(['about', 'actually', 'really', 'there', 'their', 'would', 'could', 'should', 'think', 'thing', 'things', 'something', 'because', 'honestly', 'maybe', 'little', 'today', 'going', 'where', 'which', 'these', 'those', 'being', 'right']);
+
+/** Template answer to typed words: what was said (intent + an echoed word) colored by how the speaker feels about the player. */
+export function mockReply(s: GameState, rng: Rng, speaker: string, replyTo: { text: string; intent: Intent }): string {
+  const c = s.characters[speaker];
+  const P = s.playerId;
+  const r = rel(s, speaker, P);
+  const keen = attracted(c, s.characters[P]) && r.romance >= 25;
+  const warm = r.affinity >= 10 || r.trust >= 45;
+  const pools: Record<Intent, string[]> = {
+    flirt: keen ? ['Oh. ...You can\'t just say things like that.', 'You\'re bold today. I don\'t hate it.', 'Careful. I might start believing you.'] : ['Ha. Okay, smooth.', 'Um. Thanks?', 'Is that a line? That sounded like a line.'],
+    confront:
+      c.persona.conflictStyle === 'confront' ? ['Don\'t put this on me.', 'Fine. You want to do this? Let\'s do this.', 'Wow. Okay. Say what you actually mean.']
+      : c.persona.conflictStyle === 'avoid' ? ['Can we not do this right now?', 'I— okay. I hear you.', 'I didn\'t think it was a big deal...']
+      : ['You\'re right to be upset. Let\'s talk it through.', 'Okay. Tell me what you need from me.', 'That\'s fair. I\'m sorry.'],
+    apologize: warm || r.tension < 30 ? ['Thank you for saying that.', 'It\'s okay. Really.', 'I appreciate that. We\'re good.'] : ['...I\'ll think about it.', 'Words are easy.', 'Okay. Show me, then.'],
+    support: ['That actually means a lot.', 'You always know what to say.', 'Okay. Thank you. Really.'],
+    joke: c.persona.speech.humor === 'none' ? ['Ha.', 'That\'s funny, I think.'] : ['Stop, I\'m going to choke on my tea!', 'Okay, that was actually funny.', 'You\'re ridiculous. I love it.'],
+    tease: ['Hey! Rude.', 'Says you.', '...Maybe a little. Don\'t tell anyone.'],
+    honest: warm ? ['I\'m glad you told me that.', 'Honestly? Same.', 'Thanks for being straight with me.'] : ['Huh. I didn\'t expect you to say that.', 'That\'s a lot to take in.', 'Okay. Noted.'],
+    listen: ['Okay. Since you asked...', 'It\'s been a weird week, honestly.', 'Thanks for asking. Nobody does.'],
+    deflect: ['Hm. Changing the subject, huh?', 'Okay... we can talk about something else.', 'Sure. Pretend I didn\'t notice.'],
+    confess: ['...', 'Wait. Say that again?', 'I... need a second.'],
+    decline: ['...Oh.', 'Okay. I understand.', 'Right. Sorry I made it weird.'],
+  };
+  let line = rng.pick(pools[replyTo.intent]);
+  const word = replyTo.text.toLowerCase().match(/[a-z']{5,}/g)?.filter((w) => !STOP.has(w)).sort((a, b) => b.length - a.length)[0];
+  if (word && !['confess', 'decline'].includes(replyTo.intent) && rng.chance(0.45)) line = replyTo.text.trim().endsWith('?') ? `${cap(word)}? ${line}` : `${line} About ${word}... yeah.`;
+  else if (replyTo.text.trim().endsWith('?') && replyTo.intent !== 'listen') line = `${rng.pick(['Hm. ', 'Good question. ', 'Honestly? '])}${line}`;
+  return truncate(voiceTransform(line, c.persona.speech, rng, { allowCatchphrase: false }), 240);
 }
 
 function cap(s: string) {
@@ -203,6 +237,7 @@ export function mockLine(s: GameState, rng: Rng, beat: Beat, ctx: LineContext, i
     return fill(rng.pick(met > 0 ? npc.returningLines : npc.lines), { b: ctx.listener ?? 'them' });
   }
   if (!c) return '...';
+  if (ctx.replyTo && beat.speaker !== s.playerId) return mockReply(s, rng, beat.speaker, ctx.replyTo);
   let bt = beat.beatType;
   if (bt === 'accept' && ctx.outcomeHint === 'rejected') bt = 'reject';
   let base: string;
@@ -274,7 +309,7 @@ export function chatReply(s: GameState, rng: Rng, from: string, to: string): str
 
 // ---------------------------------------------------------------- studio commentary
 
-function situationKey(ev: EventInstance, outcome?: 'accepted' | 'rejected' | 'none'): string {
+function situationKey(ev: Pick<EventInstance, 'tags' | 'isPlayerScene'>, outcome?: 'accepted' | 'rejected' | 'none'): string {
   if (outcome === 'accepted') return 'confess_yes';
   if (outcome === 'rejected') return 'confess_no';
   const t = ev.tags;
@@ -344,6 +379,42 @@ export function mockCommentary(
   const commentary: Commentary = { lines: lines.slice(0, 8) };
   if (ev.freeze) commentary.freezeFrame = { caption: rng.pick(content().freezeCaptions) };
   return { commentary, prediction, calledBack };
+}
+
+/** The log entries the panel talks over in an intermission: the most salient since `sinceTick`. */
+export function intermissionTopics(s: GameState, sinceTick: number, n = 3): LogEntry[] {
+  return s.log
+    .filter((l) => l.tick >= sinceTick && l.participants.length > 0 && l.salience >= 0.45 && l.kind !== 'system' && l.kind !== 'calendar')
+    .sort((a, b) => b.salience - a.salience || b.tick - a.tick)
+    .slice(0, n);
+}
+
+const LOG_KEY: Partial<Record<LogEntry['kind'], string>> = {
+  couple: 'confess_yes', confession: 'confess_no', departure: 'departure', arrival: 'arrival', gossip: 'gossip', domestic: 'domestic',
+};
+
+/**
+ * Studio intermission (mid-episode and end of episode): the show cuts to the panel, who talk over the last stretch
+ * of footage. Pure text, never mutates state, never hints.
+ */
+export function mockIntermission(s: GameState, rng: Rng, kind: 'mid' | 'end', sinceTick: number): Commentary {
+  const panel = content().panel;
+  const host = panel[0];
+  const lines: Commentary['lines'] = [{ speaker: host.id, text: rng.pick(host.lines[kind] ?? host.lines.generic), reaction: 'silence' }];
+  const topics = intermissionTopics(s, sinceTick);
+  const others = rng.shuffle(panel.slice(1));
+  topics.forEach((l, i) => {
+    const t = l.templateId ? content().eventById.get(l.templateId) : undefined;
+    const key = LOG_KEY[l.kind] ?? (t ? situationKey({ tags: t.tags, isPlayerScene: l.participants.includes(s.playerId) }) : 'generic');
+    const nm = (id: string) => (s.characters[id] ? firstName(s, id) : 'them');
+    const vars = { a: nm(l.participants[0]), b: nm(l.participants[1] ?? l.participants[0]), ep: s.world.episode + 3 };
+    for (const p of [others[i % others.length], ...(rng.chance(0.4) ? [others[(i + 2) % others.length]] : [])]) {
+      lines.push({ speaker: p.id, text: truncate(fill(rng.pick(p.lines[key] ?? p.lines.generic), vars), 240), reaction: REACTION_FOR[key] ?? 'laugh' });
+    }
+  });
+  if (!topics.length) lines.push({ speaker: others[0].id, text: rng.pick(others[0].lines.generic), reaction: 'laugh' });
+  if (kind === 'end') lines.push({ speaker: host.id, text: teaserLine(s), reaction: 'silence' });
+  return { lines: lines.slice(0, 8) };
 }
 
 // ---------------------------------------------------------------- misc text

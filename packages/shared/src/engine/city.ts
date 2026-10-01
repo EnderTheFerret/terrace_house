@@ -84,3 +84,11 @@ export function reachability(from: string, slot: Slot, money: number, carAvailab
 
 export const workNodes = () => content().city.nodes.filter((n) => n.activities.includes('work'));
 export const WAGE: Record<string, number> = { konbini: 3000, cafe: 3200, grill: 3800, records: 3000, livehouse: 3500 };
+
+/** A contract pays more than a drop-in shift; two missed shifts and you're let go. */
+export const CONTRACT_BONUS = 1.25;
+export const MISSES_BEFORE_FIRED = 2;
+export type PlayerJob = { nodeId: string; slot: Slot; weekdays: number[]; wage: number };
+/** Three fixed weekdays from the signing day, spread across the week (episodes advance the weekday by one). */
+export const contractDays = (weekday: number) => [weekday, (weekday + 2) % 7, (weekday + 4) % 7].sort((a, b) => a - b);
+export const shiftToday = (job: PlayerJob | null, weekday: number, slot: string) => !!job && job.slot === slot && job.weekdays.includes(weekday);

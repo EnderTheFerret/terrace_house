@@ -5,6 +5,7 @@ import { Creator } from './screens/Creator';
 import { House } from './screens/House';
 import { Scene } from './screens/Scene';
 import { EpisodeCard } from './screens/Episode';
+import { Studio } from './screens/Studio';
 import { Phone } from './screens/Phone';
 import { Board } from './screens/Board';
 import { Bible, Fridge, Saves, Settings, Summary } from './screens/Info';
@@ -30,9 +31,10 @@ const screens: Record<Screen, () => ReactElement | null> = {
   settings: Settings,
   saves: Saves,
   episode: EpisodeCard,
+  studio: Studio,
 };
 
-const NEEDS_GAME: Screen[] = ['house', 'map', 'scene', 'cooking', 'phone', 'board', 'bible', 'fridge', 'debug', 'summary', 'episode'];
+const NEEDS_GAME: Screen[] = ['house', 'map', 'scene', 'cooking', 'phone', 'board', 'bible', 'fridge', 'debug', 'summary', 'episode', 'studio'];
 
 export function App() {
   const { screen, settings, boot, view } = useGame();

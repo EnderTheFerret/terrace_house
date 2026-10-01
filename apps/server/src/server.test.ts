@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { BeatSheet, createGame, makeEvent, eventTemplate, stableStringify, type ImageBackend, type ImageRequest, type LlmClient, type LlmRequest } from '@shared-roof/shared';
@@ -9,7 +9,7 @@ import { OllamaClient } from './llm/ollama';
 import { Budget, extractJson, structured } from './llm/structured';
 import { approxTokens, assemble, TOKEN_BUDGET } from './prompts/common';
 import { beatSheetPrompt, linesPrompt, parseLines } from './prompts/scene';
-import { patchWorkflow } from './image/comfy';
+import { ComfyBackend, patchWorkflow } from './image/comfy';
 import { cacheKey, ImageQueue, PRIORITY } from './image/queue';
 import { MockImageBackend } from './image/mock';
 import { buildApp } from './app';
@@ -164,6 +164,42 @@ describe('ComfyUI workflow patching', () => {
   it('rejects mappings that point at missing nodes', () => {
     expect(() => patchWorkflow(wf, { positive: { node: '999', input: 'text' } }, req)).toThrow(/missing node/);
   });
+  it('requests with a reference portrait upload it and run the reference workflow; others use the base one', async () => {
+    const dir = tmp();
+    const refFile = join(dir, 'face.png');
+    writeFileSync(refFile, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    const prompts: any[] = [];
+    let uploads = 0;
+    const fake = (async (url: string, init?: RequestInit) => {
+      const u = String(url);
+      const json = (j: unknown) => new Response(JSON.stringify(j), { status: 200 });
+      if (u.endsWith('/upload/image')) {
+        uploads++;
+        return json({ name: 'shared_roof_face.png', subfolder: '' });
+      }
+      if (u.endsWith('/prompt')) {
+        prompts.push(JSON.parse(String(init!.body)).prompt);
+        return json({ prompt_id: `p${prompts.length}` });
+      }
+      if (u.includes('/history/')) {
+        const pid = u.split('/history/')[1];
+        const images = [{ filename: 'a.png', subfolder: '', type: 'output' }];
+        return json({ [pid]: { outputs: { '11': { images }, '16': { images } } } }); // base / reference output nodes
+      }
+      return new Response(new Uint8Array([1, 2, 3]), { status: 200 });
+    }) as typeof fetch;
+    const comfy = new ComfyBackend('http://comfy', resolve(ROOT, 'workflows/txt2img.api.json'), resolve(ROOT, 'workflows/mapping.json'), dir, 5000, fake, {
+      workflowPath: resolve(ROOT, 'workflows/ref_edit.api.json'),
+      mappingPath: resolve(ROOT, 'workflows/ref_mapping.json'),
+    });
+    await comfy.generate({ ...req, kind: 'freeze', reference: refFile });
+    await comfy.generate(req);
+    const refMap = JSON.parse(readFileSync(resolve(ROOT, 'workflows/ref_mapping.json'), 'utf8'));
+    expect(uploads).toBe(1);
+    expect(prompts[0][refMap.reference.node].inputs.image).toBe('shared_roof_face.png');
+    expect(prompts[0][refMap.positive.node].inputs.prompt).toBe('POS');
+    expect(prompts[1][map.positive.node].inputs.text).toBe('POS'); // no reference → plain txt2img
+  });
 });
 
 describe('image queue', () => {
@@ -198,6 +234,22 @@ describe('image queue', () => {
     expect(st.status).toBe('ready');
     expect(st.placeholder).toBe(true);
     expect(q.offline).toBe(true);
+  });
+  it('holds queued work while dialogue streams (one GPU), except the player portrait', async () => {
+    const dir = tmp();
+    const ran: string[] = [];
+    const backend: ImageBackend = { name: 'comfyui', health: async () => true, generate: async (r) => (ran.push(r.subjectKey), new MockImageBackend(dir).generate(r)) };
+    const q = new ImageQueue(backend, new MockImageBackend(dir), new Store(openDb(':memory:')), 'w', dir, null);
+    const release = q.hold();
+    const bg = q.request(req('bg'), PRIORITY.prefetch);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(ran).toEqual([]);
+    const me = q.request(req('me'), PRIORITY.playerPortrait);
+    await q.settle(me.key);
+    expect(ran).toEqual(['me']);
+    release();
+    await q.settle(bg.key);
+    expect(ran).toEqual(['me', 'bg']);
   });
   it('cancels queued jobs', () => {
     const dir = tmp();
@@ -243,6 +295,15 @@ describe('game session (mock + failing adapters)', () => {
     await playEpisode(session);
     expect(session.state!.world.episode).toBe(2);
     expect(down.calls).toBeGreaterThan(0); // tried, failed, fell back
+    // the end-of-episode studio intermission still runs on templates, host first and last, state untouched
+    expect(session.pendingIntermission).toBe('end');
+    const before = JSON.stringify(session.state);
+    const im = await session.intermission();
+    expect(im.lines.length).toBeGreaterThanOrEqual(3);
+    expect(im.lines[0].speaker).toBe('nagumo');
+    expect(im.lines.at(-1)!.speaker).toBe('nagumo');
+    expect(JSON.stringify(session.state)).toBe(before);
+    await expect(session.intermission()).rejects.toThrow(/no intermission/);
   });
 
   it('replaying the event log reproduces the exact state (deterministic replay)', async () => {
@@ -253,6 +314,57 @@ describe('game session (mock + failing adapters)', () => {
     session.newGame({ seed: 21 });
     await playEpisode(session);
     await playEpisode(session);
+    const replayed = replayEvents(store.events(session.state!.gameId));
+    expect(stableStringify(replayed)).toBe(stableStringify(session.state));
+  });
+
+  it('typed talk, phone messages, graduating and the next player all replay exactly', async () => {
+    const dir = tmp();
+    const store = new Store(openDb(join(dir, 'db.sqlite')));
+    const queue = new ImageQueue(new MockImageBackend(dir), new MockImageBackend(dir), store, 'mock', dir, null);
+    const session = new GameSession(store, new Generator(new MockLlm()), queue);
+    session.newGame({ seed: 21 });
+    const drive = async (action: unknown, typed?: string) => {
+      const events: { e: string; d: any }[] = [];
+      const { scenes } = session.act(action);
+      for (const sc of scenes) {
+        if (sc.phase === 'awaiting-response') session.respond(sc.id, 'ignore');
+        for (let i = 0; i < 12 && session.runs.get(sc.id)!.phase !== 'done'; i++) {
+          await session.stream(sc.id, (e, d) => events.push({ e, d }));
+          const run = session.runs.get(sc.id)!;
+          if (run.phase !== 'awaiting-choice') continue;
+          if (typed && !run.said.length) session.choose(sc.id, { text: typed });
+          else if (run.said.length) session.choose(sc.id, { done: true });
+          else session.choose(sc.id, run.ev.intents[0]);
+        }
+      }
+      session.endSlot();
+      return events;
+    };
+    // morning: talk to Ren and say something in your own words
+    const ev = await drive({ type: 'talk', target: 'ren' }, 'I think the fridge is haunted, honestly');
+    const mine = ev.find((x) => x.e === 'line-end' && x.d.source === 'player');
+    expect(mine?.d.text).toBe('I think the fridge is haunted, honestly');
+    const answer = ev[ev.indexOf(mine!) + 1];
+    expect(ev.slice(ev.indexOf(mine!)).some((x) => x.e === 'line-end' && x.d.speaker !== session.state!.playerId)).toBe(true);
+    expect(answer).toBeDefined();
+    expect(ev.some((x) => x.e === 'choice' && x.d.canEnd)).toBe(true);
+    const listener = Object.values(session.state!.memory).flat().some((m) => m.text.includes('fridge is haunted'));
+    expect(listener).toBe(true);
+    // a typed phone message opens the chat and lands in the thread
+    await drive({ type: 'text', target: 'mio', text: 'are you home tonight?' });
+    const thread = session.state!.chats[[session.state!.playerId, 'mio'].sort().join('|')];
+    const sent = thread.findIndex((m) => m.from === session.state!.playerId && m.text === 'are you home tonight?');
+    expect(sent).toBeGreaterThanOrEqual(0);
+    expect(thread.slice(sent + 1).some((m) => m.from === 'mio')).toBe(true); // and she answered
+    // graduate alone, the season goes on, a new player character moves in
+    const before = session.state!.playerId;
+    await drive({ type: 'graduate' });
+    expect(session.state!.awaitingPlayer).toBe(true);
+    expect(() => session.act({ type: 'idle' })).toThrow(/move in first/);
+    const v = session.newPlayer({ name: 'Aki Mori', age: 26, gender: 'man', interestedIn: ['woman'], hometown: 'Kobe', occupation: 'barista', traits: [0.5, 0.5, 0.5, 0.5, 0.5], quirks: [], tastes: [0, 0, 0, 0, 0, 0], hobbies: ['surfing', 'film', 'running'], appearance: { hairStyle: 'short messy', hairColor: 'black', eyeColor: 'brown', build: 'average', outfit: 'linen shirt', accessory: 'none', skinTone: 'tan' } });
+    expect(v.playerId).not.toBe(before);
+    await drive({ type: 'idle' });
     const replayed = replayEvents(store.events(session.state!.gameId));
     expect(stableStringify(replayed)).toBe(stableStringify(session.state));
   });

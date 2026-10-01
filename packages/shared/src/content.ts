@@ -10,13 +10,14 @@ import panelJson from '../../../content/panel.json';
 import quirksJson from '../../../content/quirks.json';
 import npcsJson from '../../../content/recurring-npcs.json';
 import houseJson from '../../../content/house.json';
+import jobsJson from '../../../content/jobs.json';
 import evCore from '../../../content/events/core.json';
 import evDomestic from '../../../content/events/domestic.json';
 import evCalendar from '../../../content/events/calendar.json';
 import evArcs from '../../../content/events/arcs.json';
 import evInteractions from '../../../content/events/interactions.json';
 import {
-  Arc, Archetype, CalendarEvent, CastEntry, City, EventTemplate, HouseContent, Panelist, Quirk, Quirks, Recipe, RecurringNpc,
+  Arc, Archetype, CalendarEvent, CastEntry, City, EventTemplate, HouseContent, Job, Panelist, Quirk, Quirks, Recipe, RecurringNpc,
 } from './contentSchema';
 
 function parse<T>(schema: z.ZodType<T>, data: unknown, label: string): T {
@@ -42,6 +43,7 @@ export interface Content {
   quirks: Quirk[];
   npcs: RecurringNpc[];
   house: HouseContent;
+  jobs: Job[];
   events: EventTemplate[];
   eventById: Map<string, EventTemplate>;
 }
@@ -87,6 +89,7 @@ function load(): Content {
     quirks: parse(Quirks, quirksJson, 'quirks').quirks,
     npcs: parse(z.object({ npcs: z.array(RecurringNpc).min(8) }), npcsJson, 'recurring-npcs').npcs,
     house: parse(HouseContent, houseJson, 'house'),
+    jobs: parse(z.object({ jobs: z.array(Job).min(30) }), jobsJson, 'jobs').jobs,
     events,
     eventById: new Map(events.map((e) => [e.id, e])),
   };

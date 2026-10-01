@@ -427,6 +427,8 @@ export const GameState = z.object({
   counters: z.record(z.string(), z.number()),
   pendingArrivals: z.array(z.object({ gender: Gender, ep: z.number().int() })),
   previously: z.string().default(''),
+  /** the player's character graduated; the game waits for the player's next housemate to move in */
+  awaitingPlayer: z.boolean().default(false),
 });
 export type GameState = z.infer<typeof GameState>;
 
@@ -440,6 +442,8 @@ export const PlayerAction = z.discriminatedUnion('type', [
     activity: z.enum(['date', 'wander', 'work', 'shop', 'karaoke', 'eat', 'invite']),
     invite: z.string().optional(),
     useCar: z.boolean().optional(),
+    /** with activity 'work': sign a contract for this slot on fixed weekdays */
+    contract: z.boolean().optional(),
   }),
   z.object({ type: z.literal('text'), target: z.string(), text: z.string().max(200).optional() }),
   z.object({ type: z.literal('idle') }),

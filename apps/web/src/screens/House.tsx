@@ -1,12 +1,12 @@
 // House: top-down pixel view of the share house. Walk with arrows/WASD, E/Enter to interact.
 // A full keyboard-accessible action list mirrors everything the map offers.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ROOMS, roomName, type CharView, type PlayerAction } from '@shared-roof/shared';
+import { ROOMS, placeName, roomName, shiftToday, type CharView, type PlayerAction } from '@shared-roof/shared';
 import { useGame } from '../store';
 import { TopBar, StudioStrip, DigestModal, slotLabel } from '../components/layout';
 import { Btn, Modal, Panel } from '../components/ui';
 import { hotspots, houseSize, passable, renderHouse, roomAt, solidTiles, spotFor, TILE } from '../pixel/house';
-import { MOOD_ICON, sprite } from '../pixel/sprites';
+import { emote, MOOD_ICON, sprite } from '../pixel/sprites';
 import { Portrait } from '../components/pixel';
 
 type Dir = 'down' | 'up' | 'left' | 'right';
@@ -194,6 +194,8 @@ export function House() {
         ctx.fillStyle = 'rgba(58,46,63,0.25)';
         ctx.fillRect(X + 3, Math.round(a.y * TILE) + 12, 10, 3);
         ctx.drawImage(sprite(a.id, ch.appearance, a.dir, frame), X, Y);
+        const em = a.moving === 0 ? emote(ch.activity) : null;
+        if (em) ctx.drawImage(em, X + 11, Y - 3 - (Math.floor(t / 500) % 2));
         if (a.id === view.playerId) {
           ctx.fillStyle = '#e07a6a';
           ctx.fillRect(X + 7, Y - 4, 2, 2);
@@ -290,13 +292,25 @@ export function House() {
               </Btn>
               <Btn disabled={busy} onClick={() => doAct({ type: 'idle' })}>let time pass</Btn>
             </div>
-            {view.canGraduate && (
-              <div className="mt-3">
-                <Btn primary onClick={() => setConfirm({ title: `leave the house with ${byId[view.canGraduate!]?.name.split(' ')[0]}? (ends your season)`, action: { type: 'graduate', with: view.canGraduate! } })}>
+            {shiftToday(view.job, view.weekday, view.slot) && (
+              <p className="mt-3 text-sm" role="status">
+                ⚑ you have a shift at {placeName(view.job!.nodeId)} now. skipping it twice gets you let go.
+              </p>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {view.canGraduate && byId[view.canGraduate] && (
+                <Btn primary onClick={() => setConfirm({ title: `leave the house with ${byId[view.canGraduate!].name.split(' ')[0]}? (you'll create the next housemate who moves in)`, action: { type: 'graduate', with: view.canGraduate! } })}>
                   graduate together
                 </Btn>
-              </div>
-            )}
+              )}
+              {(() => {
+                const partner = chars.find((c) => !c.isPlayer && c.partner === view.playerId);
+                return partner && partner.id !== view.canGraduate ? (
+                  <Btn onClick={() => setConfirm({ title: `leave the house with ${partner.name.split(' ')[0]}? (you'll create the next housemate who moves in)`, action: { type: 'graduate', with: partner.id } })}>leave with {partner.name.split(' ')[0]}</Btn>
+                ) : null;
+              })()}
+              <Btn onClick={() => setConfirm({ title: 'graduate from the house alone? (your farewell happens now; then you create the next housemate who moves in)', action: { type: 'graduate' } })}>leave the house</Btn>
+            </div>
           </Panel>
           <Panel title="who's where">
             <ul className="flex flex-col gap-2 text-sm">
@@ -315,6 +329,14 @@ export function House() {
       </main>
       <StudioStrip />
       <DigestModal />
+      {view.awaitingPlayer && (
+        <Modal title="you graduated from the house">
+          <p className="mb-4 text-sm">the season goes on without you. someone new is about to ring the doorbell — and this time it's you again.</p>
+          <Btn primary autoFocus onClick={() => setScreen('creator')}>
+            create your next housemate
+          </Btn>
+        </Modal>
+      )}
       {confirm && (
         <Modal title={confirm.title} onClose={() => setConfirm(null)}>
           <p className="caption mb-4 text-sm">this uses the {slotLabel(view.slot)} slot.</p>

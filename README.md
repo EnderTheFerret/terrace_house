@@ -95,6 +95,7 @@ leaving ComfyUI idle makes dialogue near-instant.
 |---|---|
 | `npm run dev:mock` / `npm run dev` | server + web in mock / real mode |
 | `npm test` | all tests (includes the 200-seed season simulation, ~3 min) |
+| `npm run test:e2e` | browser end-to-end tests (Playwright on the system Edge; builds the web app, mock-mode server on a throwaway data dir; 5 tests, ~15 s) |
 | `npm run typecheck` / `npm run lint` | TypeScript (strict) and ESLint |
 | `npm run build` | typecheck + production web build (`npm start` serves it with the API on `PORT`) |
 | `npm run smoke` | real-service smoke test |
@@ -133,9 +134,11 @@ See [DECISIONS.md](DECISIONS.md) for design choices and [PROGRESS.md](PROGRESS.m
 - Dialogue in real mode is only as good (and fast) as the local model; with the default budget of 6 calls per slot,
   NPC-only scenes beyond the first are template-written.
 - Images: the default workflow targets Qwen-Image; other models need a workflow export and a `mapping.json` edit.
-  Character consistency relies on fixed seeds and tag order (no IP-Adapter yet).
+  Freeze-frames keep the lead character's face through a Qwen-Image-Edit reference workflow (one reference face per
+  image); portraits and backgrounds rely on fixed seeds and tag order.
+- One GPU for both services: while dialogue streams the image queue waits and ComfyUI's models are unloaded, so the
+  next image pays a model reload. A smaller model (`OLLAMA_MODEL=gemma3:4b`) makes first lines near-instant.
 - English only (`LANGUAGE` is reserved).
 - The pixel world is procedural and intentionally simple: no pathfinding animation between rooms beyond tweening,
   no in-house cut-scenes.
-- Part-time jobs are drop-in shifts at work-capable spots rather than a fixed contract schedule.
 - Single local player, single active game per server process.

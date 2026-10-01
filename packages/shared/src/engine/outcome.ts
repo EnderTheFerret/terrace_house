@@ -156,6 +156,16 @@ export function resolveConfession(s: GameState, rng: Rng, a: string, b: string, 
     for (const w of new Set([a, b, ...witnesses])) learn(s, w, f.id, 'witnessed');
     addLog(s, { kind: 'couple', text: `${firstName(s, a)} confessed to ${firstName(s, b)} — and ${firstName(s, b)} said yes.`, participants: [a, b], salience: 1, factId: f.id });
     resolveOn(s, 'couple', a, b);
+    // saying yes to someone who is leaving means leaving with them (the show's classic exit)
+    const leaver = [a, b].find((id) => typeof s.world.flags[`leaving_${id}`] === 'number');
+    const stayer = leaver === a ? b : a;
+    if (leaver && s.characters[stayer].isPlayer) s.world.flags.canGraduate = leaver;
+    else if (leaver && !s.world.flags[`leaving_${stayer}`]) {
+      markLeaving(s, stayer, `left the house with ${firstName(s, leaver)}`);
+      s.world.flags[`leaving_${stayer}`] = s.world.flags[`leaving_${leaver}`];
+      s.world.flags[`announced_${stayer}`] = true;
+      addLog(s, { kind: 'departure', text: `${firstName(s, stayer)} will leave the house with ${firstName(s, leaver)}.`, participants: [a, b], salience: 1 });
+    }
     // jealousy: anyone else with strong feelings for either
     for (const c of housemates(s)) {
       if (c.id === a || c.id === b) continue;

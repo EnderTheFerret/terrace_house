@@ -159,6 +159,16 @@ export const Archetype = z.object({
 });
 export type Archetype = z.infer<typeof Archetype>;
 
+export const Job = z.object({
+  title: z.string(),
+  /** city node id, or "house" (works from their room) */
+  place: z.string(),
+  shift: z.enum(['early', 'day', 'late', 'night', 'flex']),
+  days: z.enum(['weekdays', 'weekends', 'mixed']),
+  category: z.string(),
+});
+export type Job = z.infer<typeof Job>;
+
 export const ArcBeat = z.object({
   id: z.string(),
   act: z.number().int().min(1).max(3),

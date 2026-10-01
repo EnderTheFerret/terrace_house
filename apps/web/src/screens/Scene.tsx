@@ -38,7 +38,7 @@ function useReveal(lines: LiveLine[], enabled: boolean) {
 }
 
 export function Scene() {
-  const { live, view, choose, respond, nextScene, settings } = useGame();
+  const { live, view, choose, say, endTalk, respond, nextScene, settings } = useGame();
   const [phaseShown, setPhaseShown] = useState<'dialogue' | 'freeze' | 'panel'>('dialogue');
   const logRef = useRef<HTMLDivElement>(null);
   const reveal = useReveal(live?.lines ?? [], settings.typewriter && !settings.reducedMotion);
@@ -66,7 +66,7 @@ export function Scene() {
   }, [reveal.idx, reveal.chars, live?.lines.length]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      if (!live) return;
+      if (!live || (e.target as HTMLElement)?.closest('input,textarea')) return;
       if (live.choice && reveal.complete) {
         const n = Number(e.key);
         if (n >= 1 && n <= live.choice.length) void choose(live.choice[n - 1]);
@@ -207,10 +207,16 @@ export function Scene() {
               how do you respond?
             </div>
             {live.choice.map((c, i) => (
-              <Btn key={c} onClick={() => void choose(c)} autoFocus={i === 0}>
+              <Btn key={c} onClick={() => void choose(c)} autoFocus={i === 0 && !live.canEnd}>
                 {i + 1}. {INTENT_LABEL[c] ?? c}
               </Btn>
             ))}
+            {live.canType && <SayBox onSay={(t) => void say(t)} autoFocus={live.canEnd} />}
+            {live.canEnd && (
+              <Btn primary onClick={() => void endTalk()}>
+                that's all
+              </Btn>
+            )}
           </div>
         )}
         {/* freeze frame */}
@@ -246,6 +252,33 @@ export function Scene() {
       </main>
       <StudioStrip expanded={phaseShown === 'panel'} lines={live.commentary?.lines} prediction={live.commentary?.prediction} />
     </div>
+  );
+}
+
+/** Type your own words instead of picking a response; the housemate answers what you actually said. */
+function SayBox({ onSay, autoFocus }: { onSay: (text: string) => void; autoFocus?: boolean }) {
+  const [text, setText] = useState('');
+  return (
+    <form
+      className="flex gap-1"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (text.trim()) onSay(text);
+      }}
+    >
+      <input
+        aria-label="say something in your own words"
+        placeholder="or say it yourself…"
+        className="px-panel-soft w-56 bg-paper px-2 py-1 text-sm"
+        maxLength={200}
+        value={text}
+        autoFocus={autoFocus}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <button type="submit" className="px-btn text-xs" disabled={!text.trim()}>
+        say
+      </button>
+    </form>
   );
 }
 

@@ -7,6 +7,7 @@ import { Btn } from '../components/ui';
 export function Phone() {
   const { view, act, goBack, busy } = useGame();
   const [tab, setTab] = useState<string>('group');
+  const [draft, setDraft] = useState('');
   if (!view) return null;
   const name = (id: string) => view.characters.find((c) => c.id === id)?.name.split(' ')[0] ?? id;
   const housemates = view.characters.filter((c) => c.status === 'inHouse' && !c.isPlayer);
@@ -54,11 +55,17 @@ export function Phone() {
             })}
           </div>
           {tab !== 'group' && (
-            <div className="mt-2 flex items-center gap-2">
-              <Btn disabled={busy} className="flex-1 text-xs" onClick={() => void act({ type: 'text', target: tab })}>
-                message {name(tab)} (uses this slot)
-              </Btn>
-            </div>
+            <form
+              className="mt-2 flex items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void act({ type: 'text', target: tab, text: draft.trim() || undefined });
+                setDraft('');
+              }}
+            >
+              <input aria-label={`message to ${name(tab)}`} placeholder="type a message… (optional)" maxLength={200} className="min-w-0 flex-1 rounded-[10px] bg-white px-2 py-1 text-sm" value={draft} onChange={(e) => setDraft(e.target.value)} />
+              <Btn disabled={busy} className="text-xs">send (uses this slot)</Btn>
+            </form>
           )}
         </div>
       </main>

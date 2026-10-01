@@ -6,7 +6,7 @@ import { blip } from './audio';
 
 export type Screen =
   | 'title' | 'creator' | 'house' | 'map' | 'scene' | 'cooking' | 'practice' | 'phone' | 'board' | 'bible' | 'fridge'
-  | 'debug' | 'summary' | 'settings' | 'saves' | 'episode';
+  | 'debug' | 'summary' | 'settings' | 'saves' | 'episode' | 'studio';
 
 export interface Settings {
   captions: boolean;
@@ -45,6 +45,9 @@ export interface LiveScene {
   };
   lines: LiveLine[];
   choice: string[] | null;
+  /** the player may type their own words / end a typed conversation */
+  canType: boolean;
+  canEnd: boolean;
   respond: boolean;
   outcome: { confession?: string; leaving?: string[]; cues: string[] } | null;
   commentary: { lines: { speaker: string; text: string; reaction: string }[]; prediction?: { text: string }; predictionBy?: string } | null;
@@ -78,6 +81,7 @@ interface State {
   showDigest: boolean;
   slotDigest: PlayerView['digest'];
   practiceRecipe: string | null;
+  studioAfter: Screen;
   setScreen(s: Screen): void;
   goBack(): void;
   setSettings(p: Partial<Settings>): void;
@@ -90,12 +94,15 @@ interface State {
   playLive(id: string): Promise<void>;
   respond(r: 'join' | 'eavesdrop' | 'ignore'): Promise<void>;
   choose(intent: string): Promise<void>;
+  say(text: string): Promise<void>;
+  endTalk(): Promise<void>;
+  joinAsNewPlayer(player: PlayerSetup): Promise<void>;
   finishSlot(): Promise<void>;
   setView(v: PlayerView): void;
   clearError(): void;
 }
 
-const emptyLive = (id: string): LiveScene => ({ id, lines: [], choice: null, respond: false, outcome: null, commentary: null, freeze: null, done: false, streaming: false });
+const emptyLive = (id: string): LiveScene => ({ id, lines: [], choice: null, canType: false, canEnd: false, respond: false, outcome: null, commentary: null, freeze: null, done: false, streaming: false });
 
 export const useGame = create<State>((set, get) => ({
   screen: 'title',
@@ -111,6 +118,7 @@ export const useGame = create<State>((set, get) => ({
   showDigest: false,
   slotDigest: [],
   practiceRecipe: null,
+  studioAfter: 'house',
 
   setScreen: (screen) => set((st) => ({ screen, back: ['house', 'map'].includes(st.screen) ? st.screen : st.back })),
   goBack: () => set((st) => ({ screen: st.view ? st.back : 'title' })),
@@ -205,7 +213,7 @@ export const useGame = create<State>((set, get) => ({
             });
             break;
           case 'choice':
-            patch((l) => ({ ...l, choice: d.intents }));
+            patch((l) => ({ ...l, choice: d.intents, canType: !!d.canType, canEnd: !!d.canEnd }));
             break;
           case 'respond':
             patch((l) => ({ ...l, respond: true }));
@@ -250,8 +258,38 @@ export const useGame = create<State>((set, get) => ({
     const live = get().live;
     if (!live?.choice) return;
     set((st) => ({ live: st.live ? { ...st.live, choice: null } : null }));
-    await api.choose(live.id, intent);
+    await api.choose(live.id, { intent });
     await get().playLive(live.id);
+  },
+
+  say: async (text) => {
+    const live = get().live;
+    if (!live?.choice || !text.trim()) return;
+    set((st) => ({ live: st.live ? { ...st.live, choice: null } : null }));
+    try {
+      await api.choose(live.id, { text: text.trim() });
+    } catch (e) {
+      set({ error: (e as Error).message });
+    }
+    await get().playLive(live.id);
+  },
+
+  endTalk: async () => {
+    const live = get().live;
+    if (!live?.choice) return;
+    set((st) => ({ live: st.live ? { ...st.live, choice: null } : null }));
+    await api.choose(live.id, { done: true });
+    await get().playLive(live.id);
+  },
+
+  joinAsNewPlayer: async (player) => {
+    set({ busy: true, error: null });
+    try {
+      const g = await api.newPlayer(player);
+      set({ view: g.view, scenes: [], screen: 'house', busy: false, live: null });
+    } catch (e) {
+      set({ error: (e as Error).message, busy: false });
+    }
   },
 
   finishSlot: async () => {
@@ -260,9 +298,11 @@ export const useGame = create<State>((set, get) => ({
       const r = await api.endSlot();
       const digest = r.view.digest;
       set({ view: r.view, scenes: [], busy: false, slotDigest: digest, showDigest: digest.length > 0 && !r.newEpisode });
-      if (r.seasonOver) set({ screen: 'summary' });
-      else if (r.newEpisode) set({ episodeCard: 'end', screen: 'episode' });
-      else set({ screen: r.view.slot === 'morning' || r.view.slot === 'evening' ? 'house' : get().back === 'map' ? 'map' : 'house' });
+      // your character graduated: create the one who moves in next
+      const after: Screen = r.seasonOver ? 'summary' : r.view.awaitingPlayer ? 'creator' : r.newEpisode ? 'episode' : r.view.slot === 'morning' || r.view.slot === 'evening' ? 'house' : get().back === 'map' ? 'map' : 'house';
+      if (r.newEpisode && !r.seasonOver) set({ episodeCard: 'end' });
+      // the show cuts to the studio panel mid-episode and at the end; the studio screen then continues to `after`
+      set(r.intermission ? { screen: 'studio', studioAfter: after } : { screen: after });
     } catch (e) {
       set({ error: (e as Error).message, busy: false });
     }

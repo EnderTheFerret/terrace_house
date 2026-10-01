@@ -26,7 +26,7 @@ export function TopBar() {
   if (!view) return null;
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b-[3px] border-ink bg-paper px-3 py-2 text-sm">
-      <span className="text-base">ep {view.episode}<span className="caption">/{view.seasonLength}</span></span>
+      <span className="text-base">ep {view.episode}{view.seasonLength < 1000 && <span className="caption">/{view.seasonLength}</span>}</span>
       <span className="caption">{view.dateLabel}</span>
       <span>{slotLabel(view.slot)}</span>
       <span title={view.weather} aria-label={`weather: ${view.weather}`}>

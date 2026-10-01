@@ -1,14 +1,14 @@
 // Leave / graduation rules, departures and replacement arrivals (Sections 5.4, 5.5M).
 import type { Character, GameState } from '../model';
 import type { Rng } from '../rng';
-import { addFact, addLog, addRel, coupleOf, firstName, housemates, learn, rel } from './core';
+import { addFact, addLog, addRel, coupleOf, departing, firstName, housemates, learn, rel } from './core';
 import { initArc } from './arcs';
 import { initRelationships, replacementCandidate } from './castgen';
 import { publicReputation } from './social';
 import { postGroupChat } from './house';
 import { resolveOn } from './predictions';
 
-export type LeaveReason = 'couple' | 'rejection' | 'mood' | 'contract';
+export type LeaveReason = 'couple' | 'rejection' | 'mood' | 'contract' | 'goal';
 
 /** Which leave conditions currently apply to c (deterministic part, before chance rolls). */
 export function leaveReasons(s: GameState, c: Character): LeaveReason[] {
@@ -24,6 +24,9 @@ export function leaveReasons(s: GameState, c: Character): LeaveReason[] {
   if (typeof rej === 'number' && typeof rejBy === 'string' && ep - rej >= 2 && s.characters[rejBy] && rel(s, c.id, rejBy).romance >= 50) out.push('rejection');
   if (c.lowMoodStreak >= 3) out.push('mood');
   if (ep - c.arrivedEp + 1 >= c.contractEp) out.push('contract');
+  // on the show people graduate when the house has given them what they came for
+  const arcEp = s.world.flags[`arcEp_${c.id}`];
+  if (s.arcs[c.id]?.outcome === 'complete' && typeof arcEp === 'number' && ep - arcEp >= 2) out.push('goal');
   return out;
 }
 
@@ -32,6 +35,7 @@ const REASON_TEXT: Record<LeaveReason, string> = {
   rejection: 'left after an unanswered confession',
   mood: 'decided the house was not for them',
   contract: 'reached the end of their stay',
+  goal: 'graduated, having found what they came for',
 };
 
 export function markLeaving(s: GameState, id: string, reason: string) {
@@ -68,6 +72,11 @@ export function evaluateLeaves(s: GameState, rng: Rng): string[] {
     if (reasons.includes('contract')) reason = 'contract';
     else if (reasons.includes('rejection') && rng.chance(0.4)) reason = 'rejection';
     else if (reasons.includes('mood') && rng.chance(0.5)) reason = 'mood';
+    else if (reasons.includes('goal')) {
+      // someone in the house worth staying for keeps them around a while longer
+      const anchor = Math.max(0, ...housemates(s).filter((o) => o.id !== c.id).map((o) => rel(s, c.id, o.id).romance));
+      if (rng.chance(Math.max(0.05, 0.3 - anchor / 250))) reason = 'goal';
+    }
     if (reason) {
       marked.push(c.id);
       solo++;
@@ -77,22 +86,27 @@ export function evaluateLeaves(s: GameState, rng: Rng): string[] {
   return marked;
 }
 
-/** Characters marked leaving actually depart (after the farewell scene). Schedules replacements. */
-export function departLeaving(s: GameState) {
+/** Characters due to leave actually depart (after the farewell scene). Schedules replacements. `all` = season finale. */
+export function departLeaving(s: GameState, all = false) {
   for (const c of housemates(s)) {
-    if (c.isPlayer || !s.world.flags[`leaving_${c.id}`]) continue;
-    c.status = 'left';
-    c.leftEp = s.world.episode;
-    c.leftReason = String(s.world.flags[`leaveReason_${c.id}`] ?? 'left');
-    delete s.world.flags[`leaving_${c.id}`];
-    s.house.groupChat.members = s.house.groupChat.members.filter((m) => m !== c.id);
-    const cp = coupleOf(s, c.id);
-    if (cp) cp.status = s.characters[cp.a === c.id ? cp.b : cp.a].status === 'left' ? 'left-together' : 'broken';
-    s.budgets.farewells++;
-    addLog(s, { kind: 'departure', text: `${c.name} ${c.leftReason}.`, participants: [c.id], salience: 0.9 });
-    // the cast stays at six until the endgame
-    if (s.world.episode <= s.seasonLength - 3) s.pendingArrivals.push({ gender: c.gender, ep: s.world.episode });
+    if (c.isPlayer || !s.world.flags[`leaving_${c.id}`] || (!all && !departing(s, c.id))) continue;
+    depart(s, c);
   }
+}
+
+/** One housemate walks out the door: status, couple, group chat, log, and a same-gender replacement is booked. */
+export function depart(s: GameState, c: Character) {
+  c.status = 'left';
+  c.leftEp = s.world.episode;
+  c.leftReason = String(s.world.flags[`leaveReason_${c.id}`] ?? 'left');
+  delete s.world.flags[`leaving_${c.id}`];
+  s.house.groupChat.members = s.house.groupChat.members.filter((m) => m !== c.id);
+  const cp = coupleOf(s, c.id);
+  if (cp) cp.status = s.characters[cp.a === c.id ? cp.b : cp.a].status === 'left' ? 'left-together' : 'broken';
+  s.budgets.farewells++;
+  addLog(s, { kind: 'departure', text: `${c.name} ${c.leftReason}.`, participants: [c.id], salience: 0.9 });
+  // whoever graduates, someone new moves in (same gender, as on the show) unless the season ends today
+  if (!c.isPlayer && s.world.episode < s.seasonLength) s.pendingArrivals.push({ gender: c.gender, ep: s.world.episode });
 }
 
 /** Process pending arrivals: generate a replacement and wire them into every system. */

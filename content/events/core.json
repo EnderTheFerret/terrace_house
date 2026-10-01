@@ -10,6 +10,15 @@
       "freeze": true, "effects": [{ "flag": "introduced_{a}", "value": true }]
     },
     {
+      "id": "welcome-party", "type": "welcome-party", "title": "welcome party", "tags": ["group", "dinner", "celebration", "intro"],
+      "slots": ["evening"], "location": "kitchen",
+      "roles": { "a": {}, "b": {}, "c": {} }, "pre": [{ "flag": "new_{a}" }, { "flag": "introduced_{a}" }, { "notFlag": "welcomed_{a}" }], "weight": 8,
+      "drama": { "affinity": [["a", "b", 4], ["a", "c", 4], ["b", "a", 3], ["c", "a", 3]], "romance": [["b", "a", 2]], "mood": [["a", 0.15]] },
+      "beats": ["open", "smalltalk", "probe", "joke", "choice", "tease", "close"], "intents": ["joke", "support", "flirt", "honest"],
+      "premise": "Hot pot for the newcomer. {b} asks {a} the question everyone asks: 'so what do you want to get out of this house?' {c} pours.",
+      "effects": [{ "flag": "welcomed_{a}", "value": true }, { "house": { "dishes": 20 } }]
+    },
+    {
       "id": "chore-rota-conflict", "type": "chore-conflict", "title": "the chore rota", "tags": ["conflict", "domestic", "house-meeting"],
       "slots": ["morning", "evening"], "location": "kitchen",
       "roles": { "a": {}, "b": {} }, "pre": [{ "choreSkipper": "b" }], "weight": 2.2,

@@ -44,9 +44,11 @@ export const api = {
   game: () => req<{ view: PlayerView; scenes: SceneSummary[] }>('GET', '/api/game'),
   newGame: (body: { seed?: number; player?: PlayerSetup; randomizeCast?: boolean }) => req<{ view: PlayerView; scenes: SceneSummary[] }>('POST', '/api/game/new', body),
   act: (action: PlayerAction) => req<{ view: PlayerView; scenes: SceneSummary[] }>('POST', '/api/game/action', { action }),
-  endSlot: () => req<{ view: PlayerView; newEpisode: boolean; seasonOver: boolean }>('POST', '/api/game/end-slot'),
+  endSlot: () => req<{ view: PlayerView; newEpisode: boolean; seasonOver: boolean; intermission: 'mid' | 'end' | null }>('POST', '/api/game/end-slot'),
+  intermission: () => req<{ at: 'mid' | 'end'; lines: { speaker: string; text: string; reaction: string }[] }>('POST', '/api/studio/intermission'),
   respond: (id: string, response: 'join' | 'eavesdrop' | 'ignore') => req<{ scene: SceneSummary }>('POST', `/api/scene/${id}/respond`, { response }),
-  choose: (id: string, intent: string) => req<{ ok: boolean }>('POST', `/api/scene/${id}/choose`, { intent }),
+  choose: (id: string, choice: { intent?: string; text?: string; done?: boolean }) => req<{ ok: boolean }>('POST', `/api/scene/${id}/choose`, choice),
+  newPlayer: (player: PlayerSetup) => req<{ view: PlayerView; scenes: SceneSummary[] }>('POST', '/api/game/new-player', { player }),
   cooking: (body: { recipeId: string; quality: number; partner?: string; servedTo: string[] }) =>
     req<{ view: PlayerView; receptions: { charId: string; r: number; verdict: string }[]; improvised: boolean }>('POST', '/api/game/cooking', body),
   saves: () => req<{ saves: { id: number; slot: number; name: string; episode: number; created_at: string }[] }>('GET', '/api/saves'),

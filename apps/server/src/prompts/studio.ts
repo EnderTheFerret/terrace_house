@@ -1,5 +1,5 @@
 // Studio panel commentary + chat-app + premise flavor prompts.
-import { content, firstName, pendingCallbacks, placeName, type EventInstance, type GameState, type PredictionCond } from '@shared-roof/shared';
+import { content, firstName, intermissionTopics, pendingCallbacks, placeName, type EventInstance, type GameState, type PredictionCond } from '@shared-roof/shared';
 import { TOKEN_BUDGET, assemble, personaCard, RULES } from './common';
 
 const PANEL_RULES = [
@@ -34,6 +34,28 @@ export function commentaryPrompt(
           pred,
           'Output JSON only: {"lines":[{"speaker":"<panelist id>","text":"...","reaction":"laugh"}],"freezeFrame":{"caption":"..."},"prediction":{"text":"..."}}',
         ].filter(Boolean).join('\n'),
+        priority: 100,
+        required: true,
+      },
+    ],
+    TOKEN_BUDGET.commentary,
+  );
+}
+
+/** Intermission: the show cuts to the studio mid-episode / at the end, and the panel talks over recent footage. */
+export function intermissionPrompt(s: GameState, at: 'mid' | 'end', since: number): string {
+  const panel = content().panel.map((p) => `- ${p.id} (${p.name}, ${p.role}): ${p.persona}`).join('\n');
+  const topics = intermissionTopics(s, since).map((l) => `- ${l.text}`).join('\n') || '- a quiet stretch; nothing big happened';
+  return assemble(
+    [
+      { text: PANEL_RULES, priority: 100, required: true },
+      { text: `Panelists:\n${panel}`, priority: 95, required: true },
+      { text: `${at === 'mid' ? 'The host pauses the tape halfway through the episode.' : 'The episode just ended; the host wraps up.'} What the panel just watched:\n${topics}`, priority: 95, required: true },
+      {
+        text: [
+          `nagumo speaks first${at === 'end' ? ' and last (a one-line sign-off)' : ''}. 3–6 lines total; panelists riff on each other, use nicknames for housemates. reaction is one of laugh, gasp, cringe, aww, silence, groan.`,
+          'Output JSON only: {"lines":[{"speaker":"<panelist id>","text":"...","reaction":"laugh"}]}',
+        ].join('\n'),
         priority: 100,
         required: true,
       },

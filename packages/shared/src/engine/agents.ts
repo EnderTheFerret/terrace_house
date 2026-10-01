@@ -1,5 +1,6 @@
 // Agent tick (Section 5.5D): needs, utility-based action choice with Gumbel sampling, movement.
-import type { Character, GameState, Need, NeedVec } from '../model';
+import type { Character, GameState, Need, NeedVec, Slot } from '../model';
+import type { Job } from '../contentSchema';
 import { NEEDS } from '../model';
 import type { Rng } from '../rng';
 import { softmaxSample } from '../rng';
@@ -140,7 +141,22 @@ export function hasJobNow(s: GameState, c: Character) {
   return c.persona.routine.jobSlots.some((j) => j.slot === s.world.slot && j.weekdays.includes(s.world.weekday));
 }
 
+/** The catalogue entry for an occupation (content/jobs.json), if it has one. */
+export const jobOf = (occupation: string) => content().jobs.find((j) => j.title.toLowerCase() === occupation.toLowerCase());
+
+const SHIFT_SLOTS: Record<Job['shift'], Slot[]> = { early: ['morning', 'slot1'], day: ['slot1', 'slot2'], late: ['slot2', 'slot3'], night: ['slot3', 'evening'], flex: [] };
+
+/** Weekly work schedule for a job: its shift's slots on 4 days drawn from its day pattern. */
+export function jobSchedule(rng: Rng, job: Job): Character['persona']['routine']['jobSlots'] {
+  const pool = job.days === 'weekdays' ? [1, 2, 3, 4, 5] : job.days === 'weekends' ? [0, 6, ...rng.shuffle([1, 2, 3, 4, 5]).slice(0, 2)] : [0, 1, 2, 3, 4, 5, 6];
+  const weekdays = (job.days === 'weekends' ? pool : rng.shuffle(pool).slice(0, 4)).sort((a, b) => a - b);
+  const slots = job.shift === 'flex' ? [rng.pick(['slot1', 'slot2', 'slot3'] as const)] : SHIFT_SLOTS[job.shift];
+  return slots.map((slot) => ({ slot, weekdays }));
+}
+
 export function jobNode(c: Character): string {
+  const job = jobOf(c.occupation);
+  if (job) return job.place === 'house' ? bedroomOf(c) : job.place; // remote workers work from their room
   const occ = c.occupation.toLowerCase();
   if (occ.includes('nurse') || occ.includes('doctor') || occ.includes('pharm')) return 'hospital';
   if (occ.includes('cook') || occ.includes('chef')) return 'grill';

@@ -170,67 +170,195 @@ export function portraitPixels(a: Appearance, gender: string, seed = 0): Pixels 
 
 export type Dir = 'down' | 'up' | 'left' | 'right';
 
-/** 16×20 top-down chibi sprite frame. frame ∈ {0,1,2} (1 = idle, 0/2 = steps). */
+/**
+ * 16×20 top-down chibi sprite frame. frame ∈ {0,1,2} (1 = idle, 0/2 = steps).
+ * Light comes from the top-left: every fill gets a darker right/bottom edge, hair gets a highlight.
+ */
 export function spritePixels(a: Appearance, dir: Dir, frame: number): Pixels {
   const pal = palette(a);
   const p = grid(16, 20);
   const style = hairStyle(a.hairStyle);
   const step = frame === 1 ? 0 : frame === 0 ? -1 : 1;
-  // legs
-  const legY = 15;
-  if (dir === 'left' || dir === 'right') {
-    rect(p, 6 + step, legY, 2, 4, pal.pants);
-    rect(p, 8 - step, legY, 2, 4, shade(pal.pants, 0.8));
+  const side = dir === 'left' || dir === 'right';
+  const flip = (x: number) => (dir === 'left' ? 15 - x : x); // profiles are drawn facing right, mirrored for left
+  const outfit = a.outfit.toLowerCase();
+  const acc = a.accessory.toLowerCase();
+  const skirt = /skirt|dress/.test(outfit);
+  const shorts = /short/.test(outfit);
+  const w = /broad|athletic/.test(a.build) ? 1 : /petite|slim/.test(a.build) ? -1 : 0;
+  const dark = (c: string) => shade(c, 0.78);
+  const shoe = '#3a3036';
+
+  // legs + shoes (skin shows under skirts and shorts)
+  const legTop = skirt ? 17 : shorts ? 16 : 15;
+  if (side) {
+    for (const [lx, d] of [[6 + step, 1], [8 - step, 0.8]] as const) {
+      const x = Math.min(flip(lx), flip(lx + 1));
+      rect(p, x, 15, 2, 3, shade(skirt || shorts ? pal.skin : pal.pants, d));
+      rect(p, x, 15, 2, legTop - 15, shade(pal.pants, d));
+      rect(p, x, 18, 2, 1, shoe);
+    }
   } else {
-    rect(p, 5, legY, 2, step < 0 ? 3 : 4, pal.pants);
-    rect(p, 9, legY, 2, step > 0 ? 3 : 4, pal.pants);
+    for (const [lx, lift] of [[5, step < 0], [9, step > 0]] as const) {
+      const h = lift ? 3 : 4;
+      rect(p, lx, 15, 2, h, skirt || shorts ? pal.skin : pal.pants);
+      if (!skirt && !shorts) set(p, lx + 1, 15 + h - 1, dark(pal.pants));
+      if (skirt || shorts) rect(p, lx, 15, 2, legTop - 15, pal.pants);
+      rect(p, lx, 15 + h - 1, 2, 1, shoe);
+    }
   }
-  rect(p, 5, 18, 2, 1, '#3a3036');
-  rect(p, 9, 18, 2, 1, '#3a3036');
-  // body
-  rect(p, 4, 10, 8, 6, pal.outfit);
-  if (dir === 'down') rect(p, 7, 10, 2, 1, shade(pal.outfit, 0.8));
-  // arms
-  if (dir === 'down' || dir === 'up') {
-    rect(p, 3, 11 + (step > 0 ? 1 : 0), 1, 4, pal.skin);
-    rect(p, 12, 11 + (step < 0 ? 1 : 0), 1, 4, pal.skin);
-  } else rect(p, dir === 'left' ? 7 : 8, 11 + step, 1, 4, pal.skin);
-  // head
+  // torso with side shading; skirts flare out
+  rect(p, 4 - w, 10, 8 + w * 2, 6, pal.outfit);
+  rect(p, 11 + w, 10, 1, 6, dark(pal.outfit));
+  if (skirt) {
+    rect(p, 3 - w, 14, 10 + w * 2, 3, shade(pal.outfit, 0.92));
+    rect(p, 12 + w, 14, 1, 3, dark(pal.outfit));
+  }
+  if (/stripe/.test(outfit)) for (let y = 11; y < 16; y += 2) rect(p, 4 - w, y, 8 + w * 2, 1, '#f4f6fa');
+  if (!side && dir === 'down') {
+    if (/jacket|cardigan|blazer|coat|hoodie/.test(outfit)) {
+      rect(p, 7, 10, 2, 5, /hoodie/.test(outfit) ? shade(pal.outfit, 0.85) : '#f4f0e6');
+      set(p, 6, 11, dark(pal.outfit));
+      set(p, 9, 11, dark(pal.outfit));
+    } else rect(p, 7, 10, 2, 1, dark(pal.outfit)); // collar
+    if (/apron/.test(outfit)) rect(p, 5, 12, 6, 4, '#e9dcc0');
+  }
+  // arms: sleeves in outfit colour, skin hands; they swing with the step
+  if (side) {
+    const ax = flip(8);
+    rect(p, ax, 11 + step, 1, 3, dark(pal.outfit));
+    set(p, ax, 14 + step, pal.skin);
+  } else {
+    for (const [ax, sw] of [[3 - w, step > 0 ? 1 : 0], [12 + w, step < 0 ? 1 : 0]] as const) {
+      rect(p, ax, 11 + sw, 1, 3, ax > 8 ? dark(pal.outfit) : pal.outfit);
+      set(p, ax, 14 + sw, pal.skin);
+    }
+  }
+  // neck + rounded head
+  rect(p, 7, 9, 2, 2, shade(pal.skin, 0.88));
   rect(p, 4, 2, 8, 8, pal.skin);
   rect(p, 3, 3, 10, 6, pal.skin);
+  rect(p, 12, 3, 1, 6, shade(pal.skin, 0.9));
   // hair
+  const hl = shade(pal.hair, 1.35);
   const long = style === 'long' || style === 'wavy' || style === 'braids';
-  if (dir === 'up') {
+  const ends = (x: number, y: number, ww: number, h: number) => {
+    rect(p, x, y, ww, h, pal.hair);
+    if (style === 'wavy') for (let i = 0; i < ww; i += 2) set(p, x + i, y + h - 1, dark(pal.hair));
+  };
+  if (style === 'buzz') {
+    rect(p, 4, 1, 8, 2, dark(pal.hair));
+    if (dir === 'up') rect(p, 3, 2, 10, 5, dark(pal.hair));
+  } else if (dir === 'up') {
     rect(p, 3, 1, 10, 8, pal.hair);
-    if (long) rect(p, 4, 8, 8, 4, pal.hair);
-    if (style === 'ponytail') rect(p, 7, 8, 2, 4, pal.hair);
-  } else {
+    rect(p, 4, 0, 8, 1, pal.hair);
+    if (long) ends(4, 9, 8, style === 'long' ? 5 : 3);
+    if (style === 'bob') ends(3, 8, 10, 2);
+    if (style === 'ponytail') ends(7, 8, 2, 5);
+    if (style === 'braids') {
+      ends(3, 9, 2, 6);
+      ends(11, 9, 2, 6);
+    }
+    set(p, 5, 2, hl);
+  } else if (dir === 'down') {
     rect(p, 3, 1, 10, 3, pal.hair);
     rect(p, 4, 0, 8, 1, pal.hair);
-    if (dir === 'down') {
-      rect(p, 3, 4, 1, long || style === 'bob' ? 6 : 2, pal.hair);
-      rect(p, 12, 4, 1, long || style === 'bob' ? 6 : 2, pal.hair);
-      rect(p, 5, 6, 1, 1, pal.line);
-      rect(p, 10, 6, 1, 1, pal.line);
-      set(p, 7, 8, '#c4626a');
-      set(p, 8, 8, '#c4626a');
-    } else {
-      const back = dir === 'left' ? 9 : 3;
-      rect(p, back, 3, 4, long ? 8 : 4, pal.hair);
-      set(p, dir === 'left' ? 4 : 11, 6, pal.line);
-      if (style === 'ponytail') rect(p, dir === 'left' ? 12 : 1, 4, 2, 5, pal.hair);
+    // fringe: a few strands hang over the forehead
+    for (const x of style === 'messy' ? [4, 6, 9, 11] : [4, 5, 10, 11]) set(p, x, 4, pal.hair);
+    if (style === 'messy') for (const x of [3, 7, 12]) set(p, x, 0, pal.hair);
+    const sideLen = style === 'long' ? 9 : long || style === 'bob' ? 6 : 2;
+    ends(3, 4, 1, sideLen);
+    ends(12, 4, 1, sideLen);
+    if (style === 'bob') {
+      set(p, 2, 8, pal.hair);
+      set(p, 13, 8, pal.hair);
     }
+    if (style === 'ponytail') rect(p, 13, 3, 1, 3, pal.hair);
+    if (style === 'braids') {
+      ends(2, 7, 1, 5);
+      ends(13, 7, 1, 5);
+    }
+    set(p, 5, 1, hl);
+    set(p, 6, 1, hl);
+    // face: two-pixel eyes with a highlight, blush, small mouth
+    for (const ex of [5, 10]) {
+      set(p, ex, 6, pal.line);
+      set(p, ex, 7, pal.eye);
+    }
+    set(p, 4, 8, shade(pal.skin, 0.88));
+    set(p, 11, 8, shade(pal.skin, 0.88));
+    set(p, 7, 8, '#b85a64');
+    set(p, 8, 8, '#b85a64');
+  } else {
+    // profile facing right (mirrored for left): hair covers the back of the head
+    rect(p, flip(3), 1, 1, 1, pal.hair);
+    for (let x = 3; x <= 11; x++) rect(p, flip(x), x < 5 ? 1 : 0, 1, x < 9 ? 4 : 3, pal.hair);
+    for (let x = 3; x <= 6; x++) rect(p, flip(x), 4, 1, long ? 7 : 4, pal.hair);
+    if (style === 'bob') rect(p, Math.min(flip(3), flip(6)), 8, 4, 1, pal.hair);
+    if (style === 'ponytail') ends(Math.min(flip(1), flip(2)), 4, 2, 6);
+    if (style === 'long') ends(Math.min(flip(3), flip(6)), 10, 4, 3);
+    set(p, flip(6), 1, hl);
+    set(p, flip(10), 6, pal.line);
+    set(p, flip(10), 7, pal.eye);
+    set(p, flip(13), 6, shade(pal.skin, 0.9)); // nose
+    set(p, flip(11), 8, '#b85a64');
   }
   if (pal.accent) {
     set(p, 3, 3, pal.accent);
     set(p, 12, 3, pal.accent);
   }
-  if (/glasses/.test(a.accessory) && dir === 'down') {
-    rect(p, 4, 6, 3, 1, '#3a3a44');
-    rect(p, 9, 6, 3, 1, '#3a3a44');
+  // accessories
+  if (/glasses/.test(acc)) {
+    if (dir === 'down') {
+      rect(p, 4, 6, 3, 1, '#3a3a44');
+      rect(p, 9, 6, 3, 1, '#3a3a44');
+      rect(p, 7, 6, 2, 1, '#3a3a44');
+    } else if (side) rect(p, Math.min(flip(9), flip(11)), 6, 3, 1, '#3a3a44');
   }
-  if (/cap|beanie/.test(a.accessory)) rect(p, 3, 0, 10, 2, /cap/.test(a.accessory) ? '#d0574e' : '#5e7fb8');
+  if (/cap|beanie/.test(acc)) {
+    const c = /cap/.test(acc) ? '#d0574e' : '#5e7fb8';
+    rect(p, 3, 0, 10, 2, c);
+    rect(p, 3, 2, 10, 1, dark(c));
+    if (/cap/.test(acc) && dir === 'down') rect(p, 4, 3, 8, 1, dark(c)); // brim
+    if (/cap/.test(acc) && side) rect(p, Math.min(flip(11), flip(14)), 2, 4, 1, dark(c));
+  }
+  if (/headphones/.test(acc)) {
+    rect(p, 4, 0, 8, 1, '#3a3a44');
+    if (!side) {
+      rect(p, 2, 4, 1, 3, '#3a3a44');
+      rect(p, 13, 4, 1, 3, '#3a3a44');
+    } else rect(p, flip(7), 4, 2, 3, '#3a3a44');
+  }
+  if (/scarf/.test(acc)) {
+    rect(p, 4, 10, 8, 1, '#c75a5a');
+    if (dir === 'down') rect(p, 9, 11, 1, 3, '#c75a5a');
+  }
+  if (/clip/.test(acc) && dir !== 'up') set(p, side ? flip(9) : 10, 1, '#f7c948');
+  if (/ear|cuff/.test(acc) && dir === 'down') {
+    set(p, 3, 7, '#d8dce4');
+    set(p, 12, 7, '#d8dce4');
+  }
   return outline(p, pal.line);
+}
+
+/** Tiny 7×7 (5×5 + outline) activity emote drawn above a sprite (zZ asleep, steam while cooking, a note for hobbies, …). */
+export function emotePixels(kind: string): Pixels | null {
+  const shapes: Record<string, [string, string[]]> = {
+    sleep: ['#6f86a8', ['###..', '..#..', '.#...', '###.#', '....#']],
+    cook: ['#e07a6a', ['.#.#.', '#.#..', '.#.#.', '#.#..', '#####']],
+    eat: ['#c49568', ['.#.#.', '.#.#.', '#####', '.###.', '..#..']],
+    hobby: ['#7a5fb8', ['..##.', '..#.#', '..#..', '###..', '##...']],
+    work: ['#5f8a6b', ['.###.', '#...#', '#####', '#...#', '#####']],
+    exercise: ['#e0a040', ['..#..', '.##..', '#####', '..##.', '..#..']],
+    text: ['#5e7fb8', ['####.', '#..#.', '#..#.', '####.', '.#...']],
+    tidy: ['#5fa3c7', ['..#..', '..#..', '..#..', '.###.', '#####']],
+    retreat: ['#8a7f8e', ['.....', '.....', '#.#.#', '.....', '.....']],
+  };
+  const s = shapes[kind];
+  if (!s) return null;
+  const p = grid(7, 7);
+  s[1].forEach((row, y) => [...row].forEach((ch, x) => ch === '#' && set(p, x + 1, y + 1, s[0])));
+  return outline(p, '#fffaf3');
 }
 
 /** Render pixels to a crisp SVG string. */

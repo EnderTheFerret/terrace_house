@@ -7,8 +7,8 @@ import { mulberry32, type Rng } from '../rng';
 import { clamp, fill } from '../util';
 import { content } from '../content';
 import {
-  addFact, addLog, attracted, ch, cloneState, depthCeiling, firstName, flag, housemates, isDaySlot, isRoom, knows, learn, nextId, npcs,
-  placeName, player, withRng,
+  addFact, addLog, attracted, ch, cloneState, coupleOf, departing, isCouple, depthCeiling, firstName, flag, housemates, isDaySlot, isRoom, knows, learn,
+  nextId, npcs, placeName, player, rel, withRng,
 } from './core';
 import { applyCalendar, chooseTyphoonDay } from './calendar';
 import { bedroomOf, chooseAction, decayNeeds, resolveLocations, satisfy, type AgentAction } from './agents';
@@ -19,13 +19,13 @@ import { applySceneOutcome, engineProposal, npcIntent, type SceneChoices, type S
 import { applyProposal, sanitizeProposal } from './relationships';
 import { autoGroceries, consume, houseTick, initHouse, rotateChores } from './house';
 import { decayGrudges, maybeGroupChatExclusion, updateMoods } from './social';
-import { departLeaving, evaluateLeaves, markLeaving, processArrivals } from './leave';
+import { depart, departLeaving, evaluateLeaves, markLeaving, processArrivals } from './leave';
 import { expirePredictions } from './predictions';
 import { compactAll, previouslyRecap, updatePairSummaries } from './memory';
 import { pruneFacts } from './knowledge';
 import { defaultCast, DEFAULT_PLAYER, generateCast, initRelationships, playerFromSetup, type PlayerSetup } from './castgen';
 import { fridgeTotal } from './conditions';
-import { reachability, WAGE } from './city';
+import { CONTRACT_BONUS, contractDays, MISSES_BEFORE_FIRED, reachability, shiftToday, WAGE } from './city';
 import { epilogueFor } from './epilogue';
 
 export interface NewGameOptions {
@@ -77,6 +77,7 @@ export function createGame(o: NewGameOptions): GameState {
     counters: {},
     pendingArrivals: [],
     previously: '',
+    awaitingPlayer: false,
   };
   const ids = all.map((c) => c.id).sort();
   initRelationships(s, rng, ids);
@@ -181,6 +182,14 @@ const HOUSE_ROOM: Record<string, (c: Character) => string> = {
 function applyPlayerAction(s: GameState, a: PlayerAction): { invite?: string; talk?: string } {
   const P = player(s);
   P.lastAction = a.type;
+  const job = s.world.playerJob;
+  if (job && shiftToday(job, s.world.weekday, s.world.slot) && s.world.cityEvent !== 'typhoon' && !(a.type === 'goOut' && a.activity === 'work' && a.node === job.nodeId)) {
+    const missed = ((flag(s, 'jobMissed') as number) ?? 0) + 1;
+    s.world.flags.jobMissed = missed;
+    const place = placeName(job.nodeId);
+    if (missed >= MISSES_BEFORE_FIRED) s.world.playerJob = null;
+    addLog(s, { kind: 'system', text: missed >= MISSES_BEFORE_FIRED ? `The manager at ${place} let you go after missed shifts.` : `You missed your shift at ${place}. The manager noticed.`, participants: [P.id], salience: 0.5 });
+  }
   switch (a.type) {
     case 'house':
       P.location = HOUSE_ROOM[a.activity](P);
@@ -216,7 +225,13 @@ function applyPlayerAction(s: GameState, a: PlayerAction): { invite?: string; ta
       s.world.money -= r.cost;
       if (r.needsCar) s.world.carUsedBy = P.id;
       if (a.activity === 'work') {
-        s.world.money += WAGE[a.node] ?? 2500;
+        if (a.contract && job?.nodeId !== a.node) {
+          s.world.playerJob = { nodeId: a.node, slot: s.world.slot, weekdays: contractDays(s.world.weekday), wage: Math.round((WAGE[a.node] ?? 2500) * CONTRACT_BONUS) };
+          s.world.flags.jobMissed = 0;
+          addLog(s, { kind: 'system', text: `You signed on at ${placeName(a.node)}: fixed shifts every week.`, participants: [P.id], salience: 0.4 });
+        }
+        const j = s.world.playerJob;
+        s.world.money += j?.nodeId === a.node && shiftToday(j, s.world.weekday, s.world.slot) ? j.wage : (WAGE[a.node] ?? 2500);
         satisfy(P, 'work');
       } else satisfy(P, 'goOut');
       return { invite: a.invite && s.characters[a.invite]?.status === 'inHouse' ? a.invite : undefined };
@@ -225,9 +240,12 @@ function applyPlayerAction(s: GameState, a: PlayerAction): { invite?: string; ta
       satisfy(P, 'text');
       return { talk: a.target };
     case 'graduate': {
-      markLeaving(s, P.id, a.with ? `graduated with ${firstName(s, a.with)}` : 'graduated alone');
-      if (a.with && s.characters[a.with]) markLeaving(s, a.with, `graduated with ${P.name.split(' ')[0]}`);
-      s.world.flags.playerGraduated = a.with ?? 'alone';
+      // you can always leave alone; leaving *with* someone needs them to be your partner (or to have asked you)
+      const w = a.with && s.characters[a.with]?.status === 'inHouse' && (isCouple(s, P.id, a.with) || flag(s, 'canGraduate') === a.with) ? a.with : undefined;
+      markLeaving(s, P.id, w ? `graduated with ${firstName(s, w)}` : 'graduated alone');
+      if (w) markLeaving(s, w, `graduated with ${P.name.split(' ')[0]}`);
+      s.world.flags.playerGraduated = w ?? 'alone';
+      P.location = 'entrance';
       return {};
     }
     default:
@@ -269,7 +287,7 @@ function planPlayerScene(s: GameState, rng: Rng, a: PlayerAction, acts: Record<s
   // house scenes
   const room = P.location;
   if (a.type === 'house' && a.activity === 'rest') return null;
-  const pool = housemates(s).filter((c) => c.id === P.id || (available(s, c, acts) && !flag(s, `leaving_${c.id}`)) || c.id === talk);
+  const pool = housemates(s).filter((c) => c.id === P.id || (available(s, c, acts) && !departing(s, c.id)) || c.id === talk);
   const inRoom = pool.filter((c) => c.location === room || c.id === P.id || c.id === talk);
   const usePool = inRoom.length >= 2 ? inRoom : pool;
   const cs = withPlayer(candidates(s, rng, { location: room, pool: usePool, isPlayerScene: true, focus: talk }));
@@ -301,7 +319,7 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
     // NPC actions
     const acts: Record<string, AgentAction> = {};
     for (const c of npcs(s)) {
-      if (flag(s, `leaving_${c.id}`)) acts[c.id] = { kind: 'retreat' };
+      if (departing(s, c.id)) acts[c.id] = { kind: 'retreat' };
       else if (c.id === invite && action.type === 'goOut') acts[c.id] = { kind: 'goOut', node: action.node };
       else acts[c.id] = chooseAction(s, rng, c);
       const a = acts[c.id];
@@ -326,18 +344,33 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
     // farewell scenes take priority in the morning
     const leavers = housemates(s).filter((c) => flag(s, `leaving_${c.id}`) && !c.isPlayer);
     let playerEv: EventInstance | null = null;
-    if (leavers.length && s.world.slot === 'morning') {
-      const t = content().eventById.get('farewell-door')!;
-      const lv = leavers[0];
-      const other = P.status === 'inHouse' && isRoom(P.location) ? P.id : npcs(s).find((c) => c.id !== lv.id && !flag(s, `leaving_${c.id}`))?.id;
-      if (other) {
-        const ev = makeEvent(s, t, { a: lv.id, b: other }, 'entrance');
-        if (ev.isPlayerScene) playerEv = ev;
-        else plan.scenes.push({ event: ev, render: true, visible: false, priority: 2 });
-        ev.participants.forEach((id) => busy.add(id));
-        gather(s, ev);
+    const witness = (lv: string) => (P.status === 'inHouse' && isRoom(P.location) ? P.id : npcs(s).find((c) => c.id !== lv && !flag(s, `leaving_${c.id}`))?.id);
+    /** Plan a leaver's house scene; returns it when the player is in it. */
+    const housePlan = (templateId: string, lv: string, room: string): EventInstance | null => {
+      const other = witness(lv);
+      if (!other) return null;
+      const ev = makeEvent(s, content().eventById.get(templateId)!, { a: lv, b: other }, room);
+      ev.participants.forEach((id) => busy.add(id));
+      gather(s, ev);
+      if (ev.isPlayerScene) return ev;
+      plan.scenes.push({ event: ev, render: true, visible: false, priority: 2 });
+      return null;
+    };
+    // the player graduates: their own goodbye at the door, with whoever they leave with (or the closest housemate)
+    if (action.type === 'graduate') {
+      const w = flag(s, 'playerGraduated');
+      const b = typeof w === 'string' && w !== 'alone' ? w : npcs(s).sort((x, y) => rel(s, y.id, P.id).affinity - rel(s, x.id, P.id).affinity)[0]?.id;
+      if (b) {
+        playerEv = makeEvent(s, content().eventById.get('farewell-door')!, { a: P.id, b }, 'entrance');
+        playerEv.participants.forEach((id) => busy.add(id));
+        gather(s, playerEv);
       }
     }
+    const leavingToday = leavers.find((c) => departing(s, c.id) && !busy.has(c.id));
+    if (leavingToday && s.world.slot === 'morning' && !playerEv) playerEv = housePlan('farewell-door', leavingToday.id, 'entrance') ?? playerEv;
+    // the day after deciding, the leaver tells the whole house (the show's "I've decided to graduate")
+    const announcer = leavers.find((c) => !departing(s, c.id) && !flag(s, `announced_${c.id}`) && flag(s, `leaving_${c.id}`) !== s.world.episode);
+    if (announcer && !busy.size && (s.world.slot === 'morning' || s.world.slot === 'evening')) playerEv = housePlan('leave-announcement', announcer.id, 'living') ?? playerEv;
     // newcomer introductions
     for (const c of housemates(s)) {
       if (!flag(s, `new_${c.id}`) || flag(s, `introduced_${c.id}`) || playerEv) continue;
@@ -361,7 +394,22 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
     const avail = new Set(housemates(s).filter((c) => (c.isPlayer ? isRoom(c.location) : available(s, c, acts)) && !busy.has(c.id)).map((c) => c.id));
     if (playerEv && !['casual-chat', 'chance-encounter', 'solo-wander'].includes(playerEv.templateId)) avail.delete(P.id);
     if (playerEv) for (const id of playerEv.participants) if (id !== P.id) avail.delete(id);
-    const arcs = arcCandidates(s, rng, avail);
+    // a leaver with feelings says it on their last day ("would you leave with me?")
+    const lastDay = s.world.slot === 'slot3' || s.world.slot === 'evening';
+    const confessor = lastDay ? leavers.find((c) => !departing(s, c.id) && avail.has(c.id) && !coupleOf(s, c.id) && !flag(s, `lastConfession_${c.id}`)) : undefined;
+    const crush = confessor && housemates(s)
+      .filter((o) => o.id !== confessor.id && avail.has(o.id) && !flag(s, `leaving_${o.id}`) && attracted(confessor, o) && rel(s, confessor.id, o.id).romance >= 45)
+      .sort((x, y) => rel(s, confessor.id, y.id).romance - rel(s, confessor.id, x.id).romance)[0];
+    const arcs = confessor && crush ? [] : arcCandidates(s, rng, avail);
+    if (confessor && crush) {
+      s.world.flags[`lastConfession_${confessor.id}`] = true;
+      const ev = makeEvent(s, content().eventById.get('last-confession')!, { a: confessor.id, b: crush.id }, 'rooftop');
+      ev.salience = 0.95;
+      if (ev.isPlayerScene) playerEv = ev;
+      else plan.scenes.push({ event: ev, render: true, visible: ev.playerPresent, priority: 2 });
+      ev.participants.forEach((id) => busy.add(id));
+      gather(s, ev);
+    }
     if (arcs.length) {
       const pick = arcs[s.world.tick % arcs.length];
       const t = content().eventById.get(pick.templateId)!;
@@ -377,7 +425,7 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
     if (playerEv) plan.scenes.unshift({ event: playerEv, render: true, visible: false, priority: 3 });
 
     // NPC director event
-    const npcPool = npcs(s).filter((c) => available(s, c, acts) && !busy.has(c.id) && !flag(s, `leaving_${c.id}`));
+    const npcPool = npcs(s).filter((c) => available(s, c, acts) && !busy.has(c.id) && !departing(s, c.id));
     if (npcPool.length >= 2 && rng.chance(s.world.slot === 'evening' ? 0.75 : 0.5)) {
       const cs = candidates(s, rng, { location: '*house', pool: npcPool, isPlayerScene: false, npcOnly: true });
       const pick = sample(rng, cs);
@@ -498,10 +546,7 @@ export function finishSlot(s0: GameState): GameState {
     s.world.tick++;
     if (slot === 'morning') departLeaving(s);
     if (slot === 'slot3') processArrivals(s, rng);
-    if (flag(s, 'playerGraduated')) {
-      endSeason(s);
-      return;
-    }
+    if (flag(s, 'playerGraduated')) graduatePlayer(s); // the season goes on; the player's next housemate moves in
     if (slot !== 'evening') {
       s.world.slot = SLOTS[SLOTS.indexOf(slot) + 1] as Slot;
       return;
@@ -523,7 +568,7 @@ export function finishSlot(s0: GameState): GameState {
     s.house.labeledFood = s.house.labeledFood.filter((f) => !f.eatenBy);
     s.previously = previouslyRecap(s, s.world.episode);
     const remaining = housemates(s).filter((c) => !flag(s, `leaving_${c.id}`)).length;
-    const replacementsComing = s.world.episode <= s.seasonLength - 3;
+    const replacementsComing = s.pendingArrivals.length > 0 || s.awaitingPlayer || s.world.episode < s.seasonLength;
     if (s.world.episode >= s.seasonLength || (remaining <= 3 && !replacementsComing)) {
       endSeason(s);
       return;
@@ -538,8 +583,58 @@ export function finishSlot(s0: GameState): GameState {
   return s;
 }
 
+/** The player's character walks out (with their partner, if any). Their partner's place is refilled as usual. */
+function graduatePlayer(s: GameState) {
+  const P = player(s);
+  const w = flag(s, 'playerGraduated');
+  const partner = typeof w === 'string' && s.characters[w]?.status === 'inHouse' ? s.characters[w] : null;
+  const cp = partner ? s.couples.find((c) => c.status === 'dating' && [c.a, c.b].includes(P.id) && [c.a, c.b].includes(partner.id)) : undefined;
+  if (partner) depart(s, partner);
+  depart(s, P);
+  if (cp) cp.status = 'left-together';
+  delete s.world.flags.playerGraduated;
+  delete s.world.flags.canGraduate;
+  s.awaitingPlayer = true;
+}
+
+/**
+ * The player's next character moves in after their previous one graduated: a stranger to everyone, wired into every
+ * system like any newcomer, greeted at the door next slot.
+ */
+export function joinNewPlayer(s0: GameState, setup: PlayerSetup): GameState {
+  const s = cloneState(s0);
+  if (!s.awaitingPlayer) throw new Error('nobody is waiting to move in');
+  const old = s.characters[s.playerId];
+  old.isPlayer = false;
+  const n = Object.keys(s.characters).filter((id) => id === 'player' || id.startsWith('player-')).length + 1;
+  const P = playerFromSetup(setup, `player-${n}`);
+  P.arrivedEp = s.world.episode;
+  P.location = 'entrance';
+  s.characters[P.id] = P;
+  s.playerId = P.id;
+  s.rel[P.id] = {};
+  for (const h of housemates(s)) {
+    if (h.id === P.id) continue;
+    s.rel[P.id][h.id] = { affinity: 0, romance: 0, tension: 0, trust: 25, closeness: 0 };
+    s.rel[h.id][P.id] = { affinity: 0, romance: 0, tension: 0, trust: 25, closeness: 0 };
+  }
+  s.knowledge[P.id] = {};
+  s.memory[P.id] = [];
+  s.house.choreLedger[P.id] = { done: 0, skipped: 0 };
+  s.house.groupChat.members.push(P.id);
+  s.world.flags[`new_${P.id}`] = s.world.episode;
+  s.world.money = 20000;
+  s.world.playerJob = null;
+  s.world.playerNode = 'house';
+  delete s.world.flags.jobMissed;
+  s.recentPlayerTargets = [];
+  s.awaitingPlayer = false;
+  addLog(s, { kind: 'arrival', text: `${P.name}, ${P.age}, ${P.occupation}, moved into the house.`, participants: [P.id], salience: 0.8 });
+  return s;
+}
+
 function endSeason(s: GameState) {
-  departLeaving(s); // anyone marked leaving goes out the door with the finale
+  departLeaving(s, true); // anyone marked leaving goes out the door with the finale
   s.seasonOver = true;
   s.epilogues = Object.fromEntries(Object.values(s.characters).map((c) => [c.id, epilogueFor(s, c)]));
   addLog(s, { kind: 'system', text: 'The season ends.', participants: [], salience: 1 });

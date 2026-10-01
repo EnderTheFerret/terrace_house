@@ -52,7 +52,11 @@ export function avatarRequest(panelistId: string): ImageRequest {
   };
 }
 
-export function freezeRequest(s: GameState, ev: EventInstance): ImageRequest {
+/**
+ * Freeze-frame still. `reference` = the first participant's approved portrait, so a reference workflow keeps their face.
+ * ponytail: one reference face; the second person relies on the fixed tag order. Add image2 to the workflow if needed.
+ */
+export function freezeRequest(s: GameState, ev: EventInstance, reference?: string | null): ImageRequest {
   const people = ev.participants.map((id) => s.characters[id]).filter(Boolean).slice(0, 2);
   const who = people.map((c) => compileAppearancePrompt(c, 'scene', { stylePrefix: '' }).positive.replace(/^,\s*/, '')).join('; and ');
   const loc = content().city.nodes.find((n) => n.id === ev.location)?.name ?? `share house ${ev.location}`;
@@ -65,6 +69,7 @@ export function freezeRequest(s: GameState, ev: EventInstance): ImageRequest {
     width: W,
     height: H,
     subjectKey: `freeze:${ev.templateId}:${ev.location}:${ev.participants.join('-')}`,
+    ...(reference ? { reference } : {}),
     meta: { timeOfDay: timeOfDay(ev.slot), people: people.map((c) => ({ appearance: c.appearance, gender: c.gender, seed: c.portraitSeed })) },
   };
 }

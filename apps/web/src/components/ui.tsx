@@ -12,8 +12,9 @@ export function Panel({ children, className = '', soft = false, title }: { child
 }
 
 export function Btn({ children, onClick, primary, disabled, className = '', title, autoFocus }: { children: ReactNode; onClick?: () => void; primary?: boolean; disabled?: boolean; className?: string; title?: string; autoFocus?: boolean }) {
+  // without onClick it submits its form (e.g. the phone's message box)
   return (
-    <button type="button" className={`px-btn ${primary ? 'px-btn-primary' : ''} ${className}`} onClick={onClick} disabled={disabled} title={title} autoFocus={autoFocus}>
+    <button type={onClick ? 'button' : 'submit'} className={`px-btn ${primary ? 'px-btn-primary' : ''} ${className}`} onClick={onClick} disabled={disabled} title={title} autoFocus={autoFocus}>
       {children}
     </button>
   );

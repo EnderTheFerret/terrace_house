@@ -1,9 +1,10 @@
 // Player-facing projection: only what the player knows, with reliability tags. Hidden state never leaves the server.
-import type { Appearance, BeliefEntry, GameState, KnowledgeSource, Prediction } from '../model';
+import type { Appearance, BeliefEntry, Character, GameState, KnowledgeSource, Prediction } from '../model';
 import { ROOMS, TRAIT_NAMES } from '../model';
 import { content } from '../content';
 import { coupleOf, flag, housemates, isRoom, placeName, rel } from './core';
 import { dateLabel } from './calendar';
+import { jobOf } from './agents';
 import { moodWord, teaserLine } from '../gen/mock';
 import { uk } from '../util';
 
@@ -29,6 +30,8 @@ export interface CharView {
   partner?: string;
   isNew: boolean;
   leaving: boolean;
+  /** what they're doing right now (only when you can see them) */
+  activity: string | null;
 }
 
 export interface BoardEdge {
@@ -45,6 +48,8 @@ export interface BibleEntry {
   id: string;
   backstory?: string;
   hobbies?: string[];
+  /** where and when they work, once you know them a little */
+  work?: string;
   traits?: string;
   goals?: string[];
   fears?: string[];
@@ -67,6 +72,7 @@ export interface PlayerView {
   episode: number;
   seasonLength: number;
   slot: string;
+  weekday: number;
   dateLabel: string;
   weather: string;
   season: string;
@@ -79,6 +85,8 @@ export interface PlayerView {
   previously: string;
   teaser: string;
   canGraduate: string | null;
+  /** your character graduated: create the next one to keep playing */
+  awaitingPlayer: boolean;
   carFree: boolean;
   job: GameState['world']['playerJob'];
   characters: CharView[];
@@ -136,6 +144,7 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
       partner: partnerKnown ? partner : undefined,
       isNew: !!flag(s, `new_${c.id}`) && (flag(s, `new_${c.id}`) as number) >= s.world.episode - 1,
       leaving: !!flag(s, `leaving_${c.id}`),
+      activity: visible && !c.isPlayer ? (c.lastAction ?? null) : null,
     };
   });
   const occupancy = playerHome ? Object.fromEntries(ROOMS.map((r) => [r, hm.filter((c) => c.location === r).map((c) => c.id)])) : null;
@@ -169,6 +178,7 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
       return {
         id: c.id,
         hobbies: closeness >= 8 ? p.routine.hobbies : undefined,
+        work: closeness >= 8 ? workLine(c) : undefined,
         traits: closeness >= 18 ? traitWords || 'hard to read' : undefined,
         values: closeness >= 25 ? p.values.slice(0, 3) : undefined,
         tells: closeness >= 30 ? p.tells : undefined,
@@ -203,6 +213,7 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
     episode: s.world.episode,
     seasonLength: s.seasonLength,
     slot: s.world.slot,
+    weekday: s.world.weekday,
     dateLabel: dateLabel(s.world.day),
     weather: s.world.weather,
     season: s.world.season,
@@ -215,6 +226,7 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
     previously: s.previously,
     teaser: teaserLine(s),
     canGraduate: (flag(s, 'canGraduate') as string) ?? null,
+    awaitingPlayer: s.awaitingPlayer,
     carFree: s.world.carUsedBy === null,
     job: s.world.playerJob,
     characters,
@@ -245,3 +257,14 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
 }
 
 export const roomName = (id: string) => placeName(id);
+
+const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const SLOT_WORD: Record<string, string> = { morning: 'mornings', slot1: 'late mornings', slot2: 'afternoons', slot3: 'early evenings', evening: 'nights' };
+/** "night shifts at Minatohama Hospital, Mon/Wed/Fri/Sat" */
+export function workLine(c: Character): string {
+  const slots = c.persona.routine.jobSlots;
+  if (!slots.length) return `${c.occupation}, no fixed hours`;
+  const job = jobOf(c.occupation);
+  const where = !job ? '' : job.place === 'house' ? ' (from home)' : ` at ${placeName(job.place)}`;
+  return `${c.occupation}${where}: ${slots.map((j) => SLOT_WORD[j.slot]).join(' + ')}, ${slots[0].weekdays.map((d) => DAY[d]).join('/')}`;
+}

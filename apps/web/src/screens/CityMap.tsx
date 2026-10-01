@@ -1,11 +1,12 @@
 // City map: pixel-art canvas rendered from content/city.json, reachable nodes highlighted by remaining slot cost.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { content, reachability, WAGE, ACTIVITY_MINUTES, type PlayerAction, type CityNode } from '@shared-roof/shared';
+import { content, reachability, shiftToday, WAGE, CONTRACT_BONUS, ACTIVITY_MINUTES, type PlayerAction, type CityNode } from '@shared-roof/shared';
 import { useGame } from '../store';
 import { TopBar, StudioStrip, slotLabel } from '../components/layout';
 import { Btn, Modal, Panel } from '../components/ui';
 import { sprite } from '../pixel/sprites';
 
+const DAY = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const W = 320;
 const H = 224;
 const mx = (x: number) => Math.round(12 + x * 2.96);
@@ -93,6 +94,7 @@ export function CityMap() {
   const [sel, setSel] = useState<CityNode | null>(null);
   const [activity, setActivity] = useState<string>('wander');
   const [invite, setInvite] = useState<string>('');
+  const [contract, setContract] = useState(false);
   const [scale, setScale] = useState(3);
   const reach = useMemo(() => (view ? reachability('house', view.slot as never, view.money, view.carFree) : []), [view]);
   const byNode = Object.fromEntries(reach.map((r) => [r.node, r]));
@@ -147,12 +149,13 @@ export function CityMap() {
     setSel(n);
     setActivity(n.activities.includes('date') ? 'date' : n.activities[0] ?? 'wander');
     setInvite('');
+    setContract(false);
   };
   const needsInvite = activity === 'date' || activity === 'invite';
   const go = () => {
     if (!sel) return;
     const r = byNode[sel.id];
-    const a: PlayerAction = { type: 'goOut', node: sel.id, activity: activity as never, invite: needsInvite ? invite || undefined : undefined, useCar: r?.needsCar };
+    const a: PlayerAction = { type: 'goOut', node: sel.id, activity: activity as never, invite: needsInvite ? invite || undefined : undefined, useCar: r?.needsCar, contract: activity === 'work' && contract };
     setSel(null);
     void act(a);
   };
@@ -208,6 +211,12 @@ export function CityMap() {
             <Btn onClick={goBack}>back home</Btn>
             <Btn onClick={() => setScreen('phone')}>phone</Btn>
           </div>
+          {view.job && (
+            <p className={`mt-1 text-xs ${shiftToday(view.job, view.weekday, view.slot) ? '' : 'caption'}`}>
+              {shiftToday(view.job, view.weekday, view.slot) ? '⚑ your shift is now: ' : 'job: '}
+              {content().city.nodes.find((n) => n.id === view.job!.nodeId)?.name}, {slotLabel(view.job.slot)} {view.job.weekdays.map((d) => DAY[d]).join('/')}
+            </p>
+          )}
           <p className="caption mt-1 text-xs">shared car: {view.carFree ? 'available' : 'taken'}</p>
         </Panel>
       </main>
@@ -226,6 +235,14 @@ export function CityMap() {
               ))}
             </div>
           </fieldset>
+          {activity === 'work' && (
+            <label className="mb-3 flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={contract} disabled={view.job?.nodeId === sel.id} onChange={(e) => setContract(e.target.checked)} />
+              {view.job?.nodeId === sel.id
+                ? `you work here: ${slotLabel(view.job.slot)}, ${view.job.weekdays.map((d) => DAY[d]).join('/')} (¥${view.job.wage})`
+                : `sign a contract: this time slot, 3 fixed days a week, ¥${Math.round((WAGE[sel.id] ?? 2500) * CONTRACT_BONUS)} a shift${view.job ? ' (replaces your current job)' : ''}`}
+            </label>
+          )}
           {needsInvite && (
             <label className="mb-3 flex items-center gap-2 text-sm">
               with

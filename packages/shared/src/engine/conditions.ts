@@ -3,7 +3,7 @@ import type { Cond } from '../contentSchema';
 import type { GameState } from '../model';
 import type { Rng } from '../rng';
 import { birthdayDay, isWeekend } from './calendar';
-import { asym, flag, isCouple, knows, rel } from './core';
+import { asym, departing, flag, isCouple, knows, rel } from './core';
 import { fill } from '../util';
 
 export type Binding = Record<string, string>;
@@ -113,7 +113,7 @@ export function evalCond(s: GameState, c: Cond, b: Binding, rng: Rng | null, hou
   }
   if (c.leaving) {
     const x = r(c.leaving);
-    if (!x || !flag(s, `leaving_${x}`)) return false;
+    if (!x || !departing(s, x)) return false;
   }
   if (c.grudge) {
     const [x, y] = c.grudge.map(r);

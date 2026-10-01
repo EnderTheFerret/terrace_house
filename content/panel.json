@@ -20,7 +20,9 @@
         "npc": ["Interesting. They don't need us to watch.", "The house has its own weather."],
         "called_it": ["I'll just say: I said so.", "As predicted. Not that I'm keeping score."],
         "was_wrong": ["I was wrong. I'm often wrong. Let's move on.", "Well. I misjudged that one."],
-        "prediction": ["Mark my words: {a} and {b}, before episode {ep}.", "I think {a} makes a move by episode {ep}."]
+        "prediction": ["Mark my words: {a} and {b}, before episode {ep}.", "I think {a} makes a move by episode {ep}."],
+        "mid": ["Let's stop the tape there for a moment.", "Pause it. Pause it. Thoughts?", "We're halfway through the day. Let's talk."],
+        "end": ["And that's where we leave them this week.", "That's the episode. See you next time.", "Let's call it there."]
       }
     },
     {

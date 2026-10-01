@@ -7,13 +7,13 @@ import { config } from '../config';
 import { MockLlm } from '../llm/mock';
 import { structured, logFailure, type Budget } from '../llm/structured';
 import { beatSheetPrompt, deltaPrompt, linesPrompt, parseLines } from '../prompts/scene';
-import { chatPrompt, commentaryPrompt, flavorPrompt } from '../prompts/studio';
+import { chatPrompt, commentaryPrompt, flavorPrompt, intermissionPrompt } from '../prompts/studio';
 
 export interface Line {
   speaker: string;
   text: string;
   caption?: string | null;
-  source: 'llm' | 'mock';
+  source: 'llm' | 'mock' | 'player';
 }
 
 export class VoiceStats {
@@ -70,7 +70,7 @@ export class Generator {
   ): Promise<Line[]> {
     const mockReq = (bs: Beat[], ins: (Intent | undefined)[]) => ({
       kind: 'lines' as const,
-      prompt: `${ev.id}|${transcript.length}|${bs.map((b) => b.beatType).join(',')}`,
+      prompt: `${ev.id}|${transcript.length}|${bs.map((b) => b.beatType).join(',')}|${ctx.replyTo?.text ?? ''}`,
       temperature: 0,
       context: { kind: 'lines', state: s, beats: bs, ctx, intents: ins },
     });
@@ -83,7 +83,7 @@ export class Generator {
     let texts: (string | null)[] = beats.map(() => null);
     if (this.real && budget.take()) {
       try {
-        const prompt = linesPrompt(s, ev, beats, transcript, intents);
+        const prompt = linesPrompt(s, ev, beats, transcript, intents, ctx.replyTo?.text);
         let buf = '';
         let lineIdx = 0;
         let partial = '';
@@ -132,7 +132,7 @@ export class Generator {
           text = null;
           if (budget.take()) {
             try {
-              const raw = await this.llm.complete({ kind: 'lines', prompt: linesPrompt(s, ev, [b], transcript, [intents[i]]) + `\n(Previous attempt failed: ${vc.reasons.join('; ')})`, temperature: config.temps.lines, maxTokens: 120 });
+              const raw = await this.llm.complete({ kind: 'lines', prompt: linesPrompt(s, ev, [b], transcript, [intents[i]], ctx.replyTo?.text) +`\n(Previous attempt failed: ${vc.reasons.join('; ')})`, temperature: config.temps.lines, maxTokens: 120 });
               const retry = parseLines(raw, [b])[0];
               if (retry && voiceCheck(retry, c.persona.speech).ok) text = retry;
             } catch {
@@ -171,6 +171,13 @@ export class Generator {
     const lines = r.value.lines.filter((l) => ids.has(l.speaker));
     const commentary: Commentary = { ...r.value, lines: lines.length ? lines : r.value.lines.slice(0, 1).map((l) => ({ ...l, speaker: 'nagumo' })) };
     return { commentary, source: r.source };
+  }
+
+  async intermission(s: GameState, at: 'mid' | 'end', since: number, budget: Budget): Promise<{ commentary: Commentary; source: 'llm' | 'mock' }> {
+    const r = await structured(this.llm, this.mock, { kind: 'commentary', prompt: intermissionPrompt(s, at, since), temperature: config.temps.commentary, maxTokens: 500, context: { kind: 'intermission', state: s, at, since } }, Commentary, budget);
+    const ids = new Set(content().panel.map((p) => p.id));
+    const lines = r.value.lines.filter((l) => ids.has(l.speaker));
+    return { commentary: { lines: lines.length ? lines : r.value.lines.slice(0, 1).map((l) => ({ ...l, speaker: 'nagumo' })) }, source: r.source };
   }
 
   async chat(s: GameState, from: string, to: string, budget: Budget): Promise<string> {

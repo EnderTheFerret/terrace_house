@@ -10,7 +10,7 @@ import type { Store } from '../db';
 export const PRIORITY = { playerPortrait: 100, portrait: 60, currentScene: 50, freeze: 45, location: 30, prefetch: 10 } as const;
 
 export function cacheKey(workflowHash: string, r: ImageRequest): string {
-  return createHash('sha256').update(`${workflowHash}\n${r.prompt}\n${r.negative}\n${r.seed}\n${r.width}x${r.height}`).digest('hex');
+  return createHash('sha256').update(`${workflowHash}\n${r.prompt}\n${r.negative}\n${r.seed}\n${r.width}x${r.height}${r.reference ? `\n${r.reference}` : ''}`).digest('hex');
 }
 
 export interface ImageStatus {
@@ -48,12 +48,15 @@ export class AssetLibrary {
       this.manifest = {};
     }
   }
-  /** URL of a prebaked asset for a subject key, if the file exists. */
-  lookup(subjectKey: string): string | null {
+  /** Path of a prebaked asset for a subject key, if the file exists. */
+  file(subjectKey: string): string | null {
     this.reload();
     const rel = this.manifest[subjectKey];
-    if (!rel) return null;
-    return existsSync(resolve(this.assetsDir, rel)) ? `/assets/${rel}` : null;
+    return rel && existsSync(resolve(this.assetsDir, rel)) ? resolve(this.assetsDir, rel) : null;
+  }
+  /** URL of a prebaked asset for a subject key, if the file exists. */
+  lookup(subjectKey: string): string | null {
+    return this.file(subjectKey) ? `/assets/${this.manifest[subjectKey]}` : null;
   }
   keys() {
     return Object.keys(this.manifest);
@@ -65,6 +68,8 @@ export class ImageQueue {
   private state = new Map<string, ImageStatus>();
   private running: Job | null = null;
   private seq = 0;
+  private held = 0;
+  private gpuDirty = false;
   lastFailure = 0;
   generated = 0;
 
@@ -104,6 +109,15 @@ export class ImageQueue {
     return queued;
   }
 
+  /** Local file of a finished, non-placeholder image for this request (prebaked or generated), if there is one. */
+  localFile(req: ImageRequest): string | null {
+    const pre = this.assets?.file(req.subjectKey);
+    if (pre) return pre;
+    const row = this.store.imageGet(cacheKey(this.workflowHash, req));
+    const f = row && !row.placeholder ? resolve(this.cacheDir, row.path) : null;
+    return f && existsSync(f) ? f : null;
+  }
+
   status(key: string): ImageStatus {
     return this.state.get(key) ?? { key, status: 'failed' };
   }
@@ -136,8 +150,29 @@ export class ImageQueue {
     return this.jobs.shift();
   }
 
+  /**
+   * Keep the GPU free for the LLM while dialogue is streaming: queued jobs wait (except the player's own portrait)
+   * until every hold is released. A job already running finishes. Returns the release function.
+   */
+  hold(): () => void {
+    this.held++;
+    // models left in VRAM after a job still crowd the LLM; unload them (the next image reloads, in the background)
+    if (this.gpuDirty && !this.running) {
+      this.gpuDirty = false;
+      void this.backend.free?.();
+    }
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.held--;
+      void this.pump();
+    };
+  }
+
   private async pump() {
     if (this.running) return;
+    if (this.held > 0 && this.backend.name !== 'mock' && !this.jobs.some((j) => j.priority >= PRIORITY.playerPortrait)) return;
     const job = this.next();
     if (!job) return;
     this.running = job;
@@ -148,6 +183,7 @@ export class ImageQueue {
         if (this.backend.name !== 'mock' && this.offline) throw new Error('backend recently failed');
         res = await this.backend.generate(job.req, job.abort.signal);
         this.generated++;
+        this.gpuDirty = true;
       } catch (e) {
         if (job.abort.signal.aborted) throw e;
         if (this.backend.name !== 'mock') this.lastFailure = Date.now();

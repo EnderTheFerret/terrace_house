@@ -1,9 +1,15 @@
 // Character sprite sheets (procedural from appearance) for the top-down views.
-import { spritePixels, type Appearance, type Dir } from '@shared-roof/shared';
+import { emotePixels, spritePixels, type Appearance, type Dir } from '@shared-roof/shared';
 import { pixelsCanvas } from '../components/pixel';
 
 export function sprite(id: string, a: Appearance, dir: Dir, frame: number): HTMLCanvasElement {
-  return pixelsCanvas(`sprite:${id}:${dir}:${frame}:${a.hairColor}:${a.outfit}`, spritePixels(a, dir, frame));
+  return pixelsCanvas(`sprite:${id}:${dir}:${frame}:${Object.values(a).join('|')}`, spritePixels(a, dir, frame));
+}
+
+/** Activity emote above a sprite, or null for activities without one. */
+export function emote(kind: string | null): HTMLCanvasElement | null {
+  const px = kind ? emotePixels(kind) : null;
+  return px ? pixelsCanvas(`emote:${kind}`, px) : null;
 }
 
 export const MOOD_ICON: Record<string, { glyph: string; color: string }> = {

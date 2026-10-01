@@ -33,6 +33,8 @@ export interface ImageRequest {
   height: number;
   /** stable key for placeholder palettes / prebaked asset lookup, e.g. "portrait:ren:1101" */
   subjectKey: string;
+  /** local file of an approved portrait to keep the face consistent (used by a reference workflow, if configured) */
+  reference?: string;
   /** structured hints for procedural placeholders */
   meta?: {
     appearance?: import('./model').Appearance;
@@ -54,4 +56,6 @@ export interface ImageBackend {
   readonly name: string;
   health(): Promise<boolean>;
   generate(req: ImageRequest, signal?: AbortSignal): Promise<ImageResult>;
+  /** release GPU memory (models stay on disk); called before the LLM needs the card */
+  free?(): Promise<void>;
 }

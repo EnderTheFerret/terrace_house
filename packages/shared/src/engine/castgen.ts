@@ -7,6 +7,7 @@ import { hashSeed } from '../rng';
 import { clamp, euclid } from '../util';
 import { content } from '../content';
 import { compileAppearanceTags } from '../appearance';
+import { jobOf, jobSchedule } from './agents';
 
 // ---------- features & compatibility ----------
 const ATT = ['secure', 'anxious', 'avoidant'] as const;
@@ -193,10 +194,12 @@ function speechFromArchetype(a: Archetype, rng: Rng): Speech {
 /** Instantiate a full Character from an archetype. */
 export function fromArchetype(s: Pick<GameState, 'counters'> | null, rng: Rng, a: Archetype, gender: Gender, usedNames: Set<string>, arrivedEp: number, seasonLength: number): Character {
   const pool = content().names[gender];
-  const first = rng.shuffle(pool).find((n) => !usedNames.has(n)) ?? rng.pick(pool);
+  const fresh = rng.shuffle(pool).find((n) => !usedNames.has(n));
+  const first = fresh ?? rng.pick(pool);
   usedNames.add(first);
   const fam = rng.pick(content().names.family);
-  const id = `${first.toLowerCase()}-${arrivedEp}`;
+  // name pool exhausted (long seasons): a repeated first name still needs a unique id
+  const id = `${first.toLowerCase()}-${arrivedEp}${fresh ? '' : `-${rng.int(100, 1000)}`}`;
   const jitter = (v: number) => clamp(v + rng.normal(0, 0.06), 0, 1);
   const traits = a.traits.map(jitter);
   const [, C, E, A, N] = traits;
@@ -216,6 +219,7 @@ export function fromArchetype(s: Pick<GameState, 'counters'> | null, rng: Rng, a
     kind: (['partner', 'career', 'audience', 'avoidDrama', 'honesty', 'marriage', 'exposure', 'savings', 'creative', 'friends'].includes(g.kind) ? g.kind : 'friends') as Persona['goals']['long']['kind'],
   });
   const secretText = rng.pick(a.secrets);
+  const occupation = rng.pick(a.occupations);
   const name = `${first} ${fam}`;
   const persona: Persona = {
     traits,
@@ -236,12 +240,12 @@ export function fromArchetype(s: Pick<GameState, 'counters'> | null, rng: Rng, a
     tells: a.tells,
     speech: speechFromArchetype(a, rng),
     routine: {
-      jobSlots: [{ slot: rng.pick(['slot1', 'slot2'] as const), weekdays: rng.shuffle([1, 2, 3, 4, 5]).slice(0, 3).sort() }],
+      jobSlots: jobOf(occupation) ? jobSchedule(rng, jobOf(occupation)!) : [{ slot: rng.pick(['slot1', 'slot2'] as const), weekdays: rng.shuffle([1, 2, 3, 4, 5]).slice(0, 3).sort() }],
       habits: [{ slot: 'evening', action: 'hobby', room: rng.pick(['living', 'rooftop']) }, { slot: 'morning', action: rng.pick(['exercise', 'cook', 'eat']), room: 'kitchen' }],
       hobbies: a.hobbies.slice(0, 3),
       tastes: a.tastes.map((t) => clamp(t + rng.normal(0, 0.1), -1, 1)),
     },
-    backstory: `${first} grew up in ${rng.pick(content().hometowns)} and works as a ${a.occupations[0]}. A ${a.label} by temperament, they moved into the house looking for a change.`,
+    backstory: `${first} grew up in ${rng.pick(content().hometowns)} and works as a ${occupation}. A ${a.label} by temperament, they moved into the house looking for a change.`,
     homesickness: clamp(0.2 + N * 0.4 + rng.normal(0, 0.1), 0, 1),
     gossipiness: a.gossipiness,
   };
@@ -252,7 +256,7 @@ export function fromArchetype(s: Pick<GameState, 'counters'> | null, rng: Rng, a
       age: 21 + rng.int(0, 13),
       gender,
       interestedIn: [gender === 'man' ? 'woman' : gender === 'woman' ? 'man' : rng.pick(['woman', 'man'] as const)],
-      occupation: rng.pick(a.occupations),
+      occupation,
       hometown: rng.pick(content().hometowns),
       appearance,
       voiceNotes: a.voiceNotes.slice(0, 200),
@@ -379,7 +383,7 @@ export interface PlayerSetup {
   portraitSeed?: number;
 }
 
-export function playerFromSetup(p: PlayerSetup): Character {
+export function playerFromSetup(p: PlayerSetup, id = 'player'): Character {
   if (p.age < 20 || p.age > 35) throw new Error('player age must be 20–35');
   const quirks = content().quirks.filter((q) => p.quirks.includes(q.id));
   const eff = Object.assign({}, ...quirks.map((q) => q.effect)) as Record<string, any>;
@@ -401,8 +405,8 @@ export function playerFromSetup(p: PlayerSetup): Character {
       achievement: 3 + C * 5 + (eff.achievementDecay ?? 0),
     },
     goals: {
-      long: { id: 'player-long', text: 'leave the house with someone worth it', kind: 'partner' },
-      short: { id: 'player-short', text: 'figure out who everyone really is', kind: 'friends' },
+      long: { id: `${id}-long`, text: 'leave the house with someone worth it', kind: 'partner' },
+      short: { id: `${id}-short`, text: 'figure out who everyone really is', kind: 'friends' },
     },
     secret: null,
     fears: [],
@@ -426,7 +430,7 @@ export function playerFromSetup(p: PlayerSetup): Character {
     gossipiness: 0,
   };
   return baseCharacter(
-    'player',
+    id,
     {
       name: p.name,
       age: p.age,

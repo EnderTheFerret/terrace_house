@@ -8,3 +8,6 @@ cache/
 .vite/
 coverage/
 *.tsbuildinfo
+.e2e-data/
+test-results/
+playwright-report/

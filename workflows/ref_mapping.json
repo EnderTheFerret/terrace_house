@@ -1,0 +1,11 @@
+{
+  "_comment": "Mapping for ref_edit.api.json (Qwen-Image-Edit 2511): same keys as mapping.json plus `reference`, the LoadImage node that receives the character's approved portrait.",
+  "positive": { "node": "7", "input": "prompt" },
+  "negative": { "node": "8", "input": "prompt" },
+  "seed": { "node": "10", "input": "seed" },
+  "width": { "node": "9", "input": "width" },
+  "height": { "node": "9", "input": "height" },
+  "batch": { "node": "9", "input": "batch_size" },
+  "reference": { "node": "12", "input": "image" },
+  "output": { "node": "16" }
+}

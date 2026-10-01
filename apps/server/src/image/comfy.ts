@@ -1,7 +1,7 @@
 // ComfyUI backend: load an API-format workflow, patch inputs via mapping.json, POST /prompt,
 // follow progress over /ws, then fetch /history/{id} and /view. Swap the workflow without code changes.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { extname, resolve } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import type { ImageBackend, ImageRequest, ImageResult } from '@shared-roof/shared';
 
@@ -13,13 +13,15 @@ export interface Mapping {
   height?: { node: string; input: string };
   batch?: { node: string; input: string };
   checkpoint?: { node: string; input: string };
+  /** LoadImage input that receives the uploaded reference portrait (reference workflows only) */
+  reference?: { node: string; input: string };
   output?: { node: string };
 }
 
 type Workflow = Record<string, { class_type: string; inputs: Record<string, unknown> }>;
 
 /** Pure: patch a workflow copy with request values according to the mapping. */
-export function patchWorkflow(wf: Workflow, map: Mapping, req: ImageRequest, checkpoint?: string): Workflow {
+export function patchWorkflow(wf: Workflow, map: Mapping, req: ImageRequest, checkpoint?: string, referenceName?: string): Workflow {
   const out: Workflow = structuredClone(wf);
   const put = (m: { node: string; input: string } | undefined, v: unknown) => {
     if (!m) return;
@@ -33,13 +35,24 @@ export function patchWorkflow(wf: Workflow, map: Mapping, req: ImageRequest, che
   put(map.height, req.height);
   put(map.batch, 1);
   if (checkpoint) put(map.checkpoint, checkpoint);
+  if (referenceName) put(map.reference, referenceName);
   return out;
 }
+
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+const loadPair =(wfPath: string, mapPath: string) => {
+  const wfText = readFileSync(wfPath, 'utf8');
+  const mapText = readFileSync(mapPath, 'utf8');
+  return { wf: JSON.parse(wfText) as Workflow, map: JSON.parse(mapText) as Mapping, hash: createHash('sha256').update(wfText).update(mapText).digest('hex') };
+};
 
 export class ComfyBackend implements ImageBackend {
   readonly name = 'comfyui';
   private wf: Workflow;
   private map: Mapping;
+  /** optional reference-image workflow (e.g. Qwen-Image-Edit or IP-Adapter) for requests that carry a reference */
+  private ref: { wf: Workflow; map: Mapping } | null = null;
   readonly workflowHash: string;
 
   constructor(
@@ -49,13 +62,36 @@ export class ComfyBackend implements ImageBackend {
     private outDir: string,
     private timeoutMs: number,
     private fetchImpl: typeof fetch = fetch,
+    reference?: { workflowPath: string; mappingPath: string },
   ) {
-    const wfText = readFileSync(workflowPath, 'utf8');
-    const mapText = readFileSync(mappingPath, 'utf8');
-    this.wf = JSON.parse(wfText);
-    this.map = JSON.parse(mapText);
-    this.workflowHash = createHash('sha256').update(wfText).update(mapText).digest('hex');
+    const base = loadPair(workflowPath, mappingPath);
+    this.wf = base.wf;
+    this.map = base.map;
+    let hash = base.hash;
+    if (reference) {
+      const r = loadPair(reference.workflowPath, reference.mappingPath);
+      if (!r.map.reference) throw new Error('reference mapping needs a "reference" entry');
+      this.ref = r;
+      hash = createHash('sha256').update(hash).update(r.hash).digest('hex');
+    }
+    this.workflowHash = hash;
     mkdirSync(outDir, { recursive: true });
+  }
+
+  /** Unload ComfyUI's models from VRAM so Ollama can keep the whole card (one consumer GPU). */
+  async free(): Promise<void> {
+    await this.fetchImpl(`${this.url}/free`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ unload_models: true, free_memory: true }), signal: AbortSignal.timeout(5000) }).catch(() => {});
+  }
+
+  /** Upload a local image to ComfyUI's input folder; returns the name LoadImage expects. */
+  private async upload(file: string, signal: AbortSignal): Promise<string> {
+    const form = new FormData();
+    form.append('image', new Blob([readFileSync(file)], { type: 'image/png' }), `shared_roof_${createHash('sha256').update(file).digest('hex').slice(0, 12)}${extname(file) || '.png'}`);
+    form.append('overwrite', 'true');
+    const r = await this.fetchImpl(`${this.url}/upload/image`, { method: 'POST', body: form, signal });
+    if (!r.ok) throw new Error(`comfy /upload/image ${r.status}`);
+    const j = (await r.json()) as { name: string; subfolder?: string };
+    return j.subfolder ? `${j.subfolder}/${j.name}` : j.name;
   }
 
   async health(): Promise<boolean> {
@@ -101,13 +137,17 @@ export class ComfyBackend implements ImageBackend {
   async generate(req: ImageRequest, signal?: AbortSignal, onProgress?: (p: number) => void): Promise<ImageResult> {
     const sig = signal ? AbortSignal.any([signal, AbortSignal.timeout(this.timeoutMs)]) : AbortSignal.timeout(this.timeoutMs);
     const clientId = randomUUID();
-    const wf = patchWorkflow(this.wf, this.map, req);
+    const useRef = !!(this.ref && req.reference);
+    const map = useRef ? this.ref!.map : this.map;
+    const wf = useRef ? patchWorkflow(this.ref!.wf, map, req, undefined, await this.upload(req.reference!, sig)) : patchWorkflow(this.wf, map, req);
     let pid: string | null = null;
-    const wsDone = this.waitWs(clientId, () => pid, sig, onProgress).catch(() => null); // ws is best effort; history polling is authoritative
+    let wsSettled = false;
+    // ws is best effort (it only shortens the wait); history polling is authoritative
+    const wsDone = this.waitWs(clientId, () => pid, sig, onProgress).catch(() => null).finally(() => (wsSettled = true));
     const r = await this.fetchImpl(`${this.url}/prompt`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt: wf, client_id: clientId }), signal: sig });
     if (!r.ok) throw new Error(`comfy /prompt ${r.status}: ${(await r.text()).slice(0, 300)}`);
     pid = ((await r.json()) as { prompt_id: string }).prompt_id;
-    const outNode = this.map.output?.node;
+    const outNode = map.output?.node;
     let images: { filename: string; subfolder: string; type: string }[] | undefined;
     for (;;) {
       if (sig.aborted) throw new Error('image generation timed out');
@@ -120,7 +160,8 @@ export class ComfyBackend implements ImageBackend {
         images = outNode ? outs[outNode]?.images : Object.values(outs).find((o) => o.images?.length)?.images;
         if (images?.length) break;
       }
-      await Promise.race([wsDone, new Promise((res) => setTimeout(res, 1000))]);
+      // once the socket is gone (finished or failed) keep polling, but never in a tight loop
+      await (wsSettled ? sleep(250) : Promise.race([wsDone, sleep(1000)]));
     }
     const im = images[0];
     const q = new URLSearchParams({ filename: im.filename, subfolder: im.subfolder, type: im.type });
