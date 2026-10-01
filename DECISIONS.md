@@ -52,6 +52,18 @@ Choices made where the spec was silent or where the user overrode it. Newest at 
 - One LLM call realizes a batch of beats (streamed, `speaker_id: text` lines) instead of one call per beat, so a player
   scene costs ~5 calls (beats, lines×2, deltas, commentary) and fits `LLM_CALLS_PER_SLOT=6`.
 
+## Gameplay details decided during playtests
+- Part-time jobs are drop-in shifts at work-capable spots (café, konbini, grill, records, live house) paying a fixed
+  wage per slot, instead of a contracted weekly schedule.
+- Talking to someone who is in a bedroom or the bathroom moves the conversation to the living room.
+- Freeze-frames only end scenes whose template is marked `freeze` (peaks, arrivals, farewells, dates), even if the LLM
+  offers a caption.
+- The LLM premise "flavor pass" is opt-in (`FLAVOR_PASS=1`) so the default budget of 6 calls covers a full player
+  scene: beat sheet, lines before the choice, lines after it, deltas, commentary.
+- Model warm-up request at server start in real mode (the first structured call otherwise pays the load time).
+- Mock-mode freeze-frames composite the participants' procedural pixel busts over the procedural location.
+- Arrival scenes show an intro card (portrait, name, age, job, hometown) for a few seconds.
+
 ## Dependencies (non-trivial)
 - `fastify` + `@fastify/static`: HTTP + SSE + static images.
 - `better-sqlite3`: required by spec; prebuilt binaries for Node 20–24.

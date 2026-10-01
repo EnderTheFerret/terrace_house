@@ -154,6 +154,29 @@ body {
   }
 }
 
+.intro-card {
+  animation: introcard 5s ease both;
+  pointer-events: none;
+}
+@keyframes introcard {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -40%);
+  }
+  10%,
+  80% {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+.reduced-motion .intro-card {
+  display: none;
+}
+
 .rain-overlay {
   background-image: repeating-linear-gradient(105deg, rgb(255 255 255 / 0.35) 0 1px, transparent 1px 9px);
   animation: rain 0.5s linear infinite;

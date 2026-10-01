@@ -3,6 +3,21 @@ import { firstName, type Beat, type EventInstance, type GameState, type Intent }
 import { content } from '@shared-roof/shared';
 import { RULES, TOKEN_BUDGET, assemble, knowledgeBlock, memoriesBlock, personaCard, relationshipLine, sceneHeader, type Section } from './common';
 
+/** What each player intent means, so the LLM realizes it faithfully. */
+export const INTENT_GUIDE: Record<Intent, string> = {
+  honest: 'candidly says what they really think or feel about the topic, even if it is a little awkward.',
+  deflect: 'sidesteps the topic with a light change of subject.',
+  flirt: 'gently flirts: a warm compliment or playful hint of interest (PG-13).',
+  support: 'offers sincere reassurance or help.',
+  joke: 'lightens the mood with a joke.',
+  tease: 'playfully teases the other person.',
+  apologize: 'apologizes sincerely and specifically.',
+  confront: 'calmly but directly raises the problem.',
+  confess: 'confesses romantic feelings plainly.',
+  decline: 'kindly but clearly says no.',
+  listen: 'mostly listens, inviting them to say more.',
+};
+
 function speakers(s: GameState, ev: EventInstance) {
   return ev.participants.map((id) => s.characters[id]).filter(Boolean);
 }
@@ -61,7 +76,7 @@ export function linesPrompt(
   for (const l of transcript) (last[l.speaker] ??= []).push(l.text);
   const beatLines = beats.map((b, i) => {
     const who = s.characters[b.speaker] ? firstName(s, b.speaker) : b.speaker;
-    const intent = intents[i] ? ` PLAYER INTENT: ${intents[i]} (realize it in ${who}'s voice)` : '';
+    const intent = intents[i] ? ` PLAYER INTENT "${intents[i]}": ${INTENT_GUIDE[intents[i]!]} Say it in ${who}'s own voice, reacting to the previous line.` : '';
     return `${i + 1}. ${b.speaker} (${who}) — ${b.beatType}, ${b.emotion}, topic "${b.topic}", depth ${b.depth}${b.subtext ? `, subtext: ${b.subtext}` : ''}.${intent}`;
   });
   const sofar = transcript.slice(-6).map((l) => `${l.speaker}: ${l.text}`).join('\n');

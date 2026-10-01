@@ -39,6 +39,7 @@ export interface ImageRequest {
     gender?: string;
     timeOfDay?: 'morning' | 'day' | 'evening' | 'night';
     weather?: string;
+    people?: { appearance: import('./model').Appearance; gender: string; seed: number }[];
   };
 }
 

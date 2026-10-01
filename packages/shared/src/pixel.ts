@@ -260,6 +260,24 @@ export const keyColor = (key: string) => PASTEL[hashSeed(key) % PASTEL.length];
 
 /** Procedural pixel location background (sky gradient by time, skyline, sea/ground), as SVG. */
 export function locationSvg(key: string, timeOfDay: 'morning' | 'day' | 'evening' | 'night', weather: string): string {
+  return pixelsToSvg(locationPixels(key, timeOfDay, weather), 12);
+}
+
+/** Freeze-frame placeholder: up to two portrait busts composited over the location. */
+export function freezePixels(key: string, timeOfDay: 'morning' | 'day' | 'evening' | 'night', people: { appearance: Appearance; gender: string; seed: number }[]): Pixels {
+  const p = locationPixels(key, timeOfDay, 'sunny');
+  people.slice(0, 2).forEach((who, i) => {
+    const bust = portraitPixels(who.appearance, who.gender, who.seed);
+    const ox = people.length === 1 ? 32 : 14 + i * 38;
+    for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) if (bust[y][x]) set(p, ox + x, 32 + y, bust[y][x]!);
+  });
+  // letterbox bars for the "freeze" look
+  rect(p, 0, 0, p[0].length, 4, '#1e1a26');
+  rect(p, 0, p.length - 4, p[0].length, 4, '#1e1a26');
+  return p;
+}
+
+export function locationPixels(key: string, timeOfDay: 'morning' | 'day' | 'evening' | 'night', weather: string): Pixels {
   const rng = mulberry32(hashSeed(key));
   const w = 96;
   const h = 64;
@@ -283,5 +301,5 @@ export function locationSvg(key: string, timeOfDay: 'morning' | 'day' | 'evening
   for (let i = 0; i < 40; i++) set(p, rng.int(0, w), rng.int(41, h), shade(ground, 1.15));
   if (weather === 'rain' || weather === 'typhoon') for (let i = 0; i < 120; i++) set(p, rng.int(0, w), rng.int(0, h), '#dfe7f2');
   if (weather === 'snow') for (let i = 0; i < 80; i++) set(p, rng.int(0, w), rng.int(0, h), '#ffffff');
-  return pixelsToSvg(p, 12);
+  return p;
 }

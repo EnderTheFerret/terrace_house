@@ -194,7 +194,9 @@ function applyPlayerAction(s: GameState, a: PlayerAction): { invite?: string; ta
       return { talk: a.target };
     case 'talk': {
       const t = s.characters[a.target];
-      P.location = t && isRoom(t.location) ? t.location : 'living';
+      const priv = content().house.rooms.find((r) => r.id === t?.location)?.private;
+      // you knock on a bedroom/bathroom door and talk in the living room instead
+      P.location = t && isRoom(t.location) && !priv ? t.location : 'living';
       s.world.playerNode = 'house';
       satisfy(P, 'seek');
       return { talk: a.target };
@@ -253,12 +255,16 @@ function planPlayerScene(s: GameState, rng: Rng, a: PlayerAction, acts: Record<s
     let cs = withPlayer(candidates(s, rng, { location: node, pool: here, isPlayerScene: true, activity: a.activity, focus: invite }));
     if (invite) cs = cs.filter((c) => Object.values(c.binding).includes(invite));
     const pick = sample(rng, cs);
+    let out: EventInstance;
     if (!pick) {
       const others = here.filter((c) => c.id !== P.id);
       const t = content().eventById.get(others.length ? 'chance-encounter' : 'solo-wander')!;
-      return makeEvent(s, t, others.length ? { a: P.id, b: invite ?? others[0].id } : { a: P.id }, node);
-    }
-    return ev(pick);
+      out = makeEvent(s, t, others.length ? { a: P.id, b: invite ?? others[0].id } : { a: P.id }, node);
+    } else out = ev(pick)!;
+    // recurring outsiders keep their schedule: the café owner is at the café, the clerk at the konbini…
+    const regular = content().npcs.find((n) => n.location === node && n.schedule.slots.includes(s.world.slot) && n.schedule.weekdays.includes(s.world.weekday) && !n.linkedTo);
+    if (regular && !Object.values(out.roles).includes(regular.id)) out.roles = { ...out.roles, x: regular.id };
+    return out;
   }
   // house scenes
   const room = P.location;

@@ -64,7 +64,7 @@ export function freezeRequest(s: GameState, ev: EventInstance): ImageRequest {
     seed: hashSeed(ev.id) % 100000,
     width: W,
     height: H,
-    subjectKey: `freeze:${ev.templateId}:${ev.participants.join('-')}`,
-    meta: { timeOfDay: timeOfDay(ev.slot) },
+    subjectKey: `freeze:${ev.templateId}:${ev.location}:${ev.participants.join('-')}`,
+    meta: { timeOfDay: timeOfDay(ev.slot), people: people.map((c) => ({ appearance: c.appearance, gender: c.gender, seed: c.portraitSeed })) },
   };
 }

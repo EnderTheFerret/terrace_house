@@ -38,7 +38,7 @@ export interface SheetResult {
 export function mockBeatSheet(s: GameState, rng: Rng, ev: EventInstance): SheetResult {
   const t = content().eventById.get(ev.templateId)!;
   const people = ev.participants.length ? ev.participants : Object.values(ev.roles);
-  const outsiders = Object.entries(ev.roles).filter(([r]) => t.roles[r]?.outsider).map(([, id]) => id);
+  const outsiders = Object.values(ev.roles).filter((id) => !s.characters[id] && content().npcs.some((n) => n.id === id));
   const player = s.playerId;
   const all = [...people, ...outsiders];
   // the player only speaks at their choice beat (their intent); everyone else carries the scene

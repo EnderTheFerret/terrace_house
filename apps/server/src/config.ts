@@ -35,7 +35,8 @@ export const config = {
   seed: env('SEED', ''),
   language: env('LANGUAGE', 'en'),
   port: num('PORT', 8787),
-  llmTimeoutMs: num('LLM_TIMEOUT_MS', 45000),
+  llmTimeoutMs: num('LLM_TIMEOUT_MS', 90000),
+  flavorPass: env('FLAVOR_PASS', '0') === '1',
   imageTimeoutMs: num('IMAGE_TIMEOUT_MS', 180000),
   temps: {
     lines: num('TEMP_DIALOGUE', 0.9),

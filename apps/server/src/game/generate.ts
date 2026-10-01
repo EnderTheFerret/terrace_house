@@ -41,13 +41,14 @@ export class Generator {
     if (!this.real) return { beats: local.sheet.beats, choiceIndex: local.choiceIndex, source: 'mock' };
     const r = await structured(this.llm, this.mock, { kind: 'beats', prompt: beatSheetPrompt(s, ev), temperature: config.temps.beats, maxTokens: 700, context: { kind: 'beats', state: s, event: ev } }, BeatSheet, budget);
     const valid = new Set([...ev.participants, ...Object.values(ev.roles)]);
-    let beats = r.value.beats.map((b) => (valid.has(b.speaker) ? b : { ...b, speaker: ev.participants[0] }));
+    const player = s.playerId;
+    const npcVoice = ev.participants.find((p) => p !== player) ?? ev.participants[0];
+    // the player only speaks at the engine-defined choice beat; any other player beat goes to an NPC
+    let beats = r.value.beats.map((b) => (!valid.has(b.speaker) || b.speaker === player ? { ...b, speaker: npcVoice } : b));
     let choiceIndex = local.choiceIndex;
     if (choiceIndex >= 0) {
       choiceIndex = Math.min(choiceIndex, beats.length);
-      const player = s.playerId;
-      // ensure the choice beat belongs to the player
-      beats = [...beats.slice(0, choiceIndex), { ...local.sheet.beats[local.choiceIndex], speaker: player }, ...beats.slice(choiceIndex).filter((b) => b.speaker !== player || b.beatType === 'close')].slice(0, 8);
+      beats = [...beats.slice(0, choiceIndex), { ...local.sheet.beats[local.choiceIndex], speaker: player }, ...beats.slice(choiceIndex)].slice(0, 8);
     }
     return { beats, choiceIndex, source: r.source };
   }
@@ -188,7 +189,7 @@ export class Generator {
 
   /** Optional premise flavor pass: rewrites text only, never changes the selection. */
   async flavor(premise: string, budget: Budget): Promise<string> {
-    if (!this.real || budget.remaining < 3 || !budget.take()) return premise;
+    if (!config.flavorPass || !this.real || budget.remaining < 6 || !budget.take()) return premise;
     try {
       const t = (await this.llm.complete({ kind: 'flavor', prompt: flavorPrompt(premise), temperature: config.temps.flavor, maxTokens: 120 })).trim();
       return t && t.length < 400 ? t : premise;

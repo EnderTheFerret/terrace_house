@@ -41,6 +41,7 @@ export interface LiveScene {
     eavesdrop: boolean;
     background: ImageStatus;
     chat: boolean;
+    intro: { id: string; name: string; age: number; occupation: string; hometown: string } | null;
   };
   lines: LiveLine[];
   choice: string[] | null;

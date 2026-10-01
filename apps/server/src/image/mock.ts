@@ -2,7 +2,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
-import { keyColor, locationSvg, pixelsToSvg, portraitPixels, type ImageBackend, type ImageRequest, type ImageResult } from '@shared-roof/shared';
+import { freezePixels, keyColor, locationSvg, pixelsToSvg, portraitPixels, type ImageBackend, type ImageRequest, type ImageResult } from '@shared-roof/shared';
 
 export function placeholderSvg(req: ImageRequest): string {
   const m = req.meta ?? {};
@@ -10,6 +10,7 @@ export function placeholderSvg(req: ImageRequest): string {
     return pixelsToSvg(portraitPixels(m.appearance, m.gender ?? 'woman', req.seed), 12, keyColor(req.subjectKey));
   }
   const tod = m.timeOfDay ?? 'day';
+  if (req.kind === 'freeze' && m.people?.length) return pixelsToSvg(freezePixels(req.subjectKey, tod, m.people), 12);
   return locationSvg(req.subjectKey, tod, m.weather ?? 'sunny');
 }
 

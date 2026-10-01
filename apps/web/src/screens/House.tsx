@@ -353,7 +353,7 @@ function WhoRow({ c, onTalk, disabled }: { c: CharView; onTalk: () => void; disa
           )}
         </div>
       </div>
-      <button className="px-btn text-xs" onClick={onTalk} disabled={disabled}>
+      <button className="px-btn text-xs" onClick={onTalk} disabled={disabled} aria-label={`talk to ${c.name.split(' ')[0]}`}>
         talk
       </button>
     </li>

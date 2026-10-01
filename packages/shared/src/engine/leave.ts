@@ -5,6 +5,7 @@ import { addFact, addLog, addRel, coupleOf, firstName, housemates, learn, rel } 
 import { initArc } from './arcs';
 import { initRelationships, replacementCandidate } from './castgen';
 import { publicReputation } from './social';
+import { postGroupChat } from './house';
 import { resolveOn } from './predictions';
 
 export type LeaveReason = 'couple' | 'rejection' | 'mood' | 'contract';
@@ -122,6 +123,8 @@ export function processArrivals(s: GameState, rng: Rng): Character[] {
     initArc(s, c);
     s.world.flags[`new_${c.id}`] = s.world.episode;
     addLog(s, { kind: 'arrival', text: `${c.name}, ${c.age}, ${c.occupation}, moved into the house.`, participants: [c.id], salience: 0.8 });
+    const greeter = housemates(s).filter((h) => h.id !== c.id && !h.isPlayer).sort((a, b) => b.persona.traits[2] - a.persona.traits[2])[0];
+    if (greeter) postGroupChat(s, greeter.id, `welcome ${c.name.split(' ')[0]}!! (added you)`, { subject: c.id, kind: 'event', content: `${c.name} joined the house group chat.`, sensitivity: 0.1 });
     arrived.push(c);
   }
   return arrived;

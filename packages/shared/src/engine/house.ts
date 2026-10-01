@@ -1,9 +1,9 @@
 // House as shared state (Section 5.5G): fridge, dishes, chores with fairness, labeled food, bathroom, noise, aircon.
-import type { GameState } from '../model';
+import type { Fact, GameState } from '../model';
 import type { Rng } from '../rng';
 import { content } from '../content';
 import { clamp } from '../util';
-import { addLog, addRel, firstName, housemates, traitsOf } from './core';
+import { addFact, addLog, addRel, firstName, housemates, learn, traitsOf } from './core';
 import { publicAct } from './social';
 
 export function initHouse(memberIds: string[]): GameState['house'] {
@@ -106,12 +106,39 @@ export function houseTick(s: GameState, rng: Rng, actions: Record<string, string
     if (eater) {
       f.eatenBy = eater.id;
       addLog(s, { kind: 'domestic', text: `Someone ate ${firstName(s, f.owner)}'s labeled ${f.item}.`, participants: [f.owner], salience: 0.3 });
+      const owner = s.characters[f.owner];
+      const angry = owner && (owner.persona.conflictStyle === 'confront' ? `whoever ate my ${f.item}. i know.` : owner.persona.conflictStyle === 'passive-aggressive' ? `it's fine that my ${f.item} is gone. totally fine.` : `um did anyone see my ${f.item}?`);
+      if (angry) postGroupChat(s, f.owner, angry, { subject: f.owner, kind: 'event', content: `${firstName(s, f.owner)}'s labeled ${f.item} went missing.`, sensitivity: 0.32 });
     }
+  }
+  // dinner announcements and general chatter
+  if (slot === 'evening') {
+    const cook = hm.find((c) => actions[c.id] === 'cook');
+    if (cook && rng.chance(0.4)) postGroupChat(s, cook.id, rng.pick(['made too much rice. come eat', 'dinner in 10 if anyone is home', 'there is soup on the stove']));
+  }
+  if (h.dishes > 75 && rng.chance(0.25)) {
+    const neat = hm.filter((c) => traitsOf(c).C > 0.7 && !c.isPlayer)[0];
+    if (neat) postGroupChat(s, neat.id, 'the sink. please.', { subject: neat.id, kind: 'opinion', content: `${firstName(s, neat.id)} complained about the dishes in the group chat.`, sensitivity: 0.3 });
   }
   // aircon: drift toward the setting preferred by whoever is in the living room
   if (s.world.season === 'summer' || s.world.season === 'winter') {
     const pref = hm.filter((c) => c.location === 'living').map((c) => 22 + traitsOf(c).N * 3 + (c.persona.routine.tastes[4] > 0 ? 1 : 0));
     if (pref.length) h.aircon = Math.round(pref.reduce((a, b) => a + b, 0) / pref.length);
+  }
+}
+
+/**
+ * Post to the house group chat. Members (only) learn the attached fact with source "groupchat" — the player
+ * included, if they haven't been excluded from the chat.
+ */
+export function postGroupChat(s: GameState, from: string, text: string, fact?: { subject: string; about?: string; kind: Fact['kind']; content: string; sensitivity: number }) {
+  if (!s.house.groupChat.members.includes(from)) return;
+  s.house.groupChat.messages.push({ from, text, tick: s.world.tick, readBy: [], ignoredBy: [] });
+  if (s.house.groupChat.messages.length > 80) s.house.groupChat.messages.splice(0, s.house.groupChat.messages.length - 80);
+  if (fact) {
+    const f = addFact(s, { ...fact, truth: true });
+    learn(s, from, f.id, 'witnessed');
+    for (const m of s.house.groupChat.members) if (m !== from) learn(s, m, f.id, 'groupchat', from, 0.9);
   }
 }
 

@@ -127,6 +127,20 @@ export function Scene() {
           </div>
         )}
         {!h && <div className="absolute inset-0 flex items-center justify-center text-paper">setting the scene<span className="blink">…</span></div>}
+        {h?.intro && (
+          <div className="intro-card absolute left-1/2 top-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center gap-4 px-panel p-4" role="note" aria-label="new housemate">
+            {(() => {
+              const c = view.characters.find((x) => x.id === h.intro!.id);
+              return c ? <Portrait charId={c.id} appearance={c.appearance} gender={c.gender} seed={c.portraitSeed} size={110} label={c.name} /> : null;
+            })()}
+            <div>
+              <div className="caption text-xs">new housemate</div>
+              <div className="text-2xl">{h.intro.name}</div>
+              <div className="text-sm">{h.intro.age} · {h.intro.occupation}</div>
+              <div className="caption text-xs">from {h.intro.hometown}</div>
+            </div>
+          </div>
+        )}
         {/* portraits */}
         {!chat && (
           <div className="absolute bottom-40 left-0 right-0 flex items-end justify-around px-8">

@@ -276,6 +276,7 @@ export class GameSession {
           eavesdrop: run.response === 'eavesdrop',
           background: loc,
           chat: run.ev.location === 'phone',
+          intro: run.ev.type === 'arrival' && s.characters[run.ev.roles.a] ? (({ id, name, age, occupation, hometown }) => ({ id, name, age, occupation, hometown }))(s.characters[run.ev.roles.a]) : null,
         });
         const sheet = await this.gen.beatSheet(s, run.ev, this.budget);
         run.beats = sheet.beats;
@@ -374,7 +375,7 @@ export class GameSession {
     this.state = recordCommentary(this.state, { prediction, calledBack: callbacks });
     this.log('commentary', { eventId: ev.id, prediction, calledBack: callbacks });
     run.commentary = { ...cm.commentary, prediction: prediction ? { text: prediction.text } : undefined };
-    if (ev.freeze || cm.commentary.freezeFrame) {
+    if (ev.freeze) {
       const img = this.images.request(freezeRequest(this.state, ev), PRIORITY.freeze);
       run.freeze = { caption: cm.commentary.freezeFrame?.caption ?? 'that moment', image: img.key };
       emit('freeze', { id: ev.id, caption: run.freeze.caption, image: img });

@@ -27,9 +27,13 @@ if (config.mode === 'mock') {
   }
 }
 
-const { app, health } = await buildApp({ llm, image, store, workflowHash, serveWeb: process.env.NODE_ENV === 'production' });
+const { app, health } = await buildApp({ llm, image, store, workflowHash, serveWeb: true });
 const h = await health();
 console.log(`[shared roof] mode=${config.mode} llm=${h.llm} (${h.model}) image=${h.image} (${h.imageBackend})`);
+if (config.mode === 'real' && h.llm === 'ok') {
+  // warm the model so the first scene doesn't pay the load time
+  void llm.complete({ kind: 'summary', prompt: 'Reply with: ok', temperature: 0, maxTokens: 2 }).catch(() => {});
+}
 if (config.mode === 'real' && h.llm === 'down') console.log(`[shared roof] Ollama not reachable at ${config.ollamaUrl} or model ${config.ollamaModel} missing — falling back to templates per call.`);
 if (config.mode === 'real' && h.image === 'down') console.log(`[shared roof] ComfyUI not reachable at ${config.comfyUrl} — images use placeholders ("images offline").`);
 await app.listen({ port: config.port, host: '127.0.0.1' });
