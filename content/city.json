@@ -1,6 +1,6 @@
 {
   "districts": [
-    { "id": "harbor", "name": "Harbor District", "color": "#9fd3e6" },
+    { "id": "harbor", "name": "Harbor District", "color": "#e8d8c0" },
     { "id": "oldtown", "name": "Furumachi Old Town", "color": "#f2c6a0" },
     { "id": "hillside", "name": "Takadai Hillside", "color": "#b9dfa9" },
     { "id": "coast", "name": "Shiokaze Coast", "color": "#f6e7a6" }
@@ -21,7 +21,7 @@
     { "id": "bar", "name": "Lantern Rooftop Bar", "type": "rooftop-bar", "district": "oldtown", "x": 72, "y": 46, "open": [17, 26], "activities": ["date", "eat", "invite"], "cost": 3000, "romantic": 0.8, "description": "Paper lanterns over the old town roofs. Expensive, and worth it once." },
     { "id": "park", "name": "Sakuragaoka Park", "type": "park", "district": "hillside", "x": 30, "y": 32, "open": [0, 24], "activities": ["wander", "date", "invite"], "cost": 0, "romantic": 0.6, "description": "Hill park with a pond, swan boats and the city's best cherry trees." },
     { "id": "shrine", "name": "Hachiman Hill Shrine", "type": "shrine", "district": "hillside", "x": 20, "y": 22, "open": [6, 18], "activities": ["wander", "date"], "cost": 300, "romantic": 0.5, "description": "Two hundred stone steps up to red gates and a view of the bay." },
-    { "id": "hospital", "name": "Minato General Hospital", "type": "workplace", "district": "hillside", "x": 40, "y": 24, "open": [0, 24], "activities": ["work"], "cost": 0, "romantic": 0, "description": "Mio's ward is on the fourth floor." },
+    { "id": "hospital", "name": "Minato General Hospital", "type": "workplace", "district": "hillside", "x": 40, "y": 24, "open": [0, 24], "activities": ["wander"], "cost": 0, "romantic": 0, "description": "Mio's ward is on the fourth floor." },
     { "id": "onsen", "name": "Yuzu Hot Spring", "type": "onsen", "district": "hillside", "x": 12, "y": 40, "open": [10, 22], "activities": ["wander", "date", "invite"], "cost": 1200, "romantic": 0.6, "description": "An old bathhouse in the hills that smells of citrus and cedar." },
     { "id": "observatory", "name": "Hilltop Observatory", "type": "scenic-spot", "district": "hillside", "x": 8, "y": 10, "open": [9, 23], "activities": ["date", "wander"], "cost": 500, "romantic": 0.9, "description": "A windy deck above the whole bay. Locals come here to say important things." },
     { "id": "beach", "name": "Shiokaze Beach", "type": "beach", "district": "coast", "x": 84, "y": 62, "open": [6, 19], "activities": ["wander", "date", "invite"], "cost": 0, "romantic": 0.7, "description": "Long grey-sand beach with surf shacks. Kaito's old stomping ground." },

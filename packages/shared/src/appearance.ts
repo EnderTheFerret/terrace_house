@@ -8,7 +8,7 @@ export const DEFAULT_STYLE_PREFIX =
 
 /** Global negative prompt; always includes safety terms. */
 export const GLOBAL_NEGATIVE =
-  'child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers';
+  'child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers';
 
 const MINOR_CODED = /\b(child(like)?|kids?|teen(age(r|d)?)?s?|minors?|loli|shota|school ?(girl|boy|uniform)s?|young (girl|boy)|little (girl|boy)|underage|baby[- ]?faced|juvenile)\b/gi;
 
@@ -18,7 +18,7 @@ export function sanitizePromptText(text: string): string {
 }
 
 const SHOT_TAGS: Record<ShotType, string> = {
-  portrait: 'character portrait, upper body, facing viewer, plain pastel background, centered',
+  portrait: 'character portrait, upper body, fully clothed, facing viewer, plain pastel background, centered',
   bust: 'bust shot, head and shoulders, plain pastel background',
   full: 'full body, standing, plain background',
   scene: 'medium shot, candid documentary framing',

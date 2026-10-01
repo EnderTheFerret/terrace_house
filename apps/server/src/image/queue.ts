@@ -1,7 +1,7 @@
 // Image queue: priority (player portrait > current scene > prefetch), concurrency 1, cancellation,
 // persistent disk cache keyed by sha256(workflowHash + prompt + negative + seed + size), SQLite index,
 // prebaked asset lookup, and placeholder fallback when the backend fails ("images offline").
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { ImageBackend, ImageRequest } from '@shared-roof/shared';
@@ -31,12 +31,26 @@ interface Job {
 
 export class AssetLibrary {
   private manifest: Record<string, string> = {};
+  private mtime = 0;
   constructor(private assetsDir: string) {
-    const f = resolve(assetsDir, 'manifest.json');
-    if (existsSync(f)) this.manifest = JSON.parse(readFileSync(f, 'utf8'));
+    this.reload();
+  }
+  /** Re-read manifest.json when it changes (assets can be generated while the server runs). */
+  private reload() {
+    const f = resolve(this.assetsDir, 'manifest.json');
+    try {
+      const m = statSync(f).mtimeMs;
+      if (m !== this.mtime) {
+        this.manifest = JSON.parse(readFileSync(f, 'utf8'));
+        this.mtime = m;
+      }
+    } catch {
+      this.manifest = {};
+    }
   }
   /** URL of a prebaked asset for a subject key, if the file exists. */
   lookup(subjectKey: string): string | null {
+    this.reload();
     const rel = this.manifest[subjectKey];
     if (!rel) return null;
     return existsSync(resolve(this.assetsDir, rel)) ? `/assets/${rel}` : null;

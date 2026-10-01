@@ -118,8 +118,11 @@ const BANK: Record<BeatType, string[]> = {
   reject: ['I\'m sorry. I don\'t feel the same way.', 'You\'re important to me. Just not like that.', 'I can\'t give you the answer you want.', 'Thank you for telling me. I\'m sorry.'],
   apologize: ['About the other day. I\'m sorry.', 'I was out of line. I know that.', 'I\'ve been thinking. I owe you an apology.', 'I\'m sorry. No excuses.'],
   joke: ['If I burn the rice again, just leave me on the roof.', 'I think the fridge is haunted.', 'New house rule: whoever laughs first does dishes.', 'I\'m basically a professional at doing nothing.'],
-  close: ['Okay. Goodnight, {other}.', 'Let\'s do this again.', 'I should sleep. Thanks.', 'See you at breakfast.', 'Alright. Later.'],
+  close: ['Let\'s do this again.', 'Alright. Later.', 'Thanks, {other}. Really.', 'Okay. That was nice.'],
 };
+
+const CLOSE_NIGHT = ['Okay. Goodnight, {other}.', 'I should sleep. Thanks.', 'See you at breakfast.', 'Don\'t stay up too late.'];
+const CLOSE_DAY = ['I should get going. See you at home.', 'Text me later?', 'Same time next week?', 'Let\'s head back before it gets dark.'];
 
 const HUMOR_JOKES: Record<Speech['humor'], string[]> = {
   dry: ['Great. Another wonderful day in paradise.', 'Fascinating. Truly.', 'I\'ll alert the media.'],
@@ -206,6 +209,7 @@ export function mockLine(s: GameState, rng: Rng, beat: Beat, ctx: LineContext, i
   if (intent) base = rng.pick(INTENT_LINES[intent]);
   else if (bt === 'joke' && rng.chance(0.6)) base = rng.pick(HUMOR_JOKES[c.persona.speech.humor]);
   else if (beat.depth === 'smalltalk' && bt === 'open' && rng.chance(0.15)) base = rng.pick(c.persona.speech.exemplars);
+  else if (bt === 'close' && rng.chance(0.6)) base = rng.pick(s.world.slot === 'evening' ? CLOSE_NIGHT : s.world.slot === 'morning' ? BANK.close : CLOSE_DAY);
   else base = rng.pick(BANK[bt]);
   const refs = referencesFor(s, [beat.speaker]);
   if (bt === 'joke' && refs.length && rng.chance(0.35)) base = `Remember ${rng.pick(refs).text}?`;

@@ -10,6 +10,7 @@ import { cloneState, housemates, rel } from './core';
 import type { MemoryItem } from '../model';
 import { dayForEpisode, cityEventFor, chooseTyphoonDay, dateOf } from './calendar';
 import { checkDynamics, generateCast, personaLike } from './castgen';
+import { addPrediction, expirePredictions, pendingCallbacks, proposeCondition, recordCommentary, resolveOn } from './predictions';
 
 describe('rng', () => {
   it('mulberry32 is deterministic and in [0,1)', () => {
@@ -195,6 +196,36 @@ describe('cast generator', () => {
       if (checkDynamics(cast.map((c) => ({ gender: c.gender, interestedIn: c.interestedIn, p: personaLike(c.persona) }))).ok) ok++;
     }
     expect(ok).toBeGreaterThanOrEqual(16);
+  });
+});
+
+describe('panel predictions lifecycle', () => {
+  it('resolve true on matching events, false on expiry, and are called back once', () => {
+    const s = createGame({ seed: 12 });
+    const p1 = addPrediction(s, 'otaru', { kind: 'confess', a: 'ren', b: 'mio', byEpisode: 4 }, 'Ren confesses to Mio by ep 4')!;
+    const p2 = addPrediction(s, 'saeki', { kind: 'fight', a: 'kaito', b: 'sora', byEpisode: 2 }, 'they blow up')!;
+    const p3 = addPrediction(s, 'shiomi', { kind: 'leave', a: 'shun', byEpisode: 9 }, 'Shun leaves')!;
+    resolveOn(s, 'confess', 'ren', 'kaito');
+    expect(p1.resolved).toBeNull(); // wrong target
+    resolveOn(s, 'confess', 'ren', 'mio');
+    expect(p1.resolved).toBe(true);
+    resolveOn(s, 'fight', 'sora', 'kaito'); // order-insensitive pair
+    expect(p2.resolved).toBe(true);
+    s.world.episode = 10;
+    expirePredictions(s);
+    expect(p3.resolved).toBe(false);
+    expect(pendingCallbacks(s).map((p) => p.id).sort()).toEqual([p1.id, p2.id, p3.id].sort());
+    const s2 = recordCommentary(s, { calledBack: [p1.id] });
+    expect(pendingCallbacks(s2).map((p) => p.id)).not.toContain(p1.id);
+  });
+  it('engine conditions come from state (resolvable), capped in number', () => {
+    const s = createGame({ seed: 12 });
+    rel(s, 'ren', 'mio').romance = 60;
+    const c = proposeCondition(s, mulberry32(3));
+    expect(c).not.toBeNull();
+    expect(['confess', 'couple', 'fight', 'leave']).toContain(c!.kind);
+    for (let i = 0; i < 10; i++) addPrediction(s, 'nagumo', { kind: 'leave', a: 'kaito', byEpisode: 9 }, 'x');
+    expect(s.predictions.filter((p) => p.resolved === null).length).toBeLessThanOrEqual(4);
   });
 });
 
