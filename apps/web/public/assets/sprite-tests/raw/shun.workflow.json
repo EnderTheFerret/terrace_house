@@ -1,0 +1,234 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "qwen_image_edit_2511_fp8mixed.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "Load Qwen-Image-Edit 2511"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Load Text Encoder"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "4": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "lora_name": "Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors",
+      "strength_model": 1.0
+    },
+    "_meta": {
+      "title": "Lightning LoRA (8 steps)"
+    }
+  },
+  "5": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "model": [
+        "4",
+        0
+      ],
+      "shift": 3.1
+    },
+    "_meta": {
+      "title": "Model Sampling"
+    }
+  },
+  "6": {
+    "class_type": "CFGNorm",
+    "inputs": {
+      "model": [
+        "5",
+        0
+      ],
+      "strength": 1.0
+    },
+    "_meta": {
+      "title": "CFG Norm"
+    }
+  },
+  "12": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "roof_sprite_79cf37d9467cf773.png"
+    },
+    "_meta": {
+      "title": "Reference portrait (patched per request)"
+    }
+  },
+  "13": {
+    "class_type": "ImageScaleToTotalPixels",
+    "inputs": {
+      "image": [
+        "12",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "megapixels": 1.0,
+      "resolution_steps": 8
+    },
+    "_meta": {
+      "title": "Scale reference"
+    }
+  },
+  "7": {
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "prompt": "Upgrade this exact reference character, preserving identity, hair color and clothing colors: neat side part, dark brown, brown, tall and slim, navy knit sweater over collared shirt, thin round glasses, fair. Create one clean 16-bit pixel-art RPG sprite sheet on pure white background. Exactly FOUR full-body idle sprites in one horizontal row in this order: front facing camera, back facing away, LEFT profile with nose pointing left, RIGHT profile with nose pointing right. Each sprite centered in its own equal-width quarter; equal height and shared foot baseline. Preserve the reference cute top-down chibi proportions with large head and short body, two heads tall. Add readable hand-placed pixel clusters: hair strands and highlights, jacket seams or fabric folds, collar, buttons, pockets, distinct hands, shoe soles, small character accessories. Use a restrained cohesive palette, dark one-pixel outlines and top-left lighting. Crisp square pixels designed to survive a 32 by 40 pixel frame. Entire heads and feet visible with generous white margins. Four characters only, no text, no labels, no grid lines, no scenery, no drop shadow, no gradients, no portrait, no realistic rendering.",
+      "vae": [
+        "3",
+        0
+      ],
+      "image1": [
+        "13",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Positive (with reference)"
+    }
+  },
+  "8": {
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "prompt": "photograph, realism, 3d, text, labels, watermark, cropped feet, cropped head, scenery, shadow, extra characters, blur",
+      "vae": [
+        "3",
+        0
+      ],
+      "image1": [
+        "13",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Negative"
+    }
+  },
+  "14": {
+    "class_type": "FluxKontextMultiReferenceLatentMethod",
+    "inputs": {
+      "conditioning": [
+        "7",
+        0
+      ],
+      "reference_latents_method": "index_timestep_zero"
+    },
+    "_meta": {
+      "title": "Reference method (positive)"
+    }
+  },
+  "15": {
+    "class_type": "FluxKontextMultiReferenceLatentMethod",
+    "inputs": {
+      "conditioning": [
+        "8",
+        0
+      ],
+      "reference_latents_method": "index_timestep_zero"
+    },
+    "_meta": {
+      "title": "Reference method (negative)"
+    }
+  },
+  "9": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 384,
+      "batch_size": 1
+    },
+    "_meta": {
+      "title": "Latent size"
+    }
+  },
+  "10": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "6",
+        0
+      ],
+      "positive": [
+        "14",
+        0
+      ],
+      "negative": [
+        "15",
+        0
+      ],
+      "latent_image": [
+        "9",
+        0
+      ],
+      "seed": 2133621704,
+      "steps": 8,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "11": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "10",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "16": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "11",
+        0
+      ],
+      "filename_prefix": "shared_roof_sprite_tests/shun"
+    },
+    "_meta": {
+      "title": "Save"
+    }
+  }
+}

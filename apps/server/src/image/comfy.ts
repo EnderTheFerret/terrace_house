@@ -15,13 +15,14 @@ export interface Mapping {
   checkpoint?: { node: string; input: string };
   /** LoadImage input that receives the uploaded reference portrait (reference workflows only) */
   reference?: { node: string; input: string };
+  reference2?: { node: string; input: string };
   output?: { node: string };
 }
 
 type Workflow = Record<string, { class_type: string; inputs: Record<string, unknown> }>;
 
 /** Pure: patch a workflow copy with request values according to the mapping. */
-export function patchWorkflow(wf: Workflow, map: Mapping, req: ImageRequest, checkpoint?: string, referenceName?: string): Workflow {
+export function patchWorkflow(wf: Workflow, map: Mapping, req: ImageRequest, checkpoint?: string, referenceName?: string, reference2Name?: string): Workflow {
   const out: Workflow = structuredClone(wf);
   const put = (m: { node: string; input: string } | undefined, v: unknown) => {
     if (!m) return;
@@ -36,6 +37,7 @@ export function patchWorkflow(wf: Workflow, map: Mapping, req: ImageRequest, che
   put(map.batch, 1);
   if (checkpoint) put(map.checkpoint, checkpoint);
   if (referenceName) put(map.reference, referenceName);
+  if (reference2Name) put(map.reference2, reference2Name);
   return out;
 }
 
@@ -53,6 +55,7 @@ export class ComfyBackend implements ImageBackend {
   private map: Mapping;
   /** optional reference-image workflow (e.g. Qwen-Image-Edit or IP-Adapter) for requests that carry a reference */
   private ref: { wf: Workflow; map: Mapping } | null = null;
+  private sprites: { wf: Workflow; map: Mapping } | null = null;
   readonly workflowHash: string;
 
   constructor(
@@ -63,6 +66,7 @@ export class ComfyBackend implements ImageBackend {
     private timeoutMs: number,
     private fetchImpl: typeof fetch = fetch,
     reference?: { workflowPath: string; mappingPath: string },
+    sprites?: { workflowPath: string; mappingPath: string },
   ) {
     const base = loadPair(workflowPath, mappingPath);
     this.wf = base.wf;
@@ -72,6 +76,12 @@ export class ComfyBackend implements ImageBackend {
       const r = loadPair(reference.workflowPath, reference.mappingPath);
       if (!r.map.reference) throw new Error('reference mapping needs a "reference" entry');
       this.ref = r;
+      hash = createHash('sha256').update(hash).update(r.hash).digest('hex');
+    }
+    if (sprites) {
+      const r = loadPair(sprites.workflowPath, sprites.mappingPath);
+      if (!r.map.reference || !r.map.reference2) throw new Error('sprite mapping needs both references');
+      this.sprites = r;
       hash = createHash('sha256').update(hash).update(r.hash).digest('hex');
     }
     this.workflowHash = hash;
@@ -137,9 +147,10 @@ export class ComfyBackend implements ImageBackend {
   async generate(req: ImageRequest, signal?: AbortSignal, onProgress?: (p: number) => void): Promise<ImageResult> {
     const sig = signal ? AbortSignal.any([signal, AbortSignal.timeout(this.timeoutMs)]) : AbortSignal.timeout(this.timeoutMs);
     const clientId = randomUUID();
-    const useRef = !!(this.ref && req.reference);
-    const map = useRef ? this.ref!.map : this.map;
-    const wf = useRef ? patchWorkflow(this.ref!.wf, map, req, undefined, await this.upload(req.reference!, sig)) : patchWorkflow(this.wf, map, req);
+    const reference = req.kind === 'sprite' && this.sprites ? this.sprites : this.ref;
+    const useRef = !!(reference && req.reference);
+    const map = useRef ? reference!.map : this.map;
+    const wf = useRef ? patchWorkflow(reference!.wf, map, req, undefined, await this.upload(req.reference!, sig), req.reference2 ? await this.upload(req.reference2, sig) : undefined) : patchWorkflow(this.wf, map, req);
     let pid: string | null = null;
     let wsSettled = false;
     // ws is best effort (it only shortens the wait); history polling is authoritative

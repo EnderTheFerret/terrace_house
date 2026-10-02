@@ -1,0 +1,44 @@
+{
+  "prompt_id": "e68bde26-bf93-45bd-916a-f3bce2d12326",
+  "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+      [
+        "execution_start",
+        {
+          "prompt_id": "e68bde26-bf93-45bd-916a-f3bce2d12326",
+          "timestamp": 1790934452326
+        }
+      ],
+      [
+        "execution_cached",
+        {
+          "nodes": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "9"
+          ],
+          "prompt_id": "e68bde26-bf93-45bd-916a-f3bce2d12326",
+          "timestamp": 1790934452369
+        }
+      ],
+      [
+        "execution_success",
+        {
+          "prompt_id": "e68bde26-bf93-45bd-916a-f3bce2d12326",
+          "timestamp": 1790934485729
+        }
+      ]
+    ]
+  },
+  "image": {
+    "filename": "kaito_00001_.png",
+    "subfolder": "shared_roof_sprite_tests",
+    "type": "output"
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "prompt_id": "252930cc-5a4f-4743-b9e7-1894566effdb",
+  "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+      [
+        "execution_start",
+        {
+          "prompt_id": "252930cc-5a4f-4743-b9e7-1894566effdb",
+          "timestamp": 1790934749742
+        }
+      ],
+      [
+        "execution_cached",
+        {
+          "nodes": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "12",
+            "13",
+            "8",
+            "15",
+            "9"
+          ],
+          "prompt_id": "252930cc-5a4f-4743-b9e7-1894566effdb",
+          "timestamp": 1790934749783
+        }
+      ],
+      [
+        "execution_success",
+        {
+          "prompt_id": "252930cc-5a4f-4743-b9e7-1894566effdb",
+          "timestamp": 1790934782619
+        }
+      ]
+    ]
+  },
+  "image": {
+    "filename": "test-eli_00001_.png",
+    "subfolder": "shared_roof_sprite_tests",
+    "type": "output"
+  }
+}

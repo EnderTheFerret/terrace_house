@@ -1,6 +1,6 @@
 // Generation service: wires prompts + LLM client + mock fallback + budget + voice checks.
 import {
-  BeatSheet, Commentary, DeltaProposal, content, firstName, hashSeed, mockBeatSheet, mulberry32, voiceCheck, placeName,
+  BeatSheet, Commentary, DeltaProposal, content, firstName, hashSeed, mockBeatSheet, mulberry32, voiceCheck, placeName, isShabbat,
   type Beat, type EventInstance, type GameState, type Intent, type LineContext, type LlmClient, type PredictionCond, type SceneChoices,
 } from '@shared-roof/shared';
 import { config } from '../config';
@@ -8,6 +8,7 @@ import { MockLlm } from '../llm/mock';
 import { structured, logFailure, type Budget } from '../llm/structured';
 import { beatSheetPrompt, deltaPrompt, linesPrompt, parseLines } from '../prompts/scene';
 import { chatPrompt, commentaryPrompt, flavorPrompt, intermissionPrompt } from '../prompts/studio';
+import { contentCheck } from './personas';
 
 export interface Line {
   speaker: string;
@@ -29,7 +30,7 @@ export class VoiceStats {
 export class Generator {
   readonly mock = new MockLlm();
   voice = new VoiceStats();
-  constructor(public llm: LlmClient) {}
+  constructor(public llm: LlmClient, public linesLlm: LlmClient = llm) {}
 
   get real() {
     return this.llm.name !== 'mock';
@@ -68,6 +69,7 @@ export class Generator {
     onLineStart: (i: number, speaker: string) => void,
     onToken: (i: number, token: string) => void,
   ): Promise<Line[]> {
+    if (ev.location === 'phone' && ev.participants.some(id => isShabbat(s, s.characters[id]))) return [];
     const mockReq = (bs: Beat[], ins: (Intent | undefined)[]) => ({
       kind: 'lines' as const,
       prompt: `${ev.id}|${transcript.length}|${bs.map((b) => b.beatType).join(',')}|${ctx.replyTo?.text ?? ''}`,
@@ -81,40 +83,12 @@ export class Generator {
       this.voice.add(b.speaker, text);
     };
     let texts: (string | null)[] = beats.map(() => null);
-    if (this.real && budget.take()) {
+    if (this.linesLlm.name !== 'mock' && budget.take()) {
       try {
         const prompt = linesPrompt(s, ev, beats, transcript, intents, ctx.replyTo?.text);
         let buf = '';
-        let lineIdx = 0;
-        let partial = '';
-        let emitted = 0;
-        let started = false;
-        for await (const tok of this.llm.stream({ kind: 'lines', prompt, temperature: config.temps.lines, maxTokens: 160 * beats.length })) {
-          buf += tok;
-          // stream only the text after "speaker:" of the line being written
-          for (const ch of tok) {
-            if (ch === '\n') {
-              if (started) lineIdx++;
-              partial = '';
-              emitted = 0;
-              started = false;
-              continue;
-            }
-            partial += ch;
-            if (lineIdx >= beats.length) continue;
-            const m = partial.match(/^[^:：]{1,40}[:：]\s*/);
-            if (!m) continue;
-            if (!started) {
-              onLineStart(lineIdx, beats[lineIdx].speaker);
-              started = true;
-              emitted = m[0].length;
-            }
-            if (partial.length > emitted) {
-              onToken(lineIdx, partial.slice(emitted));
-              emitted = partial.length;
-            }
-          }
-        }
+        for await (const tok of this.linesLlm.stream({ kind: 'lines', prompt, temperature: config.temps.lines, maxTokens: 160 * beats.length })) buf += tok;
+        // Validate before displaying: a rejected line must never flash on screen.
         texts = parseLines(buf, beats);
       } catch (e) {
         logFailure(`lines:${ev.id}`, (e as Error).message, 'lines');
@@ -125,6 +99,7 @@ export class Generator {
       const c = s.characters[b.speaker];
       let text = texts[i];
       let source: 'llm' | 'mock' = 'llm';
+      if (text && !contentCheck(text)) text = null;
       if (text && c) {
         const vc = voiceCheck(text, c.persona.speech, { catchphraseCount: ctx.catchphraseUses[b.speaker] ?? 0, lineCount: ctx.lineCounts[b.speaker] ?? 1 });
         if (!vc.ok) {
@@ -132,9 +107,9 @@ export class Generator {
           text = null;
           if (budget.take()) {
             try {
-              const raw = await this.llm.complete({ kind: 'lines', prompt: linesPrompt(s, ev, [b], transcript, [intents[i]], ctx.replyTo?.text) +`\n(Previous attempt failed: ${vc.reasons.join('; ')})`, temperature: config.temps.lines, maxTokens: 120 });
+              const raw = await this.linesLlm.complete({ kind: 'lines', prompt: linesPrompt(s, ev, [b], transcript, [intents[i]], ctx.replyTo?.text) +`\n(Previous attempt failed: ${vc.reasons.join('; ')})`, temperature: config.temps.lines, maxTokens: 120 });
               const retry = parseLines(raw, [b])[0];
-              if (retry && voiceCheck(retry, c.persona.speech).ok) text = retry;
+              if (retry && contentCheck(retry) && voiceCheck(retry, c.persona.speech).ok) text = retry;
             } catch {
               /* fall through to template */
             }
@@ -147,7 +122,13 @@ export class Generator {
         onLineStart(i, b.speaker);
         for (const part of text.split(/(?<=\s)/)) onToken(i, part);
       }
+      if (source === 'llm') {
+        onLineStart(i, b.speaker);
+        for (const part of text.split(/(?<=\s)/)) onToken(i, part);
+      }
       finish(i, text, source);
+      ctx.lineCounts[b.speaker] = (ctx.lineCounts[b.speaker] ?? 0) + 1;
+      if (c?.persona.speech.catchphrase && text.includes(c.persona.speech.catchphrase.text)) ctx.catchphraseUses[b.speaker] = (ctx.catchphraseUses[b.speaker] ?? 0) + 1;
     }
     return out;
   }
@@ -181,12 +162,14 @@ export class Generator {
   }
 
   async chat(s: GameState, from: string, to: string, budget: Budget): Promise<string> {
+    if (isShabbat(s, s.characters[from]) || isShabbat(s, s.characters[to])) return '';
     const thread = (s.chats[[from, to].sort().join('|')] ?? []).map((m) => ({ from: m.from, text: m.text }));
     const req = { kind: 'chat' as const, prompt: chatPrompt(s, from, to, thread), temperature: config.temps.chat, maxTokens: 60, context: { kind: 'chat', state: s, from, to } };
-    if (this.real && budget.take()) {
+    if (this.linesLlm.name !== 'mock' && budget.take()) {
       try {
-        const t = (await this.llm.complete(req)).trim().split('\n')[0].replace(/^["“]|["”]$/g, '');
-        if (t && t.length < 200) return t;
+        const t = (await this.linesLlm.complete(req)).trim().split('\n')[0].replace(/^["“]|["”]$/g, '');
+        const c = s.characters[from];
+        if (t && t.length < 200 && contentCheck(t) && (!c || voiceCheck(t, c.persona.speech).ok)) return t;
       } catch (e) {
         logFailure(req.prompt, (e as Error).message, 'chat');
       }

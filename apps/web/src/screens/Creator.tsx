@@ -1,9 +1,9 @@
 // Character creator: identity → personality → tastes → appearance (live portrait) → housemates. Keyboard accessible.
-import { useMemo, useState } from 'react';
-import { compileAppearanceTags, content, DEFAULT_PLAYER, TASTE_AXES, TRAIT_NAMES, type Appearance, type Gender, type PlayerSetup } from '@shared-roof/shared';
+import { useEffect, useMemo, useState } from 'react';
+import { compileAppearanceTags, content, DEFAULT_PLAYER, hashSeed, TASTE_AXES, TRAIT_NAMES, type Appearance, type Gender, type PlayerSetup } from '@shared-roof/shared';
 import { useGame } from '../store';
 import { Btn, Panel } from '../components/ui';
-import { PixelImage, ProcPortrait, useImage } from '../components/pixel';
+import { PixelImage, ProcPortrait, SpritePreview, samplePortraitPalette, useImage } from '../components/pixel';
 import { api } from '../api';
 
 const OCCUPATIONS = [...new Set(content().jobs.map((j) => j.title))].sort();
@@ -26,16 +26,31 @@ function summary(traits: number[], quirks: string[]) {
   return `A ${parts.join(', ')} type${tail.length ? ` who ${tail.join(' and ')}` : ''}${q.length ? ` — ${q.join(', ')}` : ''}.`;
 }
 
-function CreatorPortrait({ id, age, gender, appearance, seed, lowRes }: { id: string; age: number; gender: Gender; appearance: Appearance; seed: number; lowRes?: boolean }) {
-  const st = useImage(() => api.portrait({ id, age, gender, appearance, portraitSeed: seed, lowRes }), [id, age, gender, JSON.stringify(appearance), seed, lowRes]);
+const portraitKey = (p: Pick<PlayerSetup, 'age' | 'gender' | 'appearance' | 'appearanceText' | 'portraitSeed'>) => {
+  const { palette: _palette, ...appearance } = p.appearance;
+  return JSON.stringify([p.age, p.gender, appearance, p.appearanceText ?? '', p.portraitSeed]);
+};
+
+function CreatorPortrait({ id, age, gender, appearance, appearanceText, seed, onPalette, onBusy }: { id: string; age: number; gender: Gender; appearance: Appearance; appearanceText?: string; seed: number; onPalette?: (palette: NonNullable<Appearance['palette']>) => void; onBusy?: (busy: boolean) => void }) {
+  const st = useImage(() => api.portrait({ id, age, gender, appearance, appearanceText, portraitSeed: seed }), [id, portraitKey({ age, gender, appearance, appearanceText, portraitSeed: seed })]);
   const ready = st?.status === 'ready' && st.url && !st.url.endsWith('.svg');
+  const painting = st?.status === 'queued' || st?.status === 'running';
+  useEffect(() => { onBusy?.(painting); }, [painting, onBusy]);
+  useEffect(() => {
+    if (!ready || !st?.url || !onPalette) return;
+    let active = true;
+    void samplePortraitPalette(st.url).then((palette) => { if (active) onPalette(palette); }).catch(() => {});
+    return () => { active = false; };
+    // URL changes on reroll; callbacks shouldn't restart image sampling.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, st?.url]);
   return (
     <div className="relative" style={{ width: 160, height: 200 }}>
       <div className="absolute inset-0 flex items-end justify-center">
         <ProcPortrait appearance={appearance} gender={gender} seed={seed} size={160} />
       </div>
-      {ready && <PixelImage url={st!.url!} factor={lowRes ? 4 : 8} alt="portrait" className="absolute inset-0" style={{ width: 160, height: 200, objectFit: 'cover' }} />}
-      {st && st.status !== 'ready' && <span className="caption absolute bottom-1 right-1 bg-paper px-1 text-[0.65rem]">painting<span className="blink">…</span></span>}
+      {ready && <PixelImage url={st!.url!} factor={8} alt="portrait" className="absolute inset-0" style={{ width: 160, height: 200, objectFit: 'cover' }} />}
+      <span role="status" className="caption absolute bottom-1 right-1 bg-paper px-1 text-[0.65rem]">{painting ? 'generating portrait…' : ready ? 'portrait ready' : 'temporary preview'}</span>
     </div>
   );
 }
@@ -45,11 +60,16 @@ export function Creator() {
   // after your character graduates you create the next one; the cast is already there
   const next = !!view?.awaitingPlayer;
   const [step, setStep] = useState(0);
-  const [p, setP] = useState<PlayerSetup>({ ...DEFAULT_PLAYER, name: next ? '' : DEFAULT_PLAYER.name, portraitSeed: next ? Math.floor(Math.random() * 99999) : 4242 });
+  const [p, setP] = useState<PlayerSetup>({ ...DEFAULT_PLAYER, name: next ? '' : DEFAULT_PLAYER.name, portraitSeed: next ? Math.floor(Math.random() * 99999) : hashSeed(DEFAULT_PLAYER.name) % 100000 });
+  const [portrait, setPortrait] = useState(p);
+  const [portraitBusy, setPortraitBusy] = useState(false);
+  const portraitDirty = portraitKey(p) !== portraitKey(portrait);
   const [custom, setCustom] = useState('');
   const [randomCast, setRandomCast] = useState(false);
   const [seed, setSeed] = useState('');
-  const [confirmed, setConfirmed] = useState(false);
+  const [seasonLength, setSeasonLength] = useState(0);
+  const [mapping, setMapping] = useState(false);
+  const [appearanceError, setAppearanceError] = useState('');
   const opts = content().appearanceOptions;
   const set = (patch: Partial<PlayerSetup>) => setP((x) => ({ ...x, ...patch }));
   const setApp = (k: keyof Appearance, v: string) => setP((x) => ({ ...x, appearance: { ...x.appearance, [k]: v } }));
@@ -62,7 +82,7 @@ export function Creator() {
   const start = () =>
     next
       ? void joinAsNewPlayer({ ...p, name: p.name.trim(), occupation: custom.trim() || p.occupation })
-      : void newGame({ player: { ...p, name: p.name.trim(), occupation: custom.trim() || p.occupation }, randomizeCast: randomCast, seed: seed ? Number(seed) : undefined });
+      : void newGame({ player: { ...p, name: p.name.trim(), occupation: custom.trim() || p.occupation }, randomizeCast: randomCast, seed: seed ? Number(seed) : undefined, seasonLength });
 
   return (
     <div className="flex h-full flex-col">
@@ -159,6 +179,17 @@ export function Creator() {
           {step === 2 && (
             <Panel title="tastes & hobbies">
               <div className="flex max-w-lg flex-col gap-3 text-sm">
+                <label className="flex items-center gap-2">diet
+                  <select aria-label="diet" className="px-panel-soft px-2 py-1" value={p.diet ?? 'omnivore'} onChange={(e) => set({ diet: e.target.value as PlayerSetup['diet'] })}>
+                    <option value="omnivore">omnivore</option><option value="vegetarian">vegetarian</option><option value="vegan">vegan</option>
+                  </select>
+                </label>
+                <label className="flex items-center gap-2">kashrut
+                  <select aria-label="kashrut" className="px-panel-soft px-2 py-1" value={p.kashrut ?? 'none'} onChange={(e) => set({ kashrut: e.target.value as PlayerSetup['kashrut'] })}>
+                    <option value="none">none</option><option value="style">kosher-style</option><option value="strict">strict</option>
+                  </select>
+                </label>
+                <label className="flex items-center gap-2"><input type="checkbox" checked={p.keepsShabbat ?? false} onChange={(e) => set({ keepsShabbat: e.target.checked })} />keep Shabbat</label>
                 {TASTE_AXES.map((t, i) => (
                   <label key={t} className="grid grid-cols-[8rem_1fr_5rem] items-center gap-2">
                     {t}
@@ -184,6 +215,16 @@ export function Creator() {
           )}
           {step === 3 && (
             <Panel title="appearance">
+              <label className="mb-2 flex max-w-xl flex-col gap-1 text-sm">describe how you look
+                <textarea className="px-panel-soft px-2 py-1" maxLength={500} value={p.appearanceText ?? ''} onChange={(e) => set({ appearanceText: e.target.value })} placeholder="Dark curls, olive skin, a linen shirt and a silver necklace…" />
+              </label>
+              <Btn disabled={mapping || !p.appearanceText?.trim()} className="mb-3 text-xs" onClick={async () => {
+                setMapping(true); setAppearanceError('');
+                try { const r = await api.mapAppearance(p.appearanceText!.trim(), p.appearance); set({ appearance: r.appearance, appearanceText: r.appearanceText }); }
+                catch (e) { setAppearanceError((e as Error).message); }
+                finally { setMapping(false); }
+              }}>{mapping ? 'matching appearance…' : 'match description'}</Btn>
+              {appearanceError && <p role="alert" className="mb-2 text-xs text-rose">{appearanceError}</p>}
               <div className="flex flex-wrap gap-6">
                 <div className="grid grid-cols-[7rem_1fr] items-center gap-2 text-sm">
                   {(['hairStyle', 'hairColor', 'eyeColor', 'build', 'outfit', 'accessory', 'skinTone'] as const).map((k) => (
@@ -199,15 +240,17 @@ export function Creator() {
                 </div>
                 <div className="flex flex-col items-center gap-2">
                   <div className="px-panel bg-white p-1">
-                    <CreatorPortrait id="player" age={p.age} gender={p.gender} appearance={p.appearance} seed={p.portraitSeed!} lowRes={!confirmed} />
+                    <CreatorPortrait id="player" age={portrait.age} gender={portrait.gender} appearance={portrait.appearance} appearanceText={portrait.appearanceText} seed={portrait.portraitSeed!} onBusy={setPortraitBusy} onPalette={(palette) => setP((current) => portraitKey(current) === portraitKey(portrait) ? { ...current, appearance: { ...current.appearance, palette } } : current)} />
                   </div>
+                  <SpritePreview appearance={p.appearance} />
                   <div className="flex gap-2">
-                    <Btn onClick={() => set({ portraitSeed: Math.floor(Math.random() * 99999) })}>reroll</Btn>
-                    <Btn onClick={() => setConfirmed(true)} disabled={confirmed}>
-                      {confirmed ? 'high-res ✓' : 'confirm (high-res)'}
+                    <Btn disabled={portraitBusy || mapping} onClick={() => { const rerolled = { ...p, portraitSeed: Math.floor(Math.random() * 99999) }; setP(rerolled); setPortrait(rerolled); }}>reroll</Btn>
+                    <Btn onClick={() => setPortrait(p)} disabled={portraitBusy || mapping || !portraitDirty}>
+                      {portraitBusy ? 'generating…' : portraitDirty ? 'generate portrait' : 'portrait up to date'}
                     </Btn>
                   </div>
                   <span className="caption text-xs">seed {p.portraitSeed}{health?.imagesOffline ? ' · images offline: placeholder' : ''}</span>
+                  <p className="caption max-w-[18rem] text-center text-xs">{portraitDirty ? 'Appearance changed. Generate a portrait to preview your new look.' : 'Same portrait quality as your housemates.'}</p>
                 </div>
               </div>
               <p className="caption mt-3 text-xs">tags: {tags.join(', ')}</p>
@@ -215,6 +258,13 @@ export function Creator() {
           )}
           {step === 4 && (
             <Panel title="your housemates">
+              <fieldset className="mb-4 text-sm">
+                <legend className="caption mb-1 text-xs">season length</legend>
+                <label className="mr-4"><input type="radio" name="season-mode" checked={seasonLength === 0} onChange={() => setSeasonLength(0)} /> open-ended</label>
+                <label><input type="radio" name="season-mode" checked={seasonLength > 0} onChange={() => setSeasonLength(12)} /> fixed length</label>
+                {seasonLength > 0 && <label className="ml-3">episodes <input aria-label="season episodes" type="number" min={3} max={365} className="px-panel-soft w-20 px-2 py-1" value={seasonLength} onChange={(e) => setSeasonLength(Math.max(3, Math.min(365, Number(e.target.value) || 3)))} /></label>}
+                <p className="caption mt-1 text-xs">After episode 3, you can announce the final episode whenever you are ready.</p>
+              </fieldset>
               <label className="mb-3 flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={randomCast} onChange={(e) => setRandomCast(e.target.checked)} /> randomize cast (generated from archetypes)
               </label>

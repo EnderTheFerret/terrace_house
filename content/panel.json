@@ -1,122 +1,421 @@
 {
   "panelists": [
     {
-      "id": "nagumo", "name": "Tetsu Nagumo", "role": "veteran host", "style": "dry",
+      "id": "nagumo",
+      "name": "Tetsu Nagumo",
+      "role": "veteran host",
+      "style": "dry",
       "persona": "Sixty-ish host who has seen every kind of housemate. Dry, measured, keeps the panel on track, occasionally devastating in one sentence.",
-      "favorites": ["shun", "ren"], "petPeeves": ["content", "skipped-chores"], "avatarSeed": 2101,
+      "favorites": [
+        "shun",
+        "ren"
+      ],
+      "petPeeves": [
+        "content",
+        "skipped-chores"
+      ],
+      "avatarSeed": 2101,
       "appearance": "older man, grey slicked hair, black turtleneck, calm half-smile",
       "lines": {
-        "generic": ["Well. That happened.", "Let's see where this goes.", "Quiet scene. Quiet scenes matter."],
-        "romance": ["{a} is leaning in. {b} is leaning back. Physics.", "That's the look of someone doing math about their feelings."],
-        "conflict": ["Nobody wins a chore argument. Remember that.", "{a} said the polite thing. The impolite thing is coming."],
-        "awkward": ["Three seconds of silence on television is a very long time.", "I've aged watching that."],
-        "cooking": ["Cooking for someone is a question. Eating it is an answer.", "{a} made food. Watch who says thank you first."],
-        "domestic": ["The dishes are a relationship, too.", "This is how houses actually end. Not with fights. With dishes."],
-        "confess_yes": ["Well done. Genuinely.", "That's what we come here for."],
-        "confess_no": ["That took courage. Courage doesn't guarantee anything.", "Let's give them a moment."],
-        "departure": ["Every door closes. That's the format.", "{a}, thank you. It was a good stay."],
-        "arrival": ["New face. The house just changed whether it likes it or not.", "Watch the first dinner. Everything is in the first dinner."],
-        "gossip": ["Information is the only currency in that house.", "And now it's out. It never goes back in."],
-        "npc": ["Interesting. They don't need us to watch.", "The house has its own weather."],
-        "called_it": ["I'll just say: I said so.", "As predicted. Not that I'm keeping score."],
-        "was_wrong": ["I was wrong. I'm often wrong. Let's move on.", "Well. I misjudged that one."],
-        "prediction": ["Mark my words: {a} and {b}, before episode {ep}.", "I think {a} makes a move by episode {ep}."],
-        "mid": ["Let's stop the tape there for a moment.", "Pause it. Pause it. Thoughts?", "We're halfway through the day. Let's talk."],
-        "end": ["And that's where we leave them this week.", "That's the episode. See you next time.", "Let's call it there."]
+        "generic": [
+          "Well. That happened.",
+          "Let's see where this goes.",
+          "Quiet scene. Quiet scenes matter."
+        ],
+        "romance": [
+          "{a} is leaning in. {b} is leaning back. Physics.",
+          "That's the look of someone doing math about their feelings."
+        ],
+        "conflict": [
+          "Nobody wins a chore argument. Remember that.",
+          "{a} said the polite thing. The impolite thing is coming."
+        ],
+        "awkward": [
+          "Three seconds of silence on television is a very long time.",
+          "I've aged watching that."
+        ],
+        "cooking": [
+          "Cooking for someone is a question. Eating it is an answer.",
+          "{a} made food. Watch who says thank you first."
+        ],
+        "domestic": [
+          "The dishes are a relationship, too.",
+          "This is how houses actually end. Not with fights. With dishes."
+        ],
+        "confess_yes": [
+          "Well done. Genuinely.",
+          "That's what we come here for."
+        ],
+        "confess_no": [
+          "That took courage. Courage doesn't guarantee anything.",
+          "Let's give them a moment."
+        ],
+        "departure": [
+          "Every door closes. That's the format.",
+          "{a}, thank you. It was a good stay."
+        ],
+        "arrival": [
+          "New face. The house just changed whether it likes it or not.",
+          "Watch the first dinner. Everything is in the first dinner."
+        ],
+        "gossip": [
+          "Information is the only currency in that house.",
+          "And now it's out. It never goes back in."
+        ],
+        "npc": [
+          "Interesting. They don't need us to watch.",
+          "The house has its own weather."
+        ],
+        "called_it": [
+          "I'll just say: I said so.",
+          "As predicted. Not that I'm keeping score."
+        ],
+        "was_wrong": [
+          "I was wrong. I'm often wrong. Let's move on.",
+          "Well. I misjudged that one."
+        ],
+        "prediction": [
+          "Mark my words: {a} and {b}, before episode {ep}.",
+          "I think {a} makes a move by episode {ep}."
+        ],
+        "mid": [
+          "Let's stop the tape there for a moment.",
+          "Pause it. Pause it. Thoughts?",
+          "We're halfway through the day. Let's talk."
+        ],
+        "end": [
+          "And that's where we leave them this week.",
+          "That's the episode. See you next time.",
+          "Let's call it there."
+        ]
       }
     },
     {
-      "id": "otaru", "name": "Kenken Otaru", "role": "stand-up comedian", "style": "comic",
+      "id": "otaru",
+      "name": "Kenken Otaru",
+      "role": "stand-up comedian",
+      "style": "comic",
       "persona": "Loud stand-up comedian in his forties. Exaggerated reactions, gives everyone nicknames, secretly very soft about romance.",
-      "favorites": ["kaito"], "petPeeves": ["avoid", "silence"], "avatarSeed": 2202,
+      "favorites": [
+        "kaito"
+      ],
+      "petPeeves": [
+        "avoid",
+        "silence"
+      ],
+      "avatarSeed": 2202,
       "appearance": "stocky man with bleached buzz cut, loud hawaiian shirt, wide grin",
       "lines": {
-        "generic": ["Okay okay okay. I need a minute.", "This house is a sitcom with no laugh track!", "I'm getting a drink. Nobody move."],
-        "romance": ["{a}! Buddy! Just say it! Say the words!", "Look at {b} pretending not to blush! Pretending!"],
-        "conflict": ["Ding ding ding! Round one!", "Somebody hide the knives. And the rice cooker."],
-        "awkward": ["I can hear the fridge humming. That's how quiet it is.", "Cringe! I'm cringing on their behalf! Physically!"],
-        "cooking": ["I'd eat that. I'd eat anything. But I'd eat that.", "Chef {a}! Michelin! Michelin!"],
-        "domestic": ["The labeled yogurt saga continues!", "Who ate it? Who ATE it? I need to know!"],
-        "confess_yes": ["YES! YES! I'm not crying, you're crying!", "Somebody get them a cake!"],
-        "confess_no": ["Oof. Ohhh. No. Somebody hug {a}.", "I felt that in my spine."],
-        "departure": ["Don't go! ...Okay, go. But don't!", "The suitcase wheels! The sound of the suitcase wheels!"],
-        "arrival": ["Fresh meat! I mean, welcome!", "New kid alert! Act natural, everyone!"],
-        "gossip": ["Ohhh, the tea! The TEA!", "And {a} just told {b}! It's a telephone game!"],
-        "npc": ["They're doing drama without the main character! Love it!", "Side plot! Side plot is heating up!"],
-        "called_it": ["WHO CALLED IT? Me! I called it!", "Pay up, everybody!"],
-        "was_wrong": ["I was wrong, and I'll be wrong again, loudly.", "Okay, delete my prediction. Delete the tape."],
-        "prediction": ["Bet you dinner {a} and {b} are a thing by episode {ep}!", "{a} is gonna explode before episode {ep}. Book it!"]
+        "generic": [
+          "Okay okay okay. I need a minute.",
+          "This house is a sitcom with no laugh track!",
+          "I'm getting a drink. Nobody move."
+        ],
+        "romance": [
+          "{a}! Buddy! Just say it! Say the words!",
+          "Look at {b} pretending not to blush! Pretending!"
+        ],
+        "conflict": [
+          "Ding ding ding! Round one!",
+          "Somebody hide the knives. And the coffee machine."
+        ],
+        "awkward": [
+          "I can hear the fridge humming. That's how quiet it is.",
+          "Cringe! I'm cringing on their behalf! Physically!"
+        ],
+        "cooking": [
+          "I'd eat that. I'd eat anything. But I'd eat that.",
+          "Chef {a}! Michelin! Michelin!"
+        ],
+        "domestic": [
+          "The labeled yogurt saga continues!",
+          "Who ate it? Who ATE it? I need to know!"
+        ],
+        "confess_yes": [
+          "YES! YES! I'm not crying, you're crying!",
+          "Somebody get them a cake!"
+        ],
+        "confess_no": [
+          "Oof. Ohhh. No. Somebody hug {a}.",
+          "I felt that in my spine."
+        ],
+        "departure": [
+          "Don't go! ...Okay, go. But don't!",
+          "The suitcase wheels! The sound of the suitcase wheels!"
+        ],
+        "arrival": [
+          "Fresh meat! I mean, welcome!",
+          "New kid alert! Act natural, everyone!"
+        ],
+        "gossip": [
+          "Ohhh, the tea! The TEA!",
+          "And {a} just told {b}! It's a telephone game!"
+        ],
+        "npc": [
+          "They're doing drama without the main character! Love it!",
+          "Side plot! Side plot is heating up!"
+        ],
+        "called_it": [
+          "WHO CALLED IT? Me! I called it!",
+          "Pay up, everybody!"
+        ],
+        "was_wrong": [
+          "I was wrong, and I'll be wrong again, loudly.",
+          "Okay, delete my prediction. Delete the tape."
+        ],
+        "prediction": [
+          "Bet you dinner {a} and {b} are a thing by episode {ep}!",
+          "{a} is gonna explode before episode {ep}. Book it!"
+        ]
       }
     },
     {
-      "id": "shiomi", "name": "Reika Shiomi", "role": "actress", "style": "romantic",
+      "id": "shiomi",
+      "name": "Reika Shiomi",
+      "role": "actress",
+      "style": "romantic",
       "persona": "Warm film actress in her thirties. Empathetic, roots for love, reads body language like a script.",
-      "favorites": ["mio", "shun"], "petPeeves": ["tease", "content"], "avatarSeed": 2303,
+      "favorites": [
+        "mio",
+        "shun"
+      ],
+      "petPeeves": [
+        "tease",
+        "content"
+      ],
+      "avatarSeed": 2303,
       "appearance": "elegant woman, long wavy dark hair, cream blouse, gentle eyes",
       "lines": {
-        "generic": ["I just want everyone to be okay.", "Did you see her hands? So nervous."],
-        "romance": ["Oh, the way {a} looked at {b} when they weren't looking...", "That's not small talk. That's a love letter in small talk."],
-        "conflict": ["They're both hurt. That's the sad part.", "{a} isn't angry. {a} is scared."],
-        "awkward": ["Oh no, oh no, someone say something.", "It's so tender it's painful."],
-        "cooking": ["Food is the most honest love language.", "{a} remembered what {b} likes. Remembered!"],
-        "domestic": ["Little things pile up. That's how hearts get tired.", "It's never really about the dishes."],
-        "confess_yes": ["I'm sorry, I need a tissue.", "This is why I believe in this show."],
-        "confess_no": ["Oh, {a}... you were so brave.", "Some confessions are for yourself."],
-        "departure": ["I'll miss {a}. Truly.", "Look at the house watching them go."],
-        "arrival": ["Everyone's a little nervous. It's sweet.", "First impressions are just a costume."],
-        "gossip": ["Oh, I wish {a} hadn't heard it like that.", "Secrets aren't the problem. Timing is."],
-        "npc": ["They're falling for each other and we're the only ones who see it.", "That's a whole film right there."],
-        "called_it": ["I knew it. Love always shows on the face first.", "I told you all. I told you!"],
-        "was_wrong": ["My heart got ahead of me on that one.", "I wanted it so much I saw it. My mistake."],
-        "prediction": ["I think {a} and {b} end up together. Before episode {ep}, maybe.", "{a} will say how they feel by episode {ep}."]
+        "generic": [
+          "I just want everyone to be okay.",
+          "Did you see her hands? So nervous."
+        ],
+        "romance": [
+          "Oh, the way {a} looked at {b} when they weren't looking...",
+          "That's not small talk. That's a love letter in small talk."
+        ],
+        "conflict": [
+          "They're both hurt. That's the sad part.",
+          "{a} isn't angry. {a} is scared."
+        ],
+        "awkward": [
+          "Oh no, oh no, someone say something.",
+          "It's so tender it's painful."
+        ],
+        "cooking": [
+          "Food is the most honest love language.",
+          "{a} remembered what {b} likes. Remembered!"
+        ],
+        "domestic": [
+          "Little things pile up. That's how hearts get tired.",
+          "It's never really about the dishes."
+        ],
+        "confess_yes": [
+          "I'm sorry, I need a tissue.",
+          "This is why I believe in this show."
+        ],
+        "confess_no": [
+          "Oh, {a}... you were so brave.",
+          "Some confessions are for yourself."
+        ],
+        "departure": [
+          "I'll miss {a}. Truly.",
+          "Look at the house watching them go."
+        ],
+        "arrival": [
+          "Everyone's a little nervous. It's sweet.",
+          "First impressions are just a costume."
+        ],
+        "gossip": [
+          "Oh, I wish {a} hadn't heard it like that.",
+          "Secrets aren't the problem. Timing is."
+        ],
+        "npc": [
+          "They're falling for each other and we're the only ones who see it.",
+          "That's a whole film right there."
+        ],
+        "called_it": [
+          "I knew it. Love always shows on the face first.",
+          "I told you all. I told you!"
+        ],
+        "was_wrong": [
+          "My heart got ahead of me on that one.",
+          "I wanted it so much I saw it. My mistake."
+        ],
+        "prediction": [
+          "I think {a} and {b} end up together. Before episode {ep}, maybe.",
+          "{a} will say how they feel by episode {ep}."
+        ]
       }
     },
     {
-      "id": "hoshizora", "name": "Mimi Hoshizora", "role": "young idol", "style": "earnest",
+      "id": "hoshizora",
+      "name": "Mimi Hoshizora",
+      "role": "young idol",
+      "style": "earnest",
       "persona": "Twenty-one-year-old idol, earnest and easily embarrassed, covers her face at kisses, asks the panel innocent questions.",
-      "favorites": ["kaito", "sora"], "petPeeves": ["conflict", "gossip"], "avatarSeed": 2404,
+      "favorites": [
+        "kaito",
+        "sora"
+      ],
+      "petPeeves": [
+        "conflict",
+        "gossip"
+      ],
+      "avatarSeed": 2404,
       "appearance": "young adult woman idol, pink twin tails, sparkly star hair clips, pastel stage jacket",
       "lines": {
-        "generic": ["Is that normal? For adults? Is that normal?", "I'm taking notes for my life."],
-        "romance": ["Kyaa! I can't look! ...Okay I'm looking.", "Is that flirting? Tell me if that's flirting!"],
-        "conflict": ["Please don't fight! Eat something together!", "Scary... grown-up arguments are so scary."],
-        "awkward": ["My face is hot and I'm not even there!", "Someone turn on music for them!"],
-        "cooking": ["I want to live there just for the dinners.", "{a} cooked! That's so cool!"],
-        "domestic": ["At my dorm we had a chore wheel with stickers!", "Just make a group chat poll!"],
-        "confess_yes": ["Waaah! Congratulations!", "I'm so happy I'm shaking!"],
-        "confess_no": ["No no no... {a}, you're amazing!", "That's so sad... I need a minute."],
-        "departure": ["Goodbye {a}! Be happy!", "I don't like this part."],
-        "arrival": ["Welcome! Be nice to them, everyone!", "Ooh, new person! What's their type?"],
-        "gossip": ["You can't just tell people things!", "Wait, does {b} know that {a} knows?"],
-        "npc": ["They're cute together! Is that allowed to say?", "Wait, when did this start?"],
-        "called_it": ["I guessed right! Me! First time!", "Yay! I was right!"],
-        "was_wrong": ["Aww, I was totally wrong...", "I'm bad at this. Still having fun!"],
-        "prediction": ["I hope {a} and {b} go on a date by episode {ep}!", "Maybe {a} cries by episode {ep}... sorry!"]
+        "generic": [
+          "Is that normal? For adults? Is that normal?",
+          "I'm taking notes for my life."
+        ],
+        "romance": [
+          "Kyaa! I can't look! ...Okay I'm looking.",
+          "Is that flirting? Tell me if that's flirting!"
+        ],
+        "conflict": [
+          "Please don't fight! Eat something together!",
+          "Scary... grown-up arguments are so scary."
+        ],
+        "awkward": [
+          "My face is hot and I'm not even there!",
+          "Someone turn on music for them!"
+        ],
+        "cooking": [
+          "I want to live there just for the dinners.",
+          "{a} cooked! That's so cool!"
+        ],
+        "domestic": [
+          "At my dorm we had a chore wheel with stickers!",
+          "Just make a group chat poll!"
+        ],
+        "confess_yes": [
+          "Waaah! Congratulations!",
+          "I'm so happy I'm shaking!"
+        ],
+        "confess_no": [
+          "No no no... {a}, you're amazing!",
+          "That's so sad... I need a minute."
+        ],
+        "departure": [
+          "Goodbye {a}! Be happy!",
+          "I don't like this part."
+        ],
+        "arrival": [
+          "Welcome! Be nice to them, everyone!",
+          "Ooh, new person! What's their type?"
+        ],
+        "gossip": [
+          "You can't just tell people things!",
+          "Wait, does {b} know that {a} knows?"
+        ],
+        "npc": [
+          "They're cute together! Is that allowed to say?",
+          "Wait, when did this start?"
+        ],
+        "called_it": [
+          "I guessed right! Me! First time!",
+          "Yay! I was right!"
+        ],
+        "was_wrong": [
+          "Aww, I was totally wrong...",
+          "I'm bad at this. Still having fun!"
+        ],
+        "prediction": [
+          "I hope {a} and {b} go on a date by episode {ep}!",
+          "Maybe {a} cries by episode {ep}... sorry!"
+        ]
       }
     },
     {
-      "id": "saeki", "name": "Kyoko Saeki", "role": "novelist", "style": "cutting",
+      "id": "saeki",
+      "name": "Kyoko Saeki",
+      "role": "novelist",
+      "style": "cutting",
       "persona": "Acclaimed novelist in her fifties. Analytical, sharp-tongued, narrates motives like plot, unimpressed by performance.",
-      "favorites": ["sora", "ren"], "petPeeves": ["content", "deflect", "jealousy"], "avatarSeed": 2505,
+      "favorites": [
+        "sora",
+        "ren"
+      ],
+      "petPeeves": [
+        "content",
+        "deflect",
+        "jealousy"
+      ],
+      "avatarSeed": 2505,
       "appearance": "middle-aged woman, sharp black bob with grey streak, red lipstick, dark cardigan, reading glasses",
       "lines": {
-        "generic": ["Everyone in that room is lying a little. That's the interesting part.", "Note who didn't speak."],
-        "romance": ["{a} wants to be chosen more than {a} wants {b}.", "That was a rehearsed casual remark."],
-        "conflict": ["Finally, somebody said a true sentence.", "{a} is fighting about the rice. The rice is not the subject."],
-        "awkward": ["Silence is where the actual script is.", "Both of them waited for the other to be brave. Classic."],
-        "cooking": ["Feeding someone is a way of not talking to them.", "{a}'s cooking is an argument with good seasoning."],
-        "domestic": ["Resentment is just unpaid chores with interest.", "A house is a ledger. Someone is keeping score."],
-        "confess_yes": ["Hm. Earned. I'll allow it.", "Good. Now the hard part starts."],
-        "confess_no": ["{b} was honest. That's a gift, though it won't feel like one.", "{a} confessed to an idea of {b}, not to {b}."],
-        "departure": ["Leaving is the most honest thing anyone does in that house.", "{a} got what they came for. Or realized they never would."],
-        "arrival": ["A new character in act two. Somebody's arc just got complicated.", "Watch who feels threatened."],
-        "gossip": ["Gossip is just intimacy with a third person as collateral.", "{a} told it with a little extra. They always do."],
-        "npc": ["The B-plot is better than the A-plot.", "Those two are writing their own episode."],
-        "called_it": ["Character is destiny. I read it on page one.", "Predictable. I say that with affection."],
-        "was_wrong": ["People are allowed to surprise me. Rarely.", "I misread {a}. Noted."],
-        "prediction": ["{a} breaks before episode {ep}. Watch.", "{a} and {b}: it collapses by episode {ep}."]
+        "generic": [
+          "Everyone in that room is lying a little. That's the interesting part.",
+          "Note who didn't speak."
+        ],
+        "romance": [
+          "{a} wants to be chosen more than {a} wants {b}.",
+          "That was a rehearsed casual remark."
+        ],
+        "conflict": [
+          "Finally, somebody said a true sentence.",
+          "{a} is fighting about the rice. The rice is not the subject."
+        ],
+        "awkward": [
+          "Silence is where the actual script is.",
+          "Both of them waited for the other to be brave. Classic."
+        ],
+        "cooking": [
+          "Feeding someone is a way of not talking to them.",
+          "{a}'s cooking is an argument with good seasoning."
+        ],
+        "domestic": [
+          "Resentment is just unpaid chores with interest.",
+          "A house is a ledger. Someone is keeping score."
+        ],
+        "confess_yes": [
+          "Hm. Earned. I'll allow it.",
+          "Good. Now the hard part starts."
+        ],
+        "confess_no": [
+          "{b} was honest. That's a gift, though it won't feel like one.",
+          "{a} confessed to an idea of {b}, not to {b}."
+        ],
+        "departure": [
+          "Leaving is the most honest thing anyone does in that house.",
+          "{a} got what they came for. Or realized they never would."
+        ],
+        "arrival": [
+          "A new character in act two. Somebody's arc just got complicated.",
+          "Watch who feels threatened."
+        ],
+        "gossip": [
+          "Gossip is just intimacy with a third person as collateral.",
+          "{a} told it with a little extra. They always do."
+        ],
+        "npc": [
+          "The B-plot is better than the A-plot.",
+          "Those two are writing their own episode."
+        ],
+        "called_it": [
+          "Character is destiny. I read it on page one.",
+          "Predictable. I say that with affection."
+        ],
+        "was_wrong": [
+          "People are allowed to surprise me. Rarely.",
+          "I misread {a}. Noted."
+        ],
+        "prediction": [
+          "{a} breaks before episode {ep}. Watch.",
+          "{a} and {b}: it collapses by episode {ep}."
+        ]
       }
     }
   ],
-  "freezeCaptions": ["the moment it changed", "nobody moved", "that look", "and then, silence", "the second plate", "an unanswered question", "just the two of them", "what wasn't said"]
+  "freezeCaptions": [
+    "the moment it changed",
+    "nobody moved",
+    "that look",
+    "and then, silence",
+    "the second plate",
+    "an unanswered question",
+    "just the two of them",
+    "what wasn't said"
+  ]
 }

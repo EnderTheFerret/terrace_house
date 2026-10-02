@@ -1,10 +1,38 @@
 // Pixel rendering primitives: procedural pixels → canvas, generated images → pixelated canvas, portraits with crossfade.
 import { useEffect, useRef, useState } from 'react';
-import { portraitPixels, type Appearance, type Pixels } from '@shared-roof/shared';
+import { EMOTIONS, portraitPixels, spritePixels, SPRITE_DIRECTIONS, type Appearance, type Emotion, type Pixels } from '@shared-roof/shared';
 import { api, waitImage, type ImageStatus } from '../api';
 import { useGame } from '../store';
 
 const canvasCache = new Map<string, HTMLCanvasElement>();
+const portraitPalettes = new Map<string, NonNullable<Appearance['palette']>>();
+export const portraitPalette = (id: string, seed: number) => portraitPalettes.get(`${id}:${seed}`);
+
+/** ponytail: sample central portrait regions; use segmented sprite sheets when portraits vary too much. */
+export function samplePortraitPalette(url: string): Promise<NonNullable<Appearance['palette']>> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas'); c.width = 32; c.height = 40;
+        const ctx = c.getContext('2d')!; ctx.drawImage(img, 0, 0, 32, 40);
+        const color = (x: number, y: number, w: number, h: number) => {
+          const d = ctx.getImageData(x, y, w, h).data;
+          const colors = new Map<string, number>();
+          for (let i = 0; i < d.length; i += 4) {
+            if (d[i + 3] < 128) continue;
+            const rgb = [d[i], d[i + 1], d[i + 2]].map((v) => Math.round(v / 16) * 16).map((v) => Math.min(255, v).toString(16).padStart(2, '0')).join('');
+            colors.set(rgb, (colors.get(rgb) ?? 0) + 1);
+          }
+          return '#' + ([...colors].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '888888');
+        };
+        resolve({ hair: color(12, 5, 8, 4), skin: color(13, 12, 6, 6), outfit: color(11, 27, 10, 7) });
+      } catch (e) { reject(e); }
+    };
+    img.onerror = () => reject(new Error('portrait unavailable'));
+    img.src = url;
+  });
+}
 
 /** Render a Pixels grid into an offscreen canvas (1 px per cell), cached by key. */
 export function pixelsCanvas(key: string, p: Pixels): HTMLCanvasElement {
@@ -23,6 +51,18 @@ export function pixelsCanvas(key: string, p: Pixels): HTMLCanvasElement {
     }
   canvasCache.set(key, c);
   return c;
+}
+
+/** Live in-world preview for custom appearances, without waiting for generation. */
+export function SpritePreview({ appearance }: { appearance: Appearance }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const ctx = ref.current?.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, 128, 40);
+    SPRITE_DIRECTIONS.forEach((dir, i) => ctx.drawImage(pixelsCanvas(`preview-sprite:${dir}:${JSON.stringify(appearance)}`, spritePixels(appearance, dir, 1)), i * 32, 0));
+  }, [appearance]);
+  return <figure className="max-w-full"><canvas ref={ref} width={128} height={40} className="pixelated block max-w-full" style={{ width: 256, height: 80 }} role="img" aria-label="Detailed in-world sprite preview: front, back, left and right" /><figcaption className="caption text-center text-xs">In-world sprite · front / back / left / right</figcaption></figure>;
 }
 
 /** Procedural pixel portrait drawn on a canvas, scaled crisp. Always available instantly. */
@@ -82,12 +122,15 @@ export function useImage(request: (() => Promise<ImageStatus>) | null, deps: unk
       return;
     }
     const ac = new AbortController();
+    setSt(null);
+    const update = (s: ImageStatus) => { if (!ac.signal.aborted) setSt(s); };
     request()
       .then((s) => {
-        setSt(s);
-        return waitImage(s, setSt, ac.signal);
+        if (ac.signal.aborted) return;
+        update(s);
+        return waitImage(s, update, ac.signal);
       })
-      .catch(() => setSt(null));
+      .catch(() => { if (!ac.signal.aborted) setSt({ key: '', status: 'failed' }); });
     return () => ac.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, ...deps]);
@@ -95,15 +138,50 @@ export function useImage(request: (() => Promise<ImageStatus>) | null, deps: unk
 }
 
 /** Character portrait: procedural pixel portrait immediately, crossfades to the generated one when ready. */
-export function Portrait({ charId, appearance, gender, seed, size = 128, label }: { charId: string; appearance: Appearance; gender: string; seed: number; size?: number; label: string }) {
-  const st = useImage(() => api.charPortrait(charId), [charId, seed]);
+const EXPRESSION_ICONS: Record<Emotion, string> = { neutral: '😐', happy: '😊', shy: '😳', awkward: '😅', annoyed: '😒', sad: '😢', excited: '🤩', nervous: '😰', tender: '🥰', angry: '😠' };
+const expressionLabel = (emotion: Emotion) => emotion === 'tender' ? 'in love' : emotion;
+
+export function Portrait({ charId, appearance, gender, seed, size = 128, label, expressions = false }: { charId: string; appearance: Appearance; gender: string; seed: number; size?: number; label: string; expressions?: boolean }) {
+  const [emotion, setEmotion] = useState<Emotion>('neutral');
+  const [retry, setRetry] = useState(0);
+  const enabled = useGame((s) => s.settings.images);
+  const base = useImage(() => api.charPortrait(charId), [charId, seed]);
+  const variant = useImage(expressions && emotion !== 'neutral' ? () => api.expression(charId, emotion) : null, [charId, seed, emotion, retry, expressions]);
+  const st = variant?.status === 'ready' && !variant.placeholder ? variant : base;
+  const busy = emotion !== 'neutral' && (!variant || variant.status === 'queued' || variant.status === 'running');
   const ready = st?.status === 'ready' && st.url && !st.url.endsWith('.svg');
+  useEffect(() => {
+    if (base?.status !== 'ready' || base.placeholder || !base.url || base.url.endsWith('.svg')) return;
+    let active = true;
+    void samplePortraitPalette(base.url).then((palette) => {
+      if (!active) return;
+      portraitPalettes.set(`${charId}:${seed}`, palette);
+      if (JSON.stringify(appearance.palette) !== JSON.stringify(palette)) void api.savePalette(charId, seed, palette).catch(() => {});
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [base?.status, base?.placeholder, base?.url, charId, seed, appearance.palette]);
   return (
-    <div className="relative overflow-hidden" style={{ width: size, height: size * 1.25 }} aria-label={label} role="img">
+    <div className="shrink-0" style={{ width: expressions ? Math.max(size, 140) : size }}>
+    <div className="relative mx-auto overflow-hidden" style={{ width: size, height: size * 1.25 }} aria-label={`${label}${ready && st === variant ? ` · ${expressionLabel(emotion)}` : ''}`} role="img">
       <div className="absolute inset-0 flex items-end justify-center" style={{ opacity: ready ? 0 : 1, transition: 'opacity 600ms' }}>
         <ProcPortrait appearance={appearance} gender={gender} seed={seed} size={size} />
       </div>
       {ready && <PixelImage url={st!.url!} factor={8} alt={label} className="absolute inset-0 h-full w-full object-cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+    </div>
+    {expressions && <>
+      <div className="mt-1 grid grid-cols-5 gap-1" role="group" aria-label={`expressions for ${label}`} onClick={(e) => e.stopPropagation()}>
+        {EMOTIONS.map((e) => (
+          <button key={e} type="button" className="px-btn text-sm"
+            style={{ padding: 0, height: 28, minWidth: 0, fontFamily: 'system-ui', background: emotion === e ? 'var(--color-rose)' : undefined }}
+            aria-label={`${e === 'neutral' ? 'Show' : 'Generate'} ${expressionLabel(e)} expression for ${label}`} title={expressionLabel(e)} aria-pressed={emotion === e}
+            disabled={e !== 'neutral' && (!enabled || base?.status !== 'ready' || !!base.placeholder || busy)}
+            onClick={() => { setEmotion(e); setRetry((n) => n + 1); }}>
+            <span aria-hidden>{EXPRESSION_ICONS[e]}</span>
+          </button>
+        ))}
+      </div>
+      <p className="caption mt-1 text-xs" role="status">{!enabled ? 'Images disabled' : busy ? `${expressionLabel(emotion)} queued…` : variant?.placeholder || variant?.status === 'failed' || variant?.status === 'cancelled' ? 'Unavailable; click to retry' : base?.placeholder ? 'Images offline' : emotion !== 'neutral' ? expressionLabel(emotion) : 'Choose an expression'}</p>
+    </>}
     </div>
   );
 }

@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
 
 const btn = (page: Page, name: string | RegExp) => page.getByRole('button', { name, exact: typeof name === 'string' });
 /** Present and clickable right now (no auto-wait). */
-const ready = async (page: Page, name: string | RegExp) => (await btn(page, name).count()) > 0 && (await btn(page, name).first().isEnabled());
+const ready = async (page: Page, name: string | RegExp) => !(await page.getByRole('dialog').isVisible()) && (await btn(page, name).count()) > 0 && (await btn(page, name).first().isEnabled());
 
 /**
  * Click through whatever the game puts in front of the player (scenes, choices, freeze-frames, digests) until
@@ -134,7 +134,7 @@ test('part-time job: sign a contract on the city map', async ({ page, request })
   // mornings are house-only; pass the morning, then head out
   await playUntil(page, async () => (await page.getByText('late morning').first().isVisible()) && (await ready(page, 'go out')));
   await btn(page, 'go out').click();
-  await page.getByRole('button', { name: /^Corner Konbini/ }).click();
+  await page.getByRole('button', { name: /^Corner Makolet/ }).click();
   await btn(page, /work a shift/).click();
   await page.getByLabel(/sign a contract/).check();
   await btn(page, 'go').click();

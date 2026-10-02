@@ -1,0 +1,44 @@
+{
+  "prompt_id": "4774dae9-13ce-4e99-8670-4f3f411448e1",
+  "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+      [
+        "execution_start",
+        {
+          "prompt_id": "4774dae9-13ce-4e99-8670-4f3f411448e1",
+          "timestamp": 1790934676426
+        }
+      ],
+      [
+        "execution_cached",
+        {
+          "nodes": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "9"
+          ],
+          "prompt_id": "4774dae9-13ce-4e99-8670-4f3f411448e1",
+          "timestamp": 1790934676469
+        }
+      ],
+      [
+        "execution_success",
+        {
+          "prompt_id": "4774dae9-13ce-4e99-8670-4f3f411448e1",
+          "timestamp": 1790934711459
+        }
+      ]
+    ]
+  },
+  "image": {
+    "filename": "sora_00001_.png",
+    "subfolder": "shared_roof_sprite_tests",
+    "type": "output"
+  }
+}

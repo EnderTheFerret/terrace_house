@@ -5,7 +5,7 @@ import {
   panelPrediction, planSlot, predictionText, projectForPlayer, proposeOutcome, recordCommentary, resolveScene, content, placeName,
   type Commentary, type EventInstance, type GameState, type Intent, type LineContext, type NewGameOptions, type PlannedScene,
   type PlayerSetup, type PredictionCond, type Emotion, type Beat, classifyIntent, joinNewPlayer, recordChat, recordPlayerWords, replyBeatType,
-  MAX_TYPED_EXCHANGES,
+  MAX_TYPED_EXCHANGES, passTime, blockOver, isShabbat, SLOT_START, MINUTES_PER_LINE,
 } from '@shared-roof/shared';
 import { z } from 'zod';
 import type { Store } from '../db';
@@ -15,11 +15,11 @@ import type { ImageQueue } from '../image/queue';
 import { PRIORITY } from '../image/queue';
 import { freezeRequest, locationRequest, portraitRequest } from '../image/requests';
 import { config } from '../config';
+import { applyCharacterSnapshot, enrichCharacter } from './personas';
 
 export type Emit = (event: string, data: unknown) => void;
 
 /** SEASON_LENGTH=0: the house never closes; housemates keep rotating. */
-const ENDLESS = 9999;
 const REPLY_EMOTION: Partial<Record<Intent, Emotion>> = { flirt: 'shy', confront: 'annoyed', apologize: 'tender', support: 'tender', joke: 'happy', tease: 'happy', confess: 'nervous', decline: 'sad', listen: 'tender' };
 const ChoiceSchema = z.object({ intent: IntentSchema.optional(), text: z.string().trim().min(1).max(200).optional(), done: z.boolean().optional() });
 
@@ -48,6 +48,7 @@ interface SceneRun {
   skipPlayerBeat?: boolean;
   /** a phone message typed before the scene started */
   openingText?: string;
+  phoneClosed?: boolean;
 }
 
 export interface SceneSummary {
@@ -76,6 +77,7 @@ export class GameSession {
   busy = false;
   intermissionSince = 0;
   pendingIntermission: 'mid' | 'end' | null = null;
+  budgetBlock = '';
 
   constructor(
     public store: Store,
@@ -98,16 +100,19 @@ export class GameSession {
     return projectForPlayer(s, this.digestSince);
   }
 
-  newGame(o: { seed?: number; player?: PlayerSetup; randomizeCast?: boolean }) {
+  async newGame(o: { seed?: number; player?: PlayerSetup; randomizeCast?: boolean; seasonLength?: number }) {
+    if (this.busy) throw new Error('generation is running');
     const seed = o.seed ?? (config.seed ? Number(config.seed) : Math.floor(Math.random() * 2 ** 31));
     const gameId = `g${Date.now().toString(36)}${seed.toString(36)}`;
-    const opts: NewGameOptions = { seed, player: o.player, randomizeCast: o.randomizeCast, seasonLength: config.seasonLength > 0 ? config.seasonLength : ENDLESS, gameId };
+    const opts: NewGameOptions = { seed, player: o.player, randomizeCast: o.randomizeCast, seasonLength: o.seasonLength ?? config.seasonLength, gameId };
     this.state = createGame(opts);
     this.runs.clear();
     this.order = [];
     this.store.truncateEvents(gameId, 0);
     this.logSeq = 0;
     this.log('new', opts);
+    this.budgetBlock = '';
+    await this.enrichNewCharacters([]);
     this.digestSince = 0;
     this.intermissionSince = 0;
     this.lastEpisodeShown = 0;
@@ -118,6 +123,7 @@ export class GameSession {
 
   /** After the player's character graduates, their next character moves in. */
   newPlayer(setup: PlayerSetup) {
+    if (this.busy) throw new Error('generation is running');
     const s = this.requireState();
     this.state = joinNewPlayer(s, setup);
     this.log('new-player', { setup });
@@ -128,6 +134,7 @@ export class GameSession {
   }
 
   load(saveId: number) {
+    if (this.busy) throw new Error('generation is running');
     const r = this.store.load(saveId);
     if (!r) throw new Error('save not found');
     this.state = r.state;
@@ -137,6 +144,7 @@ export class GameSession {
     this.order = [];
     this.digestSince = r.state.world.tick;
     this.intermissionSince = r.state.world.tick;
+    this.budgetBlock = '';
     this.prefetchPortraits();
     return this.view();
   }
@@ -152,6 +160,7 @@ export class GameSession {
   }
 
   save(slot: number, name?: string) {
+    if (this.busy) throw new Error('generation is running');
     const s = this.requireState();
     if (this.order.some((id) => this.runs.get(id)!.phase !== 'done')) throw new Error('finish the current scenes before saving');
     return this.store.save(slot, s, name ?? `Episode ${s.world.episode} · ${s.world.slot}`, this.logSeq);
@@ -167,19 +176,35 @@ export class GameSession {
     for (const c of Object.values(s.characters)) if (c.status === 'inHouse') this.images.request(portraitRequest(c), c.isPlayer ? PRIORITY.playerPortrait : PRIORITY.portrait);
   }
 
+  setAppearancePalette(b: { id: string; portraitSeed: number; palette: { hair: string; skin: string; outfit: string } }) {
+    const c = this.requireState().characters[b.id];
+    if (!c || c.portraitSeed !== b.portraitSeed) return false;
+    if (JSON.stringify(c.appearance.palette) === JSON.stringify(b.palette)) return true;
+    c.appearance.palette = b.palette;
+    this.log('appearance-palette', b);
+    if (!this.busy && !this.order.some(id => this.runs.get(id)!.phase !== 'done')) this.autosave();
+    return true;
+  }
+
   // ------------------------------------------------------------ slots
 
-  act(raw: unknown) {
+  async act(raw: unknown) {
+    if (this.busy) throw new Error('generation is running');
     const s = this.requireState();
     if (s.seasonOver) throw new Error('season is over');
     if (s.awaitingPlayer) throw new Error('your next housemate has to move in first');
     if (this.order.some((id) => this.runs.get(id)!.phase !== 'done')) throw new Error('scenes still pending');
     const action = PlayerAction.parse(raw);
-    this.budget = new Budget(config.llmCallsPerSlot);
+    const block = `${s.world.episode}:${s.world.slot}`;
+    if (this.budgetBlock !== block) {
+      this.budget = new Budget(config.llmCallsPerSlot);
+      this.budgetBlock = block;
+    }
     this.digestSince = s.world.tick;
     const { state, plan } = planSlot(s, action);
     this.state = state;
     this.log('action', { action });
+    await this.enrichNewCharacters(Object.keys(s.characters));
     this.runs.clear();
     this.order = [];
     const sorted = [...plan.scenes].sort((a, b) => b.priority - a.priority);
@@ -276,15 +301,22 @@ export class GameSession {
     run.phase = 'post';
   }
 
-  endSlot() {
+  async endSlot() {
+    if (this.busy) throw new Error('generation is running');
     const s = this.requireState();
     if (this.order.some((id) => this.runs.get(id)!.phase !== 'done')) throw new Error('scenes still pending');
+    this.runs.clear();
+    this.order = [];
+    // time left in this block: the player picks what to do next
+    if (!blockOver(s) && !s.awaitingPlayer && !s.seasonOver) {
+      this.autosave();
+      return { view: this.view(), newEpisode: false, seasonOver: false, intermission: null };
+    }
     const prevEp = s.world.episode;
     const prevSlot = s.world.slot;
     this.state = finishSlot(s);
     this.log('end-slot', {});
-    this.runs.clear();
-    this.order = [];
+    await this.enrichNewCharacters(Object.keys(s.characters));
     this.autosave();
     const ns = this.state;
     if (ns.world.episode !== prevEp) this.prefetchPortraits();
@@ -292,6 +324,25 @@ export class GameSession {
     // the show cuts to the studio halfway through the day and after the last scene
     this.pendingIntermission = newEpisode ? 'end' : prevSlot === 'slot2' ? 'mid' : null;
     return { view: this.view(), newEpisode, seasonOver: ns.seasonOver, intermission: this.pendingIntermission };
+  }
+
+  private async enrichNewCharacters(previous: string[]) {
+    const s = this.requireState();
+    if (!this.gen.real) return;
+    this.busy = true;
+    const release = this.images.hold();
+    try {
+      for (const c of Object.values(s.characters)) {
+        if (previous.includes(c.id) || c.isPlayer || !c.archetypeId || c.status !== 'inHouse') continue;
+        const character = await enrichCharacter(this.gen.llm, c, Object.values(s.characters).filter(p => p.id !== c.id && p.status === 'inHouse'));
+        if (character === c) continue;
+        applyCharacterSnapshot(s, character);
+        this.log('generated-character', { character });
+      }
+    } finally {
+      this.busy = false;
+      release();
+    }
   }
 
   /** Studio intermission over the footage since the last one. Text only: never touches game state. */
@@ -302,10 +353,27 @@ export class GameSession {
     this.pendingIntermission = null;
     const r = await this.gen.intermission(s, at, this.intermissionSince, new Budget(2));
     this.intermissionSince = s.world.tick;
+    this.log('intermission', { at, ...r });
     return { at, ...r.commentary, source: r.source };
   }
 
   // ------------------------------------------------------------ scene streaming
+
+  /** Illustrate a visible conversation on demand without changing its outcome or advancing time. */
+  sceneImage(id: string) {
+    const s = this.requireState();
+    const run = this.runs.get(id);
+    if (!run || !run.rendered || run.phase === 'awaiting-response') throw new Error('scene is not available');
+    if (!run.ev.participants.includes(s.playerId)) throw new Error('join this conversation before generating a scene');
+    const participants = [s.playerId, ...run.ev.participants.filter((p) => p !== s.playerId)].slice(0, 2);
+    if (participants.length < 2) throw new Error('a scene image needs another housemate');
+    const phone = run.ev.location === 'phone';
+    const ev = { ...run.ev, participants, location: phone ? s.characters[s.playerId].location : run.ev.location };
+    const exchange = run.transcript.slice(-6).map((l) => `${speakerName(s, l.speaker)}: ${l.text}`).join(' ').slice(-1200);
+    const context = `${phone ? `phone conversation, split-screen composition, ${participants.map((p) => `${speakerName(s, p)} separately at ${placeName(s.characters[p].location)}`).join('; ')}, each holding a phone, not in the same room. ` : ''}${run.ev.premise}. Recent conversation: ${exchange}. Illustrate the situation and body language, no speech bubbles or captions.`;
+    const lead = s.characters[s.playerId];
+    return this.images.request(freezeRequest(s, ev, this.images.localFile(portraitRequest(lead)), context), PRIORITY.currentScene);
+  }
 
   /** Run the next segment of a scene, emitting SSE events. Resolves when the segment ends. */
   async stream(id: string, emit: Emit) {
@@ -328,6 +396,11 @@ export class GameSession {
         return;
       }
       const s = this.requireState();
+      if (run.ev.location === 'phone' && this.phoneCapacity(run) === 0) {
+        run.phoneClosed = true;
+        run.beats ??= [];
+        run.phase = 'post';
+      }
       if (run.phase === 'new') {
         const loc = this.images.request(locationRequest(run.ev.location, run.ev.slot, s.world.weather), PRIORITY.currentScene);
         emit('scene', {
@@ -350,7 +423,9 @@ export class GameSession {
         run.choiceIndex = playerIn ? (sheet.choiceIndex >= 0 ? sheet.choiceIndex : Math.min(2, sheet.beats.length - 1)) : -1;
         const pre = run.choiceIndex >= 0 ? run.beats.slice(0, run.choiceIndex) : run.beats;
         await this.realize(run, pre, pre.map(() => undefined), emit);
-        if (run.choiceIndex >= 0 && run.openingText) {
+        if (this.phoneCapacity(run) === 0) run.phoneClosed = true;
+        if (run.phoneClosed) run.phase = 'post';
+        else if (run.choiceIndex >= 0 && run.openingText) {
           // a message typed on the phone before the conversation opened
           run.pendingText = run.openingText;
           run.openingText = undefined;
@@ -373,8 +448,26 @@ export class GameSession {
     return { id: run.id, intents: run.ev.intents, canType: run.said.length < MAX_TYPED_EXCHANGES, canEnd: run.said.length > 0 };
   }
 
+  private phoneCapacity(run: SceneRun) {
+    if (run.ev.location !== 'phone') return Infinity;
+    const s = this.requireState();
+    const observers = run.ev.participants.map(id => s.characters[id]).filter(c => c?.persona.keepsShabbat);
+    if (!observers.length) return Infinity;
+    const virtual = { ...s, world: { ...s.world, minutes: s.world.minutes + run.transcript.length * MINUTES_PER_LINE } };
+    if (observers.some(c => isShabbat(virtual, c))) return 0;
+    if (s.world.weekday !== 5) return Infinity;
+    const left = (18 - SLOT_START[s.world.slot]) * 60 - virtual.world.minutes;
+    return Math.max(0, Math.floor(left / MINUTES_PER_LINE));
+  }
+
   /** The player's typed words, then the housemate's answer to them; then it's the player's turn again. */
   private async reply(run: SceneRun, emit: Emit) {
+    if (this.phoneCapacity(run) === 0) {
+      run.phoneClosed = true;
+      run.pendingText = undefined;
+      run.phase = 'post';
+      return this.finishScene(run, emit);
+    }
     const s = this.requireState();
     const text = run.pendingText!;
     run.pendingText = undefined;
@@ -394,11 +487,18 @@ export class GameSession {
       const beat: Beat = { speaker: responder, intent: 'answer the player', emotion: REPLY_EMOTION[intent] ?? 'neutral', beatType: replyBeatType(intent, s.characters[responder]), subtext: '', depth: run.ev.depthCeiling, topic: run.beats?.[0]?.topic ?? 'small talk' };
       await this.realize(run, [beat], [undefined], emit, { text, intent });
     }
+    if (run.phoneClosed || this.phoneCapacity(run) === 0) {
+      run.phoneClosed = true;
+      run.phase = 'post';
+      return this.finishScene(run, emit);
+    }
     run.phase = 'awaiting-choice';
     emit('choice', this.choiceEvent(run));
   }
 
   private async realize(run: SceneRun, beats: NonNullable<SceneRun['beats']>, intents: (Intent | undefined)[], emit: Emit, replyTo?: { text: string; intent: Intent }) {
+    const capacity = this.phoneCapacity(run);
+    if (capacity < beats.length) { beats = beats.slice(0, capacity); intents = intents.slice(0, capacity); run.phoneClosed = true; }
     if (!beats.length) return;
     const s = this.requireState();
     const others = run.ev.participants;
@@ -453,14 +553,15 @@ export class GameSession {
     const intents = rest.map((b, i) => (i === 0 && run.choiceIndex >= 0 && b.speaker === s.playerId ? run.playerIntent : undefined));
     await this.realize(run, rest, intents, emit);
     s = this.requireState();
-    const llmProposal = await this.gen.deltas(s, ev, run.transcript, ac.choices, this.budget);
+    const closingBudget = run.phoneClosed ? new Budget(0) : this.budget;
+    const llmProposal = await this.gen.deltas(s, ev, run.transcript, ac.choices, closingBudget);
     const po = proposeOutcome(s, ev, ac.choices);
     s = po.state;
     const rs = resolveScene(s, ev, llmProposal ?? po.proposal, ac.choices, run.response);
     s = rs.state;
     run.result = { confession: rs.result.effects.confession, leaving: rs.result.effects.leaving, secretRevealed: rs.result.effects.secretRevealed, noticed: rs.result.noticed };
     this.state = s;
-    this.log('scene', { eventId: ev.id, response: run.response, playerIntent: run.playerIntent, choices: ac.choices, proposal: rs.result.proposal });
+    this.log('scene', { eventId: ev.id, response: run.response, playerIntent: run.playerIntent, choices: ac.choices, proposal: rs.result.proposal, beats: run.beats, transcript: run.transcript });
     // housemates remember what you actually said; phone conversations stay in the chat thread
     if (run.said.length) {
       this.state = recordPlayerWords(this.state, ev.participants, run.said);
@@ -472,11 +573,23 @@ export class GameSession {
       this.state = recordChat(this.state, a, b, lines);
       this.log('chat', { a, b, lines });
     }
+    // the clock runs for as long as the player was in (or listening to) the conversation
+    if (ev.participants.includes(this.state.playerId) || run.response === 'eavesdrop') {
+      this.state = passTime(this.state, run.transcript.length);
+      this.log('time', { lines: run.transcript.length });
+      if (run.phoneClosed && this.state.world.weekday === 5) {
+        const left = (18 - SLOT_START[this.state.world.slot]) * 60 - this.state.world.minutes;
+        if (left > 0 && left < MINUTES_PER_LINE) {
+          this.state = passTime(this.state, left / MINUTES_PER_LINE);
+          this.log('time', { lines: left / MINUTES_PER_LINE });
+        }
+      }
+    }
     emit('outcome', { id: ev.id, ...run.result, cues: this.cues(run) });
     // studio commentary (panel reacts; never hints, never mutates state except predictions bookkeeping)
     const pp = panelPrediction(this.requireState());
     this.state = pp.state;
-    const cm = await this.gen.commentary(this.state, ev, run.transcript, rs.result.effects.confession, pp.condition, this.budget);
+    const cm = await this.gen.commentary(this.state, ev, run.transcript, rs.result.effects.confession, pp.condition, closingBudget);
     const callbacks = this.state.predictions.filter((p) => p.resolved !== null && !p.calledBack).slice(0, 1).map((p) => p.id);
     let prediction: { by: string; condition: PredictionCond; text: string } | undefined;
     if (pp.condition && cm.commentary.prediction) {
@@ -487,7 +600,7 @@ export class GameSession {
       prediction = { by, condition: pp.condition, text: predictionText(this.state, by, pp.condition) };
     }
     this.state = recordCommentary(this.state, { prediction, calledBack: callbacks });
-    this.log('commentary', { eventId: ev.id, prediction, calledBack: callbacks });
+    this.log('commentary', { eventId: ev.id, prediction, calledBack: callbacks, commentary: cm.commentary, source: cm.source });
     run.commentary = { ...cm.commentary, prediction: prediction ? { text: prediction.text } : undefined };
     if (ev.freeze) {
       const lead = this.state.characters[ev.participants[0]];
@@ -504,6 +617,7 @@ export class GameSession {
   private cues(run: SceneRun): string[] {
     const s = this.requireState();
     const out: string[] = [];
+    if (run.phoneClosed) out.push('The phone is put away for Shabbat. You can talk in person, or message after Saturday evening.');
     if (run.result?.confession === 'accepted') out.push(`${firstName(s, run.ev.roles.a)} and ${firstName(s, run.ev.roles.b)} are together now.`);
     if (run.result?.confession === 'rejected') out.push('The answer was no.');
     if (run.result?.secretRevealed) out.push(`Something about ${firstName(s, run.result.secretRevealed)} came out.`);

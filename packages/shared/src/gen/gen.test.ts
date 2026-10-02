@@ -9,6 +9,7 @@ import { engineProposal } from '../engine/outcome';
 import { proposeCondition } from '../engine/predictions';
 import { compileAppearancePrompt, compileAppearanceTags, sanitizePromptText, GLOBAL_NEGATIVE } from '../appearance';
 import { simulateSeason, activePolicy } from '../sim/season';
+import { palette, locationPixels, spritePixels } from '../pixel';
 
 describe('mock LLM outputs validate for every schema', () => {
   it('beat sheets, deltas and commentary validate for all templates', () => {
@@ -115,4 +116,13 @@ describe('compileAppearancePrompt', () => {
     expect(compileAppearancePrompt(base, 'bust')).toEqual(compileAppearancePrompt(base, 'bust'));
     expect(compileAppearanceTags({ ...base, age: 16 })[0]).toBe('20-year-old adult woman');
   });
+});
+
+it('uses sampled portrait colors in sprites and draws distinct house locations offline', () => {
+  const a = createGame({ seed: 1 }).characters.ren.appearance;
+  const sampled = { hair: '#123456', skin: '#654321', outfit: '#abcdef' };
+  expect(palette({ ...a, palette: sampled })).toMatchObject(sampled);
+  expect(spritePixels({ ...a, palette: sampled }, 'down', 1).flat()).toContain(sampled.outfit);
+  expect(locationPixels('kitchen', 'day', 'sunny')).not.toEqual(locationPixels('living', 'day', 'sunny'));
+  expect(locationPixels('house', 'night', 'sunny')).toEqual(locationPixels('house', 'night', 'sunny'));
 });

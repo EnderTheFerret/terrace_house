@@ -8,6 +8,7 @@ import { Budget } from '../apps/server/src/llm/structured';
 import { Generator } from '../apps/server/src/game/generate';
 import { ComfyBackend } from '../apps/server/src/image/comfy';
 import { portraitRequest } from '../apps/server/src/image/requests';
+import { contentCheck } from '../apps/server/src/game/personas';
 
 const ok = (b: boolean) => (b ? 'OK  ' : 'FAIL');
 let failures = 0;
@@ -17,9 +18,13 @@ console.log(`ollama ${config.ollamaUrl} model ${config.ollamaModel}`);
 const llmUp = await llm.health();
 console.log(`${ok(llmUp)} ollama health`);
 if (!llmUp) failures++;
+const linesLlm = config.ollamaModelLines === config.ollamaModel ? llm : new OllamaClient(config.ollamaUrl, config.ollamaModelLines, Math.max(config.llmTimeoutMs, 120000));
+const linesUp = await linesLlm.health();
+console.log(`${ok(linesUp)} dialogue model ${config.ollamaModelLines}`);
+if (!linesUp) failures++;
 
 if (llmUp) {
-  const gen = new Generator(llm);
+  const gen = new Generator(llm, linesLlm);
   const s = createGame({ seed: 7 });
   const ev = makeEvent(s, eventTemplate('late-night-kitchen'), { a: 'ren', b: 'mio' }, 'kitchen');
   const budget = new Budget(10);
@@ -28,13 +33,16 @@ if (llmUp) {
   console.log(`${ok(sheet.source === 'llm')} beat sheet (${sheet.source}, ${sheet.beats.length} beats, ${Date.now() - t} ms)`);
   if (sheet.source !== 'llm') failures++;
   t = Date.now();
-  const ctx: LineContext = { place: 'kitchen', listener: 'Mio', catchphraseUses: {}, lineCounts: {} };
+  const ctx: LineContext = { place: 'kitchen', listener: s.characters.mio.name, catchphraseUses: {}, lineCounts: {} };
   let streamed = 0;
   const lines = await gen.lines(s, ev, sheet.beats, [], sheet.beats.map(() => undefined), ctx, budget, () => {}, () => streamed++);
   const fromLlm = lines.filter((l) => l.source === 'llm').length;
   console.log(`${ok(fromLlm > 0)} dialogue: ${fromLlm}/${lines.length} lines from the LLM, ${streamed} streamed tokens, ${Date.now() - t} ms`);
   for (const l of lines) console.log(`       ${l.speaker}: ${l.text}${l.source === 'mock' ? '   (template fallback)' : ''}`);
   if (!fromLlm) failures++;
+  const safe = lines.every(l => contentCheck(l.text) && sheet.beats.some(b => b.speaker === l.speaker));
+  console.log(`${ok(safe)} adult PG-13 content / expected speakers (mechanical guard)`);
+  if (!safe) failures++;
   t = Date.now();
   const cm = await gen.commentary(s, ev, lines, undefined, null, budget);
   console.log(`${ok(cm.source === 'llm')} commentary (${cm.source}, ${Date.now() - t} ms)`);

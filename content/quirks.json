@@ -1,20 +1,124 @@
 {
   "quirks": [
-    { "id": "early-bird", "label": "early bird", "effect": { "energyDecay": -1 } },
-    { "id": "night-owl", "label": "night owl", "effect": { "energyDecay": 1, "lateNight": true } },
-    { "id": "neat-freak", "label": "neat freak", "effect": { "tidyBonus": 1.5, "conscientiousness": 0.1 } },
-    { "id": "messy", "label": "lovably messy", "effect": { "tidyBonus": 0.5, "conscientiousness": -0.1 } },
-    { "id": "foodie", "label": "foodie", "effect": { "cookBonus": 0.1 } },
-    { "id": "hopeless-romantic", "label": "hopeless romantic", "effect": { "romanceDecay": 2 } },
-    { "id": "blunt", "label": "says it straight", "effect": { "conflictStyle": "confront" } },
-    { "id": "peacemaker", "label": "peacemaker", "effect": { "conflictStyle": "mediate" } },
-    { "id": "jokester", "label": "class clown", "effect": { "conflictStyle": "deflect-with-humor", "humor": "slapstick" } },
-    { "id": "worrier", "label": "worrier", "effect": { "attachment": "anxious", "neuroticism": 0.1 } },
-    { "id": "lone-wolf", "label": "lone wolf", "effect": { "attachment": "avoidant", "privacyDecay": 3 } },
-    { "id": "social-butterfly", "label": "social butterfly", "effect": { "socialDecay": 3, "extraversion": 0.1 } },
-    { "id": "homesick", "label": "misses home", "effect": { "homesickness": 0.3 } },
-    { "id": "ambitious", "label": "ambitious", "effect": { "value": "ambition", "achievementDecay": 2 } },
-    { "id": "honest-to-a-fault", "label": "honest to a fault", "effect": { "value": "honesty" } },
-    { "id": "music-lover", "label": "music lover", "effect": { "hobby": "music" } }
+    {
+      "id": "early-bird",
+      "label": "early bird",
+      "effect": {
+        "energyDecay": -1
+      }
+    },
+    {
+      "id": "night-owl",
+      "label": "night owl",
+      "effect": {
+        "energyDecay": 1,
+        "lateNight": true
+      }
+    },
+    {
+      "id": "neat-freak",
+      "label": "neat freak",
+      "effect": {
+        "tidyBonus": 1.5,
+        "conscientiousness": 0.1
+      }
+    },
+    {
+      "id": "messy",
+      "label": "lovably messy",
+      "effect": {
+        "tidyBonus": 0.5,
+        "conscientiousness": -0.1
+      }
+    },
+    {
+      "id": "foodie",
+      "label": "foodie",
+      "effect": {
+        "cookBonus": 0.1
+      }
+    },
+    {
+      "id": "hopeless-romantic",
+      "label": "hopeless romantic",
+      "effect": {
+        "romanceDecay": 2
+      }
+    },
+    {
+      "id": "blunt",
+      "label": "says it straight",
+      "effect": {
+        "conflictStyle": "confront"
+      }
+    },
+    {
+      "id": "peacemaker",
+      "label": "peacemaker",
+      "effect": {
+        "conflictStyle": "mediate"
+      }
+    },
+    {
+      "id": "jokester",
+      "label": "class clown",
+      "effect": {
+        "conflictStyle": "deflect-with-humor",
+        "humor": "slapstick"
+      }
+    },
+    {
+      "id": "worrier",
+      "label": "worrier",
+      "effect": {
+        "attachment": "anxious",
+        "neuroticism": 0.1
+      }
+    },
+    {
+      "id": "lone-wolf",
+      "label": "lone wolf",
+      "effect": {
+        "attachment": "avoidant",
+        "privacyDecay": 3
+      }
+    },
+    {
+      "id": "social-butterfly",
+      "label": "social butterfly",
+      "effect": {
+        "socialDecay": 3,
+        "extraversion": 0.1
+      }
+    },
+    {
+      "id": "homesick",
+      "label": "misses home",
+      "effect": {
+        "homesickness": 0.3
+      }
+    },
+    {
+      "id": "ambitious",
+      "label": "ambitious",
+      "effect": {
+        "value": "ambition",
+        "achievementDecay": 2
+      }
+    },
+    {
+      "id": "honest-to-a-fault",
+      "label": "honest to a fault",
+      "effect": {
+        "value": "honesty"
+      }
+    },
+    {
+      "id": "music-lover",
+      "label": "music lover",
+      "effect": {
+        "hobby": "music"
+      }
+    }
   ]
 }

@@ -1,5 +1,5 @@
 // Thin client for the server API + SSE scene streaming.
-import type { PlayerAction, PlayerSetup, PlayerView } from '@shared-roof/shared';
+import type { Emotion, PlayerAction, PlayerSetup, PlayerView } from '@shared-roof/shared';
 
 export interface SceneSummary {
   id: string;
@@ -42,20 +42,25 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
 export const api = {
   health: () => req<Health>('GET', '/api/health'),
   game: () => req<{ view: PlayerView; scenes: SceneSummary[] }>('GET', '/api/game'),
-  newGame: (body: { seed?: number; player?: PlayerSetup; randomizeCast?: boolean }) => req<{ view: PlayerView; scenes: SceneSummary[] }>('POST', '/api/game/new', body),
+  newGame: (body: { seed?: number; player?: PlayerSetup; randomizeCast?: boolean; seasonLength?: number }) => req<{ view: PlayerView; scenes: SceneSummary[] }>('POST', '/api/game/new', body),
   act: (action: PlayerAction) => req<{ view: PlayerView; scenes: SceneSummary[] }>('POST', '/api/game/action', { action }),
   endSlot: () => req<{ view: PlayerView; newEpisode: boolean; seasonOver: boolean; intermission: 'mid' | 'end' | null }>('POST', '/api/game/end-slot'),
   intermission: () => req<{ at: 'mid' | 'end'; lines: { speaker: string; text: string; reaction: string }[] }>('POST', '/api/studio/intermission'),
   respond: (id: string, response: 'join' | 'eavesdrop' | 'ignore') => req<{ scene: SceneSummary }>('POST', `/api/scene/${id}/respond`, { response }),
   choose: (id: string, choice: { intent?: string; text?: string; done?: boolean }) => req<{ ok: boolean }>('POST', `/api/scene/${id}/choose`, choice),
+  sceneImage: (id: string) => req<ImageStatus>('POST', `/api/scene/${id}/image`),
   newPlayer: (player: PlayerSetup) => req<{ view: PlayerView; scenes: SceneSummary[] }>('POST', '/api/game/new-player', { player }),
-  cooking: (body: { recipeId: string; quality: number; partner?: string; servedTo: string[] }) =>
+  cooking: (body: { recipeId: string; quality: number; partner?: string; servedTo: string[]; utensil?: 'meat' | 'dairy' | 'parve' }) =>
     req<{ view: PlayerView; receptions: { charId: string; r: number; verdict: string }[]; improvised: boolean }>('POST', '/api/game/cooking', body),
   saves: () => req<{ saves: { id: number; slot: number; name: string; episode: number; created_at: string }[] }>('GET', '/api/saves'),
   save: (slot: number, name?: string) => req<{ id: number }>('POST', '/api/saves', { slot, name }),
   load: (id: number) => req<{ view: PlayerView; scenes: SceneSummary[] }>('POST', `/api/saves/${id}/load`),
-  portrait: (body: { id?: string; age: number; gender: string; appearance: unknown; portraitSeed: number; lowRes?: boolean }) => req<ImageStatus>('POST', '/api/image/portrait', body),
+  portrait: (body: { id?: string; age: number; gender: string; appearance: unknown; appearanceText?: string; portraitSeed: number; lowRes?: boolean }) => req<ImageStatus>('POST', '/api/image/portrait', body),
+  mapAppearance: (text: string, appearance: unknown) => req<{ appearance: PlayerSetup['appearance']; appearanceText: string }>('POST', '/api/appearance/describe', { text, appearance }),
+  savePalette: (id: string, portraitSeed: number, palette: NonNullable<PlayerSetup['appearance']['palette']>) => req<{ updated: boolean }>('POST', '/api/game/appearance-palette', { id, portraitSeed, palette }),
   charPortrait: (id: string) => req<ImageStatus>('GET', `/api/image/character/${id}`),
+  charSprite: (id: string) => req<ImageStatus>('GET', `/api/image/character/${encodeURIComponent(id)}/sprite`),
+  expression: (id: string, emotion: Emotion) => req<ImageStatus>('POST', `/api/image/character/${id}/expression`, { emotion }),
   location: (location: string, slot: string, weather: string) => req<ImageStatus>('POST', '/api/image/location', { location, slot, weather }),
   panel: () => req<Record<string, ImageStatus>>('GET', '/api/image/panel'),
   imageStatus: (key: string) => req<ImageStatus>('GET', `/api/image/status/${key}`),
@@ -88,12 +93,14 @@ export async function waitImage(st: ImageStatus, onReady: (s: ImageStatus) => vo
   let cur = st;
   for (let i = 0; i < 600 && !signal?.aborted; i++) {
     if (cur.status === 'ready') return onReady(cur);
-    if (cur.status === 'failed' || cur.status === 'cancelled') return;
+    if (cur.status === 'failed' || cur.status === 'cancelled') return onReady(cur);
     await new Promise((r) => setTimeout(r, i < 10 ? 400 : 1500));
     try {
       cur = await api.imageStatus(cur.key);
     } catch {
+      if (!signal?.aborted) onReady({ ...cur, status: 'failed' });
       return;
     }
   }
+  if (!signal?.aborted) onReady({ ...cur, status: 'failed' });
 }

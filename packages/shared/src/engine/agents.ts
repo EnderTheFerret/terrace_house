@@ -6,15 +6,15 @@ import type { Rng } from '../rng';
 import { softmaxSample } from '../rng';
 import { clamp } from '../util';
 import { content } from '../content';
-import { attracted, belief, coupleOf, flag, housemates, isCouple, isDaySlot, rel, traitsOf } from './core';
+import { attracted, belief, coupleOf, flag, housemates, isCouple, isDaySlot, rel, traitsOf, SLOT_START } from './core';
 import { fridgeTotal } from './conditions';
 import { gossipCandidate } from './knowledge';
-import { isOpen, reachability } from './city';
+import { ACTIVITY_MINUTES, isOpen, reachability } from './city';
 import { reputationOf } from './social';
 
 export type ActionKind =
   | 'sleep' | 'cook' | 'eat' | 'tidy' | 'work' | 'exercise' | 'hobby' | 'goOut'
-  | 'seek' | 'avoid' | 'text' | 'gossip' | 'apologize' | 'confess' | 'retreat';
+  | 'seek' | 'avoid' | 'text' | 'gossip' | 'apologize' | 'confess' | 'retreat' | 'shower' | 'snack' | 'nap';
 
 export interface AgentAction {
   kind: ActionKind;
@@ -23,6 +23,16 @@ export interface AgentAction {
   node?: string;
   useCar?: boolean;
   utility?: number;
+  duration?: number;
+}
+
+export const durationFor = (a: AgentAction) => a.duration ?? ({ shower: 40, snack: 20, nap: 90, sleep: 180, work: 180, goOut: 120, cook: 60, eat: 20, tidy: 30, exercise: 40, hobby: 60, seek: 30, avoid: 45, text: 15, gossip: 25, apologize: 20, confess: 30, retreat: 45 }[a.kind]);
+
+// ponytail: fixed 18:00 sundown; use seasonal solar times if the calendar gains a year and latitude.
+export function isShabbat(s: GameState, c?: Character): boolean {
+  if (c && !c.persona.keepsShabbat) return false;
+  const hour = SLOT_START[s.world.slot] + s.world.minutes / 60;
+  return (s.world.weekday === 5 && hour >= 18) || (s.world.weekday === 6 && hour < 18);
 }
 
 /** s_k(a): how much each action satisfies each need (positive = reduces deficit). */
@@ -42,6 +52,9 @@ const SAT: Record<ActionKind, Partial<NeedVec>> = {
   apologize: { social: 6 },
   confess: { romance: 40, social: 5 },
   retreat: { privacy: 26, energy: 8 },
+  shower: { privacy: 15, achievement: 3 },
+  snack: { hunger: 14 },
+  nap: { energy: 22, privacy: 10 },
 };
 
 export const bedroomOf = (c: Character) => (c.gender === 'man' ? 'bedroomM' : 'bedroomW');
@@ -138,20 +151,22 @@ export function confessThreshold(c: Character) {
 }
 
 export function hasJobNow(s: GameState, c: Character) {
+  if (isShabbat(s, c) || flag(s, `fired_${c.id}`)) return false;
+  if (s.world.weekday === 5 && !['morning', 'slot1'].includes(s.world.slot) && jobOf(c.occupation)?.days === 'weekdays') return false;
   return c.persona.routine.jobSlots.some((j) => j.slot === s.world.slot && j.weekdays.includes(s.world.weekday));
 }
 
 /** The catalogue entry for an occupation (content/jobs.json), if it has one. */
 export const jobOf = (occupation: string) => content().jobs.find((j) => j.title.toLowerCase() === occupation.toLowerCase());
 
-const SHIFT_SLOTS: Record<Job['shift'], Slot[]> = { early: ['morning', 'slot1'], day: ['slot1', 'slot2'], late: ['slot2', 'slot3'], night: ['slot3', 'evening'], flex: [] };
+const SHIFT_SLOTS: Record<Job['shift'], Slot[]> = { early: ['morning', 'slot1'], day: ['slot1', 'slot2'], late: ['slot2', 'slot3'], night: ['evening', 'lateNight'], flex: [] };
 
 /** Weekly work schedule for a job: its shift's slots on 4 days drawn from its day pattern. */
 export function jobSchedule(rng: Rng, job: Job): Character['persona']['routine']['jobSlots'] {
-  const pool = job.days === 'weekdays' ? [1, 2, 3, 4, 5] : job.days === 'weekends' ? [0, 6, ...rng.shuffle([1, 2, 3, 4, 5]).slice(0, 2)] : [0, 1, 2, 3, 4, 5, 6];
+  const pool = job.days === 'weekdays' ? [0, 1, 2, 3, 4] : job.days === 'weekends' ? [5, 6, ...rng.shuffle([0, 1, 2, 3, 4]).slice(0, 2)] : [0, 1, 2, 3, 4, 5, 6];
   const weekdays = (job.days === 'weekends' ? pool : rng.shuffle(pool).slice(0, 4)).sort((a, b) => a - b);
   const slots = job.shift === 'flex' ? [rng.pick(['slot1', 'slot2', 'slot3'] as const)] : SHIFT_SLOTS[job.shift];
-  return slots.map((slot) => ({ slot, weekdays }));
+  return slots.map((slot) => ({ slot, weekdays: job.days === 'weekdays' && ['morning', 'slot1'].includes(slot) ? [...weekdays, 5] : weekdays }));
 }
 
 export function jobNode(c: Character): string {
@@ -170,23 +185,29 @@ export function jobNode(c: Character): string {
 export function candidateActions(s: GameState, c: Character): AgentAction[] {
   const slot = s.world.slot;
   const day = isDaySlot(slot);
-  const typhoon = s.world.cityEvent === 'typhoon';
+  const typhoon = s.world.cityEvent === 'heatwave';
+  const shabbat = isShabbat(s, c);
   const others = housemates(s).filter((o) => o.id !== c.id);
   const acts: AgentAction[] = [
-    { kind: 'sleep' }, { kind: 'eat' }, { kind: 'tidy' }, { kind: 'hobby' }, { kind: 'retreat' }, { kind: 'exercise' },
+    { kind: 'sleep' }, { kind: 'nap' }, { kind: 'snack' }, { kind: 'shower' }, { kind: 'eat' }, { kind: 'tidy' }, { kind: 'hobby' }, { kind: 'retreat' }, { kind: 'exercise' },
   ];
-  if (fridgeTotal(s) >= 3) acts.push({ kind: 'cook' });
+  if (fridgeTotal(s) >= 3 && !shabbat) acts.push({ kind: 'cook' });
   if (hasJobNow(s, c) && !typhoon) acts.push({ kind: 'work', node: jobNode(c) });
   if (day && !typhoon) {
-    const reach = reachability('house', slot, 99999, s.world.carUsedBy === null).filter((r) => r.reachable);
+    const reach = reachability('house', slot, 99999, !shabbat && s.world.carUsedBy === null, s.world.minutes, s.world.weekday).filter((r) => r.reachable);
     const liked = reach.filter((r) => {
       const n = content().city.nodes.find((x) => x.id === r.node)!;
-      return n.activities.some((a) => ['wander', 'date', 'eat', 'shop', 'karaoke'].includes(a)) && isOpen(n, slot);
+      return (!shabbat || (r.minutes <= 20 && !r.needsCar && ['park','riverside','beach','shrine'].includes(r.node))) && n.activities.some((a) => ['wander', 'date', 'eat', 'shop', 'karaoke'].includes(a)) && isOpen(n, slot, s.world.minutes, s.world.weekday);
     });
-    for (const r of liked.slice(0, 18)) acts.push({ kind: 'goOut', node: r.node, useCar: r.needsCar });
+    for (const r of liked.slice(0, 18)) {
+      const duration = r.minutes * 2 + ACTIVITY_MINUTES;
+      if (r.needsCar && isShabbat({ ...s, world: { ...s.world, minutes: s.world.minutes + duration } }, c)) continue;
+      acts.push({ kind: 'goOut', node: r.node, useCar: r.needsCar, duration });
+    }
   }
   for (const o of others) {
-    acts.push({ kind: 'seek', target: o.id }, { kind: 'avoid', target: o.id }, { kind: 'text', target: o.id });
+    acts.push({ kind: 'seek', target: o.id }, { kind: 'avoid', target: o.id });
+    if (!shabbat && !isShabbat(s, o)) acts.push({ kind: 'text', target: o.id });
     if (rel(s, o.id, c.id).tension >= 30 || s.grudges[`${o.id}>${c.id}`]) acts.push({ kind: 'apologize', target: o.id });
     const be = belief(s, c.id, o.id, c.id);
     if (
@@ -235,12 +256,19 @@ export function utility(s: GameState, c: Character, a: AgentAction): number {
   for (const h of c.persona.routine.habits) if (h.slot === s.world.slot && h.action === a.kind) u += 0.6;
   // costs
   if (c.needs.energy > 70 && (a.kind === 'exercise' || a.kind === 'goOut' || a.kind === 'work')) u -= 0.5;
-  if (a.kind === 'sleep' && s.world.slot !== 'morning' && s.world.slot !== 'evening') u -= 0.3;
+  if (a.kind === 'sleep' && !['morning','evening','lateNight'].includes(s.world.slot)) u -= 0.3;
+  const bedtime = c.persona.traits[2] < .4 ? 21 : c.persona.traits[0] > .7 ? 25 : 23;
+  const hour = SLOT_START[s.world.slot] + s.world.minutes / 60;
+  if (a.kind === 'sleep' && hour >= bedtime) u += 2;
+  if (a.kind === 'shower') u += s.world.slot === 'morning' ? .6 : -.4;
+  if (a.kind === 'nap') u += c.needs.energy > 65 && s.world.slot === 'slot2' ? .5 : -.6;
+  if (a.kind === 'snack') u -= c.needs.hunger < 40 ? .6 : .1;
+  if (a.kind === 'cook' && c.persona.keepsShabbat && s.world.weekday === 5 && s.world.slot === 'slot3' && !isShabbat(s,c)) u += 2;
   if (a.kind === 'goOut') u += (t.O - 0.5) * 0.3 + (t.E - 0.5) * 0.2 - (a.useCar ? 0.15 : 0) - 0.15;
   if (a.kind === 'retreat') u += (0.5 - t.E) * 0.4;
   if (a.kind === 'tidy') u += (t.C - 0.5) * 0.4 + (s.house.dishes > 60 ? 0.25 : 0);
   if (a.kind === 'cook') u += c.persona.goals.short.kind === 'career' && c.occupation.includes('cook') ? 0.3 : 0;
-  if (s.world.cityEvent === 'typhoon' && a.kind === 'seek') u += 0.25; // close quarters
+  if (s.world.cityEvent === 'heatwave' && a.kind === 'seek') u += 0.25;
   return u;
 }
 
@@ -251,18 +279,21 @@ export function chooseAction(s: GameState, rng: Rng, c: Character): AgentAction 
   const acts = candidateActions(s, c);
   const scores = acts.map((a) => utility(s, c, a));
   const i = softmaxSample(rng, scores, AGENT_TEMPERATURE);
-  return { ...acts[i], utility: scores[i] };
+  return { ...acts[i], utility: scores[i], duration: durationFor(acts[i]) };
 }
 
 /** Default room for an action (before relational resolution). */
 export function roomFor(s: GameState, c: Character, a: AgentAction): string {
   switch (a.kind) {
-    case 'sleep': return bedroomOf(c);
-    case 'retreat': return traitsOf(c).O > 0.7 ? 'rooftop' : bedroomOf(c);
+    case 'sleep':
+    case 'nap': return bedroomOf(c);
+    case 'shower': return 'bathroom';
+    case 'retreat': return traitsOf(c).O > 0.7 ? (c.gender === 'man' ? 'balconyM' : 'balconyW') : bedroomOf(c);
     case 'cook':
     case 'eat':
+    case 'snack':
     case 'tidy': return 'kitchen';
-    case 'exercise': return 'rooftop';
+    case 'exercise': return 'backyard';
     case 'work': return a.node ?? 'station';
     case 'goOut': return a.node ?? 'konbini';
     case 'hobby': {
@@ -291,7 +322,11 @@ export function resolveLocations(s: GameState, actions: Record<string, AgentActi
       if (!tgt || !['seek', 'confess', 'apologize', 'gossip'].includes(a.kind)) continue;
       const tl = loc[tgt];
       // can't follow someone to their workplace; stay in the shared living room instead
-      if (tl && actions[tgt]?.kind !== 'work') loc[id] = tl;
+      const ownPrivate = ['bedroomM','balconyM'].includes(tl ?? '') ? cGender(s,id) === 'man' : ['bedroomW','balconyW'].includes(tl ?? '') ? cGender(s,id) !== 'man' : false;
+      const priv = content().house.rooms.find((r) => r.id === tl)?.private;
+      const working = actions[tgt]?.kind === 'work' || (!actions[tgt] && s.characters[tgt]?.lastAction === 'work');
+      if (tl && !working && (!priv || ownPrivate)) loc[id] = tl;
+      else if (tl && (priv || working)) loc[id] = 'living';
       else if (pass === 2 && !loc[id]) loc[id] = 'living';
     }
   }
@@ -300,10 +335,23 @@ export function resolveLocations(s: GameState, actions: Record<string, AgentActi
     const c = s.characters[id];
     if (a.kind === 'avoid') {
       const tl = loc[a.target!];
-      loc[id] = tl === bedroomOf(c) ? 'rooftop' : bedroomOf(c);
+      loc[id] = tl === bedroomOf(c) ? 'backyard' : bedroomOf(c);
     }
     if (a.kind === 'text') loc[id] = roomFor(s, c, { kind: 'hobby' });
     loc[id] ??= 'living';
   }
+  const bathrooms = ['bathroom','smallBathroom'];
+  const occupied = new Set(Object.entries(loc).filter(([id,room]) => !actions[id] && bathrooms.includes(room)).map(([,room]) => room));
+  for (const id of ids.filter((id) => actions[id].kind === 'shower')) {
+    const room = bathrooms.find((room) => !occupied.has(room));
+    if (room) { loc[id] = room; occupied.add(room); }
+    else {
+      loc[id] = 'stairsUp';
+      actions[id] = { kind:'retreat', duration:10 };
+      if (!s.house.bathroomQueue.includes(id)) s.house.bathroomQueue.push(id);
+    }
+  }
   for (const id of ids) s.characters[id].location = loc[id];
 }
+
+const cGender = (s: GameState, id: string) => s.characters[id]?.gender;

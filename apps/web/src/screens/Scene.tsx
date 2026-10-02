@@ -44,6 +44,37 @@ export function Scene() {
   const reveal = useReveal(live?.lines ?? [], settings.typewriter && !settings.reducedMotion);
   const bg = useImage(live?.header ? async () => live.header!.background : null, [live?.header?.background?.key]);
   const [freezeImg, setFreezeImg] = useState<ImageStatus | null>(null);
+  const [sceneImg, setSceneImg] = useState<ImageStatus | null>(null);
+  const [imageOpen, setImageOpen] = useState(false);
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageError, setImageError] = useState('');
+  const imageAbort = useRef<AbortController | null>(null);
+  const imageDialog = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    setSceneImg(null); setImageOpen(false); setImageBusy(false); setImageError('');
+    return () => imageAbort.current?.abort();
+  }, [live?.id]);
+  useEffect(() => {
+    if (imageOpen) imageDialog.current?.showModal();
+    else imageDialog.current?.close();
+  }, [imageOpen]);
+  const generateScene = async () => {
+    if (!live || imageBusy) return;
+    const ac = new AbortController();
+    imageAbort.current?.abort(); imageAbort.current = ac;
+    setImageBusy(true); setImageOpen(true); setImageError(''); setSceneImg(null);
+    try {
+      const st = await api.sceneImage(live.id);
+      if (ac.signal.aborted) return;
+      setSceneImg(st);
+      await waitImage(st, (img) => { if (!ac.signal.aborted) setSceneImg(img); }, ac.signal);
+    } catch (e) {
+      if (!ac.signal.aborted) setImageError((e as Error).message);
+    } finally {
+      if (!ac.signal.aborted) setImageBusy(false);
+    }
+  };
 
   useEffect(() => setPhaseShown('dialogue'), [live?.id]);
   const resetReveal = reveal.reset;
@@ -127,6 +158,14 @@ export function Scene() {
           </div>
         )}
         {!h && <div className="absolute inset-0 flex items-center justify-center text-paper">setting the scene<span className="blink">…</span></div>}
+        {h?.participants.some((p) => p.id === view.playerId) && h.participants.length >= 2 && (
+          <div className="absolute right-3 top-3 z-20">
+            <Btn disabled={live.streaming || imageBusy || !settings.images} onClick={() => void generateScene()} title={!settings.images ? 'Enable images in settings to generate a scene' : live.streaming ? 'Available when the current dialogue finishes' : 'Illustrate this conversation'}>
+              {imageBusy ? 'generating scene…' : 'generate scene'}
+            </Btn>
+            {sceneImg?.status === 'ready' && <Btn className="ml-2" onClick={() => setImageOpen(true)}>view scene</Btn>}
+          </div>
+        )}
         {h?.intro && (
           <div className="intro-card absolute left-1/2 top-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center gap-4 px-panel p-4" role="note" aria-label="new housemate">
             {(() => {
@@ -143,13 +182,13 @@ export function Scene() {
         )}
         {/* portraits */}
         {!chat && (
-          <div className="absolute bottom-40 left-0 right-0 flex items-end justify-around px-8">
+          <div className="absolute bottom-40 left-0 right-0 flex items-end justify-around px-8" style={{ right: live.choice && reveal.complete ? 304 : 0 }}>
             {people.map((c, i) => {
               const speaking = visible[visible.length - 1]?.speaker === c!.id;
               return (
                 <div key={c!.id} className={`flex flex-col items-center transition-transform ${speaking ? '-translate-y-2' : 'opacity-90'}`} style={{ order: i }}>
                   <div className="px-panel bg-paper p-1">
-                    <Portrait charId={c!.id} appearance={c!.appearance} gender={c!.gender} seed={c!.portraitSeed} size={120} label={c!.name} />
+                    <Portrait key={`${view.gameId}:${c!.portraitSeed}`} charId={c!.id} appearance={c!.appearance} gender={c!.gender} seed={c!.portraitSeed} size={120} label={c!.name} expressions />
                   </div>
                   <span className="mt-1 bg-paper px-2 text-xs" style={{ boxShadow: '0 0 0 2px var(--color-ink)' }}>
                     {c!.name.split(' ')[0]}
@@ -250,6 +289,14 @@ export function Scene() {
           </div>
         )}
       </main>
+      <dialog ref={imageDialog} aria-label="generated scene" onClose={() => setImageOpen(false)} className="px-panel m-auto max-h-[85vh] max-w-[90vw] overflow-y-auto bg-paper p-3 backdrop:bg-black/70">
+        <div className="mb-3 flex items-center justify-between gap-4">
+          <h2>generated scene</h2>
+          <Btn autoFocus onClick={() => setImageOpen(false)}>close</Btn>
+        </div>
+        {sceneImg?.status === 'ready' && sceneImg.url ? <PixelImage url={sceneImg.url} factor={6} alt="illustration of the current conversation" style={{ width: 720, maxWidth: '100%' }} /> : <div role="status" className="flex h-64 w-[min(720px,75vw)] items-center justify-center text-sm">{imageError || (sceneImg?.status === 'failed' || sceneImg?.status === 'cancelled' ? 'Image unavailable. Close this window and try again.' : sceneImg?.status === 'queued' ? 'Scene queued. You can close this window and keep talking.' : 'Generating scene… You can close this window and keep talking.')}</div>}
+        {sceneImg?.status === 'ready' && <p className="caption mt-2 text-xs">{sceneImg.placeholder ? 'Temporary preview: image service unavailable.' : 'AI illustration based on this conversation.'}</p>}
+      </dialog>
       <StudioStrip expanded={phaseShown === 'panel'} lines={live.commentary?.lines} prediction={live.commentary?.prediction} />
     </div>
   );

@@ -1,17 +1,19 @@
 // Shared prompt pieces + budgeted assembly. Order: rules → persona → relationship → memories → premise → output.
 import {
-  firstName, knownFacts, placeName, rel, topMemories, referencesFor, TRAIT_NAMES, moodWord,
+  firstName, knownFacts, placeName, pairSummaryText, topMemories, referencesFor, TRAIT_NAMES, moodWord,
   type Character, type EventInstance, type GameState,
 } from '@shared-roof/shared';
 
 export const approxTokens = (s: string) => Math.ceil(s.length / 4);
 
 export const RULES = [
-  'You write dialogue for a calm, slow-paced reality show about six adult housemates (all 20+) sharing a house in a Japanese coastal city.',
+  'You write dialogue for a calm, slow-paced reality show about six adult housemates (all 20+) sharing a house in Tel Aviv, Israel.',
   'Stay strictly in persona. No meta commentary, no narration about cameras, scripts, AI or the audience.',
   'Content rating PG-13: flirting, dates, confessions, hand-holding, at most a kiss. Nothing explicit.',
+  'Respect refusals and personal boundaries. Religious practice, kashrut, Shabbat and dietary choices are never a punchline.',
   'Reality-TV register: short conversational lines, hesitations, understatement, awkward silences. 1–3 short sentences per line.',
   'Characters only know what is listed as their knowledge. Never reveal facts a speaker does not know.',
+  'Use supplied biography and memories; never invent family history or past events. Speakers know their own persona, not another person\'s private background.',
 ].join('\n');
 
 /** Compressed persona card (speech params, exemplars, do-not list, needs/mood). */
@@ -22,11 +24,13 @@ export function personaCard(s: GameState, c: Character, opts: { compact?: boolea
   const lines = [
     `## ${c.name} (id: ${c.id}), ${c.age}, ${c.occupation}`,
     `Voice: ${c.voiceNotes}`,
+    `Food: ${p.diet}; kashrut ${p.kashrut}. Shabbat observance: ${p.keepsShabbat ? 'yes; no work, cooking, phone or driving Friday evening to Saturday evening' : 'no'}. Respect these choices without mocking.`,
     `Speech: ~${sp.sentenceLen.mean} words/sentence, formality ${sp.formality.toFixed(1)}, humor ${sp.humor}${sp.fillers.length ? `, fillers: ${sp.fillers.join(' / ')}` : ''}${sp.catchphrase ? `, catchphrase (rare): "${sp.catchphrase.text}"` : ''}.`,
     `Examples: ${sp.exemplars.map((e) => `"${e}"`).join(' ')}`,
   ];
   if (sp.doNot.length) lines.push(`Do not: ${sp.doNot.join('; ')}.`);
   if (!opts.compact) {
+    lines.push(`Own background: ${p.backstory.slice(0, 240)}`);
     lines.push(`Personality: ${traits}; ${p.attachment} attachment; conflict style ${p.conflictStyle}; values ${p.values.slice(0, 3).join(', ')}.`);
     lines.push(`Wants: ${p.goals.long.text}. Right now: ${p.goals.short.text}. Tells when hiding something: ${p.tells.join(', ') || 'none'}.`);
     lines.push(`Mood: ${moodWord(c.mood)}. Most pressing need: ${pressingNeed(c)}.`);
@@ -40,10 +44,7 @@ export function pressingNeed(c: Character): string {
 }
 
 export function relationshipLine(s: GameState, a: string, b: string): string {
-  const summary = s.pairSummary[`${a}>${b}`];
-  if (summary) return summary;
-  const r = rel(s, a, b);
-  return `${firstName(s, a)}→${firstName(s, b)}: affinity ${Math.round(r.affinity)}, romance ${Math.round(r.romance)}, tension ${Math.round(r.tension)}, trust ${Math.round(r.trust)}.`;
+  return pairSummaryText(s, a, b);
 }
 
 export function memoriesBlock(s: GameState, charId: string, involving: string[], k = 3): string {

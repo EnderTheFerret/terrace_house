@@ -1,10 +1,10 @@
 // City map: pixel-art canvas rendered from content/city.json, reachable nodes highlighted by remaining slot cost.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { content, reachability, shiftToday, WAGE, CONTRACT_BONUS, ACTIVITY_MINUTES, type PlayerAction, type CityNode } from '@shared-roof/shared';
+import { content, reachability, shiftToday, WAGE, CONTRACT_BONUS, ACTIVITY_MINUTES, GIFT_ITEMS, type PlayerAction, type CityNode } from '@shared-roof/shared';
 import { useGame } from '../store';
 import { TopBar, StudioStrip, slotLabel } from '../components/layout';
 import { Btn, Modal, Panel } from '../components/ui';
-import { sprite } from '../pixel/sprites';
+import { sprite, useCharacterSprites } from '../pixel/sprites';
 
 const DAY = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const W = 320;
@@ -25,7 +25,7 @@ function drawMap(ctx: CanvasRenderingContext2D, slot: string) {
     for (let x = 0; x < W; x += 4) {
       const gx = (x - 12) / 2.96;
       const gy = (y - 10) / 2.02;
-      const sea = gx + gy * 0.9 > 150 || (gy > 92 && gx > 40);
+      const sea = gx < 12;
       if (sea) {
         ctx.fillStyle = (x + y) % 24 === 0 ? '#b6dcef' : '#8fc6e0';
       } else {
@@ -86,7 +86,7 @@ function drawMap(ctx: CanvasRenderingContext2D, slot: string) {
   ctx.fillRect(0, 0, W, H);
 }
 
-const ACT_LABEL: Record<string, string> = { date: 'go on a date', wander: 'wander around', work: 'work a shift', shop: 'go shopping', karaoke: 'karaoke', eat: 'eat out', invite: 'invite housemates' };
+const ACT_LABEL: Record<string, string> = { date: 'go on a date', wander: 'wander around', work: 'work a shift', shop: 'go shopping', karaoke: 'karaoke', eat: 'eat out', invite: 'invite housemates', gift: 'buy a gift' };
 
 export function CityMap() {
   const { view, act, busy, goBack, setScreen } = useGame();
@@ -95,8 +95,14 @@ export function CityMap() {
   const [activity, setActivity] = useState<string>('wander');
   const [invite, setInvite] = useState<string>('');
   const [contract, setContract] = useState(false);
+  const [item, setItem] = useState('flowers');
   const [scale, setScale] = useState(3);
-  const reach = useMemo(() => (view ? reachability('house', view.slot as never, view.money, view.carFree) : []), [view]);
+  useCharacterSprites(view?.characters.filter(c => c.isPlayer) ?? []);
+  const reach = useMemo(() => {
+    if (!view) return [];
+    const booked = view.carPlanNode ? reachability('house', view.slot as never, view.money, true, 180 - view.minutesLeft, view.weekday).find((r) => r.node === view.carPlanNode) : undefined;
+    return reachability('house', view.slot as never, view.money, view.carFree, 180 - view.minutesLeft, view.weekday).map((r) => booked?.node === r.node ? booked : r);
+  }, [view]);
   const byNode = Object.fromEntries(reach.map((r) => [r.node, r]));
 
   useEffect(() => {
@@ -110,6 +116,7 @@ export function CityMap() {
     const c = ref.current;
     if (!c || !view) return;
     const ctx = c.getContext('2d')!;
+    ctx.setTransform(2, 0, 0, 2, 0, 0);
     ctx.imageSmoothingEnabled = false;
     let raf = 0;
     const base = document.createElement('canvas');
@@ -135,7 +142,7 @@ export function CityMap() {
         }
       }
       const home = content().city.nodes.find((n) => n.id === 'house')!;
-      ctx.drawImage(sprite(me.id, me.appearance, 'down', Math.floor(t / 400) % 2 ? 0 : 1), mx(home.x) - 8, my(home.y) - 26);
+      ctx.drawImage(sprite(me.id, me.appearance, 'down', Math.floor(t / 400) % 2 ? 0 : 1, me.portraitSeed, me.appearanceText), mx(home.x) - 8, my(home.y) - 26, 16, 20);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -155,7 +162,7 @@ export function CityMap() {
   const go = () => {
     if (!sel) return;
     const r = byNode[sel.id];
-    const a: PlayerAction = { type: 'goOut', node: sel.id, activity: activity as never, invite: needsInvite ? invite || undefined : undefined, useCar: r?.needsCar, contract: activity === 'work' && contract };
+    const a: PlayerAction = { type: 'goOut', node: sel.id, activity: activity as never, invite: needsInvite ? invite || undefined : undefined, useCar: r?.needsCar, contract: activity === 'work' && contract, item: activity === 'gift' ? item : undefined };
     setSel(null);
     void act(a);
   };
@@ -173,7 +180,7 @@ export function CityMap() {
       <main className="flex min-h-0 flex-1 gap-4 p-3">
         <div className="relative flex flex-1 items-center justify-center overflow-hidden">
           <div className="relative" style={{ width: W * scale, height: H * scale }}>
-            <canvas ref={ref} width={W} height={H} className="pixelated px-panel block cursor-pointer" style={{ width: W * scale, height: H * scale }} onClick={onCanvasClick} aria-label="city map of Minatohama. use the destination list to choose with the keyboard." />
+            <canvas ref={ref} width={W * 2} height={H * 2} className="pixelated px-panel block cursor-pointer" style={{ width: W * scale, height: H * scale }} onClick={onCanvasClick} aria-label="city map of Tel Aviv. use the destination list to choose with the keyboard." />
             {nodes.map((n) => (
               <span key={n.id} className={`pointer-events-none absolute -translate-x-1/2 whitespace-nowrap bg-paper/80 px-1 text-[0.6rem] ${byNode[n.id]?.reachable ? '' : 'opacity-50'}`} style={{ left: mx(n.x) * scale, top: (my(n.y) + 7) * scale }}>
                 {n.name}
@@ -181,7 +188,7 @@ export function CityMap() {
             ))}
           </div>
         </div>
-        <Panel title={`${slotLabel(view.slot)} · where to? (${180 - ACTIVITY_MINUTES} min travel max)`} className="flex w-96 shrink-0 flex-col overflow-hidden">
+        <Panel title={`${slotLabel(view.slot)} · where to? (${Math.max(0, view.minutesLeft - ACTIVITY_MINUTES)} min for travel there and back)`} className="flex w-96 shrink-0 flex-col overflow-hidden">
           <ul className="flex-1 overflow-y-auto pr-1 text-sm scroll-thin">
             {nodes
               .map((n) => ({ n, r: byNode[n.id] }))
@@ -192,7 +199,7 @@ export function CityMap() {
                     className={`mb-1 flex w-full items-center gap-2 px-2 py-1 text-left ${sel?.id === n.id ? 'bg-[#fde4dc]' : 'hover:bg-[#fff1dd]'} ${r?.reachable ? '' : 'opacity-60'}`}
                     disabled={!r?.reachable}
                     onClick={() => pick(n)}
-                    aria-label={`${n.name}, ${Number.isFinite(r?.minutes) ? `${r!.minutes} minutes${r!.needsCar ? ' by car' : ''}` : 'no route'}, ${r?.reason ?? (r && r.cost ? `${r.cost} yen` : 'free')}`}
+                    aria-label={`${n.name}, ${Number.isFinite(r?.minutes) ? `${r!.minutes} minutes${r!.needsCar ? ' by car' : ''}` : 'no route'}, ${r?.reason ?? (r && r.cost ? `${r.cost} shekels` : 'free')}`}
                   >
                     <span className="flex-1">
                       {n.name}
@@ -201,7 +208,7 @@ export function CityMap() {
                     <span className="text-right text-xs">
                       {Number.isFinite(r?.minutes) ? `${r!.minutes} min` : '—'}
                       {r?.needsCar ? ' 🚗' : ''}
-                      <span className="caption block">{r?.reason ?? (r && r.cost ? `¥${r.cost}` : 'free')}</span>
+                      <span className="caption block">{r?.reason ?? (r && r.cost ? `₪${r.cost}` : 'free')}</span>
                     </span>
                   </button>
                 </li>
@@ -217,7 +224,7 @@ export function CityMap() {
               {content().city.nodes.find((n) => n.id === view.job!.nodeId)?.name}, {slotLabel(view.job.slot)} {view.job.weekdays.map((d) => DAY[d]).join('/')}
             </p>
           )}
-          <p className="caption mt-1 text-xs">shared car: {view.carFree ? 'available' : 'taken'}</p>
+          <p className="caption mt-1 text-xs">shared car: {view.carFree ? 'available' : view.carPlanNode ? 'reserved for your plan' : 'taken'}</p>
         </Panel>
       </main>
       <StudioStrip />
@@ -227,10 +234,10 @@ export function CityMap() {
           <fieldset className="mb-3">
             <legend className="caption mb-1 text-xs">what will you do?</legend>
             <div className="flex flex-wrap gap-2">
-              {sel.activities.map((a) => (
+              {[...sel.activities, ...(sel.activities.includes('shop') && !sel.activities.includes('gift') ? ['gift'] : [])].map((a) => (
                 <button key={a} aria-pressed={activity === a} className={`px-btn text-xs ${activity === a ? 'px-btn-primary' : ''}`} onClick={() => setActivity(a)}>
                   {ACT_LABEL[a] ?? a}
-                  {a === 'work' ? ` (+¥${WAGE[sel.id] ?? 2500})` : ''}
+                  {a === 'work' ? ` (+₪${WAGE[sel.id] ?? 2500})` : ''}
                 </button>
               ))}
             </div>
@@ -239,8 +246,8 @@ export function CityMap() {
             <label className="mb-3 flex items-center gap-2 text-sm">
               <input type="checkbox" checked={contract} disabled={view.job?.nodeId === sel.id} onChange={(e) => setContract(e.target.checked)} />
               {view.job?.nodeId === sel.id
-                ? `you work here: ${slotLabel(view.job.slot)}, ${view.job.weekdays.map((d) => DAY[d]).join('/')} (¥${view.job.wage})`
-                : `sign a contract: this time slot, 3 fixed days a week, ¥${Math.round((WAGE[sel.id] ?? 2500) * CONTRACT_BONUS)} a shift${view.job ? ' (replaces your current job)' : ''}`}
+                ? `you work here: ${slotLabel(view.job.slot)}, ${view.job.weekdays.map((d) => DAY[d]).join('/')} (₪${view.job.wage})`
+                : `sign a contract: this time slot, 3 fixed days a week, ₪${Math.round((WAGE[sel.id] ?? 2500) * CONTRACT_BONUS)} a shift${view.job ? ' (replaces your current job)' : ''}`}
             </label>
           )}
           {needsInvite && (
@@ -254,12 +261,15 @@ export function CityMap() {
               </select>
             </label>
           )}
+          {activity === 'gift' && <label className="mb-3 flex items-center gap-2 text-sm">gift
+            <select aria-label="buy gift" className="px-panel-soft px-2 py-1" value={item} onChange={(e) => setItem(e.target.value)}>{Object.entries(GIFT_ITEMS).map(([id, g]) => <option key={id} value={id}>{id} · ₪{g.price}</option>)}</select>
+          </label>}
           <p className="caption mb-3 text-xs">
-            {byNode[sel.id]?.minutes} min away{byNode[sel.id]?.needsCar ? ' by car' : ''} · costs ¥{byNode[sel.id]?.cost ?? 0}
+            {byNode[sel.id]?.minutes} min away{byNode[sel.id]?.needsCar ? ' by car' : ''} · costs ₪{byNode[sel.id]?.cost ?? 0}
           </p>
           <div className="flex gap-3">
             <Btn primary disabled={busy || (needsInvite && !invite)} onClick={go} autoFocus>
-              go
+              {activity === 'gift' ? 'buy and return' : 'go'}
             </Btn>
             <Btn onClick={() => setSel(null)}>cancel</Btn>
           </div>

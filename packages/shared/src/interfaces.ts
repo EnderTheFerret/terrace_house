@@ -22,7 +22,7 @@ export interface LlmClient {
   stream(req: LlmRequest): AsyncIterable<string>;
 }
 
-export type ImageKind = 'portrait' | 'scene' | 'freeze' | 'avatar' | 'location';
+export type ImageKind = 'portrait' | 'scene' | 'freeze' | 'avatar' | 'location' | 'sprite';
 
 export interface ImageRequest {
   kind: ImageKind;
@@ -33,8 +33,10 @@ export interface ImageRequest {
   height: number;
   /** stable key for placeholder palettes / prebaked asset lookup, e.g. "portrait:ren:1101" */
   subjectKey: string;
-  /** local file of an approved portrait to keep the face consistent (used by a reference workflow, if configured) */
+  /** Local portrait or style reference (used by the reference workflow, if configured). */
   reference?: string;
+  /** Optional second reference, e.g. a sprite direction/layout guide. */
+  reference2?: string;
   /** structured hints for procedural placeholders */
   meta?: {
     appearance?: import('./model').Appearance;

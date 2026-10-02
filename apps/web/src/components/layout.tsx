@@ -6,12 +6,12 @@ import { api, waitImage, type ImageStatus } from '../api';
 import { HealthBadge, Modal, Btn, Tag } from './ui';
 import { PixelImage } from './pixel';
 
-const SLOT_LABEL: Record<string, string> = { morning: 'morning', slot1: 'late morning', slot2: 'afternoon', slot3: 'early evening', evening: 'night' };
-const WEATHER_ICON: Record<string, string> = { sunny: '☀', cloudy: '☁', rain: '☂', typhoon: '🌀', snow: '❄' };
+const SLOT_LABEL: Record<string, string> = { morning: 'morning', slot1: 'late morning', slot2: 'afternoon', slot3: 'early evening', evening: 'night', lateNight: 'late night' };
+const WEATHER_ICON: Record<string, string> = { sunny: '☀', cloudy: '☁', rain: '☂', heatwave: '♨' };
 export const slotLabel = (s: string) => SLOT_LABEL[s] ?? s;
 
 export function TopBar() {
-  const { view, setScreen, settings } = useGame();
+  const { view, setScreen, settings, phoneRead } = useGame();
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return;
@@ -24,19 +24,23 @@ export function TopBar() {
     return () => window.removeEventListener('keydown', k);
   }, [setScreen, settings.author]);
   if (!view) return null;
+  const notifications = Math.max(0, view.groupChat.messages.length - (phoneRead.group ?? 0)) + view.chats.reduce((n, t) => n + Math.max(0, t.messages.length - (phoneRead[t.with] ?? 0)), 0) + view.invitations.filter((p) => p.to === view.playerId && p.status === 'pending').length;
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b-[3px] border-ink bg-paper px-3 py-2 text-sm">
-      <span className="text-base">ep {view.episode}{view.seasonLength < 1000 && <span className="caption">/{view.seasonLength}</span>}</span>
+      <span className="text-base">ep {view.episode}{view.seasonLength > 0 && view.seasonLength < 1000 && <span className="caption">/{view.seasonLength}</span>}{view.finaleEpisode && <span className="caption"> · finale announced</span>}</span>
       <span className="caption">{view.dateLabel}</span>
-      <span>{slotLabel(view.slot)}</span>
+      <span>
+        {slotLabel(view.slot)} <span className="caption">{view.clock}</span>
+      </span>
       <span title={view.weather} aria-label={`weather: ${view.weather}`}>
         {WEATHER_ICON[view.weather] ?? ''} <span className="caption">{view.weather}</span>
       </span>
       {view.cityEvent && <span className="px-1" style={{ background: '#f6d48f', boxShadow: '0 0 0 1px var(--color-ink)' }}>today: {view.cityEvent.name}</span>}
-      <span>¥{view.money.toLocaleString()}</span>
+      <span title={`tomorrow: ${view.forecast}`}>tomorrow: {WEATHER_ICON[view.forecast] ?? ''} {view.forecast}</span>
+      <span>₪{view.money.toLocaleString()}</span>
       <span className="ml-auto flex flex-wrap items-center gap-2">
         <HealthBadge />
-        <button className="px-btn text-xs" onClick={() => setScreen('phone')} title="phone (p)">phone</button>
+        <button aria-label="phone" className="px-btn text-xs" onClick={() => setScreen('phone')} title={`phone (p)${notifications ? ` · ${notifications} notifications` : ''}`}>phone{notifications > 0 && <span aria-hidden> ●</span>}</button>
         <button className="px-btn text-xs" onClick={() => setScreen('board')} title="relationships (b)">board</button>
         <button className="px-btn text-xs" onClick={() => setScreen('bible')} title="housemates (i)">bible</button>
         <button className="px-btn text-xs" onClick={() => setScreen('fridge')} title="fridge & chores (f)">fridge</button>

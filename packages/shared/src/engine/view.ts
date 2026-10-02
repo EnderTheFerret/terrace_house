@@ -1,10 +1,12 @@
 // Player-facing projection: only what the player knows, with reliability tags. Hidden state never leaves the server.
-import type { Appearance, BeliefEntry, Character, GameState, KnowledgeSource, Prediction } from '../model';
+import type { Appearance, BeliefEntry, Character, GameState, KnowledgeSource, Prediction, Invitation, FeedPost } from '../model';
+import { carPlanNode } from './city';
 import { ROOMS, TRAIT_NAMES } from '../model';
 import { content } from '../content';
-import { coupleOf, flag, housemates, isRoom, placeName, rel } from './core';
+import { clockLabel, coupleOf, flag, housemates, isRoom, placeName, rel, SLOT_MINUTES } from './core';
 import { dateLabel } from './calendar';
 import { jobOf } from './agents';
+import { pairSummaryText, topMemories } from './memory';
 import { moodWord, teaserLine } from '../gen/mock';
 import { uk } from '../util';
 
@@ -19,6 +21,7 @@ export interface CharView {
   hometown: string;
   appearance: Appearance;
   appearanceTags: string[];
+  appearanceText: string;
   portraitSeed: number;
   isPlayer: boolean;
   status: 'inHouse' | 'left';
@@ -32,6 +35,9 @@ export interface CharView {
   leaving: boolean;
   /** what they're doing right now (only when you can see them) */
   activity: string | null;
+  bark: string | null;
+  floor: number | null;
+  activityUntil: number;
 }
 
 export interface BoardEdge {
@@ -57,6 +63,9 @@ export interface BibleEntry {
   secret?: { text: string; reliability: Reliability };
   values?: string[];
   knownFacts: { text: string; reliability: Reliability }[];
+  routines?: string[];
+  diet?: string;
+  sharedHistory: { summary: string; memories: { text: string; episode: number }[] };
 }
 
 export interface DigestEntry {
@@ -71,7 +80,18 @@ export interface PlayerView {
   seed: number;
   episode: number;
   seasonLength: number;
+  finaleEpisode: number | null;
+  forecast: string;
+  timeline: GameState['timeline'];
+  invitations: Invitation[];
+  approaches: GameState['approaches'];
+  feed: FeedPost[];
+  inventory: string[];
+  goals: { long: string; short: string; career?: { title: string; act: number; completed: boolean } };
   slot: string;
+  /** clock time inside the block, e.g. "11:20" */
+  clock: string;
+  minutesLeft: number;
   weekday: number;
   dateLabel: string;
   weather: string;
@@ -88,6 +108,7 @@ export interface PlayerView {
   /** your character graduated: create the next one to keep playing */
   awaitingPlayer: boolean;
   carFree: boolean;
+  carPlanNode: string | null;
   job: GameState['world']['playerJob'];
   characters: CharView[];
   occupancy: Record<string, string[]> | null;
@@ -108,6 +129,7 @@ export interface PlayerView {
     labeledFood: { item: string; owner: string; eaten: boolean }[];
     rules: string[];
     groceryBudget: number;
+    kitchen: GameState['house']['kitchen'];
   };
   predictions: Prediction[];
   references: { text: string; kind: string; members: string[] }[];
@@ -131,13 +153,14 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
   const playerHome = isRoom(P.location);
   const kn = s.knowledge[P.id] ?? {};
   const characters: CharView[] = Object.values(s.characters).map((c) => {
-    const visible = c.status === 'inHouse' && (c.isPlayer || (playerHome && isRoom(c.location)) || c.location === P.location);
+    const room = content().house.rooms.find((r) => r.id === c.location);
+    const visible = c.status === 'inHouse' && (c.isPlayer || (playerHome && isRoom(c.location) && !room?.private) || c.location === P.location);
     const cp = coupleOf(s, c.id);
     const partner = cp ? (cp.a === c.id ? cp.b : cp.a) : undefined;
     const partnerKnown = partner && (c.isPlayer || partner === P.id || Object.keys(kn).some((fid) => s.facts[fid]?.kind === 'couple' && [s.facts[fid].subject, s.facts[fid].about].includes(c.id)));
     return {
       id: c.id, name: c.name, age: c.age, gender: c.gender, occupation: c.occupation, hometown: c.hometown, appearance: c.appearance,
-      appearanceTags: c.appearanceTags, portraitSeed: c.portraitSeed, isPlayer: c.isPlayer, status: c.status, leftReason: c.leftReason, arrivedEp: c.arrivedEp,
+      appearanceTags: c.appearanceTags, appearanceText: c.appearanceText, portraitSeed: c.portraitSeed, isPlayer: c.isPlayer, status: c.status, leftReason: c.leftReason, arrivedEp: c.arrivedEp,
       mood: visible ? moodWord(c.mood) : null,
       moodValue: visible ? Math.round(c.mood * 100) / 100 : null,
       location: visible ? c.location : c.status === 'inHouse' && !isRoom(c.location) ? 'out' : null,
@@ -145,9 +168,12 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
       isNew: !!flag(s, `new_${c.id}`) && (flag(s, `new_${c.id}`) as number) >= s.world.episode - 1,
       leaving: !!flag(s, `leaving_${c.id}`),
       activity: visible && !c.isPlayer ? (c.lastAction ?? null) : null,
+      bark: visible && !c.isPlayer && !['sleep', 'work'].includes(c.lastAction ?? '') ? barkFor(s, c) : null,
+      floor: room && visible ? room.floor : null,
+      activityUntil: visible ? c.activityUntil : 0,
     };
   });
-  const occupancy = playerHome ? Object.fromEntries(ROOMS.map((r) => [r, hm.filter((c) => c.location === r).map((c) => c.id)])) : null;
+  const occupancy = playerHome ? Object.fromEntries(ROOMS.map((r) => [r, hm.filter((c) => c.location === r && characters.find((v) => v.id === c.id)?.location === r).map((c) => c.id)])) : null;
   const board: BoardEdge[] = [];
   for (const a of hm)
     for (const b of hm) {
@@ -177,6 +203,10 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
       const traitWords = p.traits.map((t, i) => (t > 0.7 ? `high ${TRAIT_NAMES[i]}` : t < 0.3 ? `low ${TRAIT_NAMES[i]}` : null)).filter(Boolean).join(', ');
       return {
         id: c.id,
+        sharedHistory: {
+          summary: pairSummaryText(s, P.id, c.id),
+          memories: topMemories(s, P.id, 5, [c.id]).map((m) => ({ text: m.text, episode: m.episode })),
+        },
         hobbies: closeness >= 8 ? p.routine.hobbies : undefined,
         work: closeness >= 8 ? workLine(c) : undefined,
         traits: closeness >= 18 ? traitWords || 'hard to read' : undefined,
@@ -187,6 +217,8 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
         backstory: toMe.trust >= 55 ? p.backstory : undefined,
         secret: sec && p.secret ? { text: p.secret.content, reliability: reliabilityOf(sec.source) } : undefined,
         knownFacts: facts,
+        routines: s.observedRoutines[c.id],
+        diet: closeness >= 8 ? `${p.diet}; ${p.kashrut === 'none' ? 'no kashrut preference' : p.kashrut === 'strict' ? 'strict kosher' : 'kosher-style'}${p.keepsShabbat ? '; keeps Shabbat' : ''}` : undefined,
       };
     });
   const digest: DigestEntry[] = Object.entries(kn)
@@ -212,7 +244,17 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
     seed: s.seed,
     episode: s.world.episode,
     seasonLength: s.seasonLength,
+    finaleEpisode: s.finaleEpisode,
+    forecast: s.world.forecast,
+    timeline: s.timeline.filter((t) => t.episode >= s.world.episode - 1),
+    invitations: s.invitations.filter((p) => [p.from, p.to].includes(P.id) || p.status === 'accepted'),
+    approaches: s.approaches.filter((p) => s.characters[p.from]?.status === 'inHouse'),
+    feed: s.feed,
+    inventory: s.inventory,
+    goals: { long: P.persona.goals.long.text, short: P.persona.goals.short.text, career: s.arcs[P.id] ? { title: content().arcs.find((a) => a.id === s.arcs[P.id].arcId)?.title ?? 'Your career', act: s.arcs[P.id].act, completed: s.arcs[P.id].outcome === 'complete' } : undefined },
     slot: s.world.slot,
+    clock: clockLabel(s.world.slot, s.world.minutes),
+    minutesLeft: SLOT_MINUTES - s.world.minutes,
     weekday: s.world.weekday,
     dateLabel: dateLabel(s.world.day),
     weather: s.world.weather,
@@ -228,6 +270,7 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
     canGraduate: (flag(s, 'canGraduate') as string) ?? null,
     awaitingPlayer: s.awaitingPlayer,
     carFree: s.world.carUsedBy === null,
+    carPlanNode: carPlanNode(s),
     job: s.world.playerJob,
     characters,
     occupancy,
@@ -248,6 +291,7 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
       labeledFood: s.house.labeledFood.map((f) => ({ item: f.item, owner: f.owner, eaten: !!f.eatenBy })),
       rules: s.house.rules,
       groceryBudget: s.house.groceryBudget,
+      kitchen: s.house.kitchen,
     },
     predictions: s.predictions,
     references: s.references.filter((r) => r.members.includes(P.id)).map((r) => ({ text: r.text, kind: r.kind, members: r.members })),
@@ -259,7 +303,18 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
 export const roomName = (id: string) => placeName(id);
 
 const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const SLOT_WORD: Record<string, string> = { morning: 'mornings', slot1: 'late mornings', slot2: 'afternoons', slot3: 'early evenings', evening: 'nights' };
+const SLOT_WORD: Record<string, string> = { morning: 'mornings', slot1: 'late mornings', slot2: 'afternoons', slot3: 'early evenings', evening: 'nights', lateNight: 'late nights' };
+
+function barkFor(s: GameState, c: Character): string {
+  if (c.location === 'kitchen' && s.house.dishes > 60 && c.persona.traits[1] > 0.6) return 'Who left all these dishes?';
+  if (c.lastAction === 'cook') return 'Taste this for me?';
+  if (c.lastAction === 'eat') return 'Anyone want the last bite?';
+  if (c.lastAction === 'text') return 'Wait, they actually replied.';
+  if (s.world.weather === 'heatwave') return 'Can we turn the aircon down?';
+  if (s.world.slot === 'lateNight') return 'Couldn’t sleep either?';
+  if (c.lastAction === 'hobby') return `A little ${c.persona.routine.hobbies[0]} before dinner.`;
+  return c.mood < -0.3 ? 'Long day. Give me a minute.' : 'Hey. How was your day?';
+}
 /** "night shifts at Minatohama Hospital, Mon/Wed/Fri/Sat" */
 export function workLine(c: Character): string {
   const slots = c.persona.routine.jobSlots;

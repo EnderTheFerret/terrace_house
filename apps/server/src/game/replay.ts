@@ -1,9 +1,10 @@
 // Deterministic replay of an events_log: re-applies engine steps in the same order the session used.
 import {
   autoChoices, createGame, finishSlot, panelPrediction, planSlot, proposeOutcome, recordCommentary, resolveScene, applyCooking,
-  joinNewPlayer, recordChat, recordPlayerWords,
+  joinNewPlayer, recordChat, recordPlayerWords, passTime,
   type EventInstance, type GameState,
 } from '@shared-roof/shared';
+import { applyCharacterSnapshot } from './personas';
 
 export interface LoggedEvent {
   seq: number;
@@ -52,8 +53,17 @@ export function replayEvents(events: LoggedEvent[]): GameState {
       case 'chat':
         s = recordChat(s!, p.a, p.b, p.lines);
         break;
+      case 'time':
+        s = passTime(s!, p.lines);
+        break;
       case 'new-player':
         s = joinNewPlayer(s!, p.setup);
+        break;
+      case 'generated-character':
+        applyCharacterSnapshot(s!, p.character);
+        break;
+      case 'appearance-palette':
+        if (s!.characters[p.id]?.portraitSeed === p.portraitSeed) s!.characters[p.id].appearance.palette = p.palette;
         break;
     }
   }

@@ -1,0 +1,50 @@
+{
+  "prompt_id": "daf06ad4-ed3e-4316-9caa-eb5faec78a8b",
+  "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+      [
+        "execution_start",
+        {
+          "prompt_id": "daf06ad4-ed3e-4316-9caa-eb5faec78a8b",
+          "timestamp": 1790935976282
+        }
+      ],
+      [
+        "execution_cached",
+        {
+          "nodes": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "8",
+            "9",
+            "12",
+            "13",
+            "15",
+            "17",
+            "18"
+          ],
+          "prompt_id": "daf06ad4-ed3e-4316-9caa-eb5faec78a8b",
+          "timestamp": 1790935976345
+        }
+      ],
+      [
+        "execution_success",
+        {
+          "prompt_id": "daf06ad4-ed3e-4316-9caa-eb5faec78a8b",
+          "timestamp": 1790936023633
+        }
+      ]
+    ]
+  },
+  "image": {
+    "filename": "mio_00003_.png",
+    "subfolder": "shared_roof_sprite_tests",
+    "type": "output"
+  }
+}

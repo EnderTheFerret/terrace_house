@@ -2,7 +2,7 @@
 import { applyCooking } from '@shared-roof/shared';
 import type { GameSession } from './session';
 
-export function applyCookingResult(session: GameSession, b: { recipeId: string; quality: number; partner?: string; servedTo: string[] }) {
+export function applyCookingResult(session: GameSession, b: { recipeId: string; quality: number; partner?: string; servedTo: string[]; utensil?: 'meat' | 'dairy' | 'parve' }) {
   const s = session.state;
   if (!s) throw new Error('no game in progress');
   const r = applyCooking(s, { ...b, cook: s.playerId });

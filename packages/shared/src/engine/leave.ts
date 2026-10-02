@@ -106,7 +106,7 @@ export function depart(s: GameState, c: Character) {
   s.budgets.farewells++;
   addLog(s, { kind: 'departure', text: `${c.name} ${c.leftReason}.`, participants: [c.id], salience: 0.9 });
   // whoever graduates, someone new moves in (same gender, as on the show) unless the season ends today
-  if (!c.isPlayer && s.world.episode < s.seasonLength) s.pendingArrivals.push({ gender: c.gender, ep: s.world.episode });
+  if (!c.isPlayer && (s.seasonLength === 0 || s.world.episode < s.seasonLength) && (s.finaleEpisode === null || s.world.episode < s.finaleEpisode)) s.pendingArrivals.push({ gender: c.gender, ep: s.world.episode });
 }
 
 /** Process pending arrivals: generate a replacement and wire them into every system. */

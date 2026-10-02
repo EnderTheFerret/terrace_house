@@ -1,99 +1,1117 @@
 {
   "recipes": [
     {
-      "id": "miso-soup", "name": "Miso Soup", "description": "The house default. Hard to ruin, easy to make forgettable.",
-      "ingredients": { "tofu": 1, "miso": 1, "scallion": 1 }, "taste": [0.6, 0.1, 0.0, 0.9, 0.2, 0.8], "timeBudget": 70, "serves": 4, "difficulty": 1,
+      "id": "miso-soup",
+      "name": "Lentil Soup",
+      "description": "A Tel Aviv house favorite. Ask who is eating before you start.",
+      "ingredients": {
+        "lentils": 2,
+        "onion": 1,
+        "carrot": 1
+      },
+      "taste": [
+        0.6,
+        0.1,
+        0.0,
+        0.9,
+        0.2,
+        0.8
+      ],
+      "timeBudget": 70,
+      "serves": 4,
+      "difficulty": 1,
       "steps": [
-        { "id": "tofu", "type": "chop", "label": "dice the tofu", "deps": [], "seconds": 10, "weight": 1, "params": { "beats": 8, "bpm": 100, "window": 160 } },
-        { "id": "scallion", "type": "chop", "label": "slice green onion", "deps": [], "seconds": 8, "weight": 0.7, "params": { "beats": 6, "bpm": 120, "window": 150 } },
-        { "id": "dashi", "type": "boil", "label": "bring the dashi just to a simmer", "deps": [], "seconds": 14, "weight": 1.2, "params": { "target": [8, 10.5], "max": 16 } },
-        { "id": "miso", "type": "season", "label": "dissolve the miso", "deps": ["dashi", "tofu"], "seconds": 8, "weight": 1.5, "params": { "optimum": 0.55, "tolerance": 0.35, "label": "miso" } },
-        { "id": "plate", "type": "plate", "label": "ladle and garnish", "deps": ["miso", "scallion"], "seconds": 12, "weight": 0.8, "params": { "items": [{ "id": "bowl", "label": "bowl" }, { "id": "onion", "label": "scallion" }], "layout": [{ "id": "bowl", "x": 0.5, "y": 0.55 }, { "id": "onion", "x": 0.5, "y": 0.45 }] } }
-      ]
+        {
+          "id": "tofu",
+          "type": "chop",
+          "label": "chop the onion",
+          "deps": [],
+          "seconds": 10,
+          "weight": 1,
+          "params": {
+            "beats": 8,
+            "bpm": 100,
+            "window": 160
+          }
+        },
+        {
+          "id": "scallion",
+          "type": "chop",
+          "label": "slice the carrot",
+          "deps": [],
+          "seconds": 8,
+          "weight": 0.7,
+          "params": {
+            "beats": 6,
+            "bpm": 120,
+            "window": 150
+          }
+        },
+        {
+          "id": "dashi",
+          "type": "boil",
+          "label": "simmer the lentils",
+          "deps": [],
+          "seconds": 14,
+          "weight": 1.2,
+          "params": {
+            "target": [
+              8,
+              10.5
+            ],
+            "max": 16
+          }
+        },
+        {
+          "id": "miso",
+          "type": "season",
+          "label": "season the soup",
+          "deps": [
+            "dashi",
+            "tofu"
+          ],
+          "seconds": 8,
+          "weight": 1.5,
+          "params": {
+            "optimum": 0.55,
+            "tolerance": 0.35,
+            "label": "seasoning"
+          }
+        },
+        {
+          "id": "plate",
+          "type": "plate",
+          "label": "ladle and garnish",
+          "deps": [
+            "miso",
+            "scallion"
+          ],
+          "seconds": 12,
+          "weight": 0.8,
+          "params": {
+            "items": [
+              {
+                "id": "bowl",
+                "label": "lentils"
+              },
+              {
+                "id": "onion",
+                "label": "onion"
+              }
+            ],
+            "layout": [
+              {
+                "id": "bowl",
+                "x": 0.5,
+                "y": 0.55
+              },
+              {
+                "id": "onion",
+                "x": 0.5,
+                "y": 0.45
+              }
+            ]
+          }
+        }
+      ],
+      "category": "parve",
+      "diet": "vegan",
+      "kosher": true
     },
     {
-      "id": "curry-rice", "name": "House Curry", "description": "Feeds everyone. Everyone has opinions about it.",
-      "ingredients": { "onion": 1, "carrot": 1, "potato": 1, "pork": 1, "curry": 1, "rice": 2 }, "taste": [0.6, 0.3, 0.5, 0.7, 0.9, 0.3], "timeBudget": 110, "serves": 6, "difficulty": 2,
+      "id": "curry-rice",
+      "name": "Friday Chicken",
+      "description": "A Tel Aviv house favorite. Ask who is eating before you start.",
+      "ingredients": {
+        "onion": 1,
+        "carrot": 1,
+        "potato": 1,
+        "chicken": 1,
+        "spice": 1,
+        "rice": 2
+      },
+      "taste": [
+        0.6,
+        0.3,
+        0.5,
+        0.7,
+        0.9,
+        0.3
+      ],
+      "timeBudget": 110,
+      "serves": 6,
+      "difficulty": 2,
       "steps": [
-        { "id": "onion", "type": "chop", "label": "chop onions", "deps": [], "seconds": 10, "weight": 1, "params": { "beats": 10, "bpm": 110, "window": 150 } },
-        { "id": "veg", "type": "chop", "label": "cut carrot and potato", "deps": [], "seconds": 12, "weight": 1, "params": { "beats": 12, "bpm": 96, "window": 160 } },
-        { "id": "brown", "type": "saute", "label": "brown the pork and onions", "deps": ["onion"], "seconds": 15, "weight": 1.3, "params": { "duration": 12, "bandWidth": 0.28, "bandSpeed": 0.25, "heatRate": 0.55, "coolRate": 0.4 } },
-        { "id": "simmer", "type": "boil", "label": "simmer until tender", "deps": ["brown", "veg"], "seconds": 16, "weight": 1, "params": { "target": [10, 13], "max": 18 } },
-        { "id": "roux", "type": "season", "label": "stir in the roux", "deps": ["simmer"], "seconds": 8, "weight": 1.2, "params": { "optimum": 0.68, "tolerance": 0.3, "label": "roux" } },
-        { "id": "plate", "type": "plate", "label": "plate rice and curry", "deps": ["roux"], "seconds": 12, "weight": 0.8, "params": { "items": [{ "id": "rice", "label": "rice" }, { "id": "curry", "label": "curry" }, { "id": "pickle", "label": "pickles" }], "layout": [{ "id": "rice", "x": 0.35, "y": 0.5 }, { "id": "curry", "x": 0.62, "y": 0.52 }, { "id": "pickle", "x": 0.5, "y": 0.25 }] } }
-      ]
+        {
+          "id": "onion",
+          "type": "chop",
+          "label": "chop onions",
+          "deps": [],
+          "seconds": 10,
+          "weight": 1,
+          "params": {
+            "beats": 10,
+            "bpm": 110,
+            "window": 150
+          }
+        },
+        {
+          "id": "veg",
+          "type": "chop",
+          "label": "cut carrot and potato",
+          "deps": [],
+          "seconds": 12,
+          "weight": 1,
+          "params": {
+            "beats": 12,
+            "bpm": 96,
+            "window": 160
+          }
+        },
+        {
+          "id": "brown",
+          "type": "saute",
+          "label": "brown chicken and onions",
+          "deps": [
+            "onion"
+          ],
+          "seconds": 15,
+          "weight": 1.3,
+          "params": {
+            "duration": 12,
+            "bandWidth": 0.28,
+            "bandSpeed": 0.25,
+            "heatRate": 0.55,
+            "coolRate": 0.4
+          }
+        },
+        {
+          "id": "simmer",
+          "type": "boil",
+          "label": "simmer until tender",
+          "deps": [
+            "brown",
+            "veg"
+          ],
+          "seconds": 16,
+          "weight": 1,
+          "params": {
+            "target": [
+              10,
+              13
+            ],
+            "max": 18
+          }
+        },
+        {
+          "id": "roux",
+          "type": "season",
+          "label": "season the sauce",
+          "deps": [
+            "simmer"
+          ],
+          "seconds": 8,
+          "weight": 1.2,
+          "params": {
+            "optimum": 0.68,
+            "tolerance": 0.3,
+            "label": "seasoning"
+          }
+        },
+        {
+          "id": "plate",
+          "type": "plate",
+          "label": "plate rice and chicken",
+          "deps": [
+            "roux"
+          ],
+          "seconds": 12,
+          "weight": 0.8,
+          "params": {
+            "items": [
+              {
+                "id": "rice",
+                "label": "onion"
+              },
+              {
+                "id": "curry",
+                "label": "carrot"
+              },
+              {
+                "id": "pickle",
+                "label": "potato"
+              }
+            ],
+            "layout": [
+              {
+                "id": "rice",
+                "x": 0.35,
+                "y": 0.5
+              },
+              {
+                "id": "curry",
+                "x": 0.62,
+                "y": 0.52
+              },
+              {
+                "id": "pickle",
+                "x": 0.5,
+                "y": 0.25
+              }
+            ]
+          }
+        }
+      ],
+      "category": "meat",
+      "diet": "omnivore",
+      "kosher": true
     },
     {
-      "id": "tamagoyaki", "name": "Tamagoyaki", "description": "Rolled omelette. The roll is everything.",
-      "ingredients": { "egg": 3, "sugar": 1, "soy": 1 }, "taste": [0.4, 0.6, 0.0, 0.5, 0.4, 0.6], "timeBudget": 60, "serves": 2, "difficulty": 3,
+      "id": "tamagoyaki",
+      "name": "Shakshuka",
+      "description": "A Tel Aviv house favorite. Ask who is eating before you start.",
+      "ingredients": {
+        "egg": 3,
+        "tomato": 2,
+        "onion": 1
+      },
+      "taste": [
+        0.4,
+        0.6,
+        0.0,
+        0.5,
+        0.4,
+        0.6
+      ],
+      "timeBudget": 60,
+      "serves": 2,
+      "difficulty": 3,
       "steps": [
-        { "id": "mix", "type": "season", "label": "season the egg mix", "deps": [], "seconds": 8, "weight": 1, "params": { "optimum": 0.4, "tolerance": 0.25, "label": "sugar" } },
-        { "id": "roll", "type": "saute", "label": "roll the layers", "deps": ["mix"], "seconds": 16, "weight": 2, "params": { "duration": 14, "bandWidth": 0.18, "bandSpeed": 0.35, "heatRate": 0.6, "coolRate": 0.45 } },
-        { "id": "plate", "type": "plate", "label": "slice and plate", "deps": ["roll"], "seconds": 12, "weight": 1, "params": { "items": [{ "id": "s1", "label": "slice" }, { "id": "s2", "label": "slice" }, { "id": "s3", "label": "slice" }], "layout": [{ "id": "s1", "x": 0.3, "y": 0.5 }, { "id": "s2", "x": 0.5, "y": 0.5 }, { "id": "s3", "x": 0.7, "y": 0.5 }] } }
-      ]
+        {
+          "id": "mix",
+          "type": "season",
+          "label": "season the tomato sauce",
+          "deps": [],
+          "seconds": 8,
+          "weight": 1,
+          "params": {
+            "optimum": 0.4,
+            "tolerance": 0.25,
+            "label": "seasoning"
+          }
+        },
+        {
+          "id": "roll",
+          "type": "saute",
+          "label": "simmer sauce and set the eggs",
+          "deps": [
+            "mix"
+          ],
+          "seconds": 16,
+          "weight": 2,
+          "params": {
+            "duration": 14,
+            "bandWidth": 0.18,
+            "bandSpeed": 0.35,
+            "heatRate": 0.6,
+            "coolRate": 0.45
+          }
+        },
+        {
+          "id": "plate",
+          "type": "plate",
+          "label": "plate shakshuka",
+          "deps": [
+            "roll"
+          ],
+          "seconds": 12,
+          "weight": 1,
+          "params": {
+            "items": [
+              {
+                "id": "s1",
+                "label": "egg"
+              },
+              {
+                "id": "s2",
+                "label": "tomato"
+              },
+              {
+                "id": "s3",
+                "label": "onion"
+              }
+            ],
+            "layout": [
+              {
+                "id": "s1",
+                "x": 0.3,
+                "y": 0.5
+              },
+              {
+                "id": "s2",
+                "x": 0.5,
+                "y": 0.5
+              },
+              {
+                "id": "s3",
+                "x": 0.7,
+                "y": 0.5
+              }
+            ]
+          }
+        }
+      ],
+      "category": "parve",
+      "diet": "vegetarian",
+      "kosher": true
     },
     {
-      "id": "yakisoba", "name": "Yakisoba", "description": "Festival noise in a frying pan.",
-      "ingredients": { "noodles": 2, "cabbage": 1, "pork": 1, "soy": 1 }, "taste": [0.8, 0.4, 0.2, 0.6, 0.7, 0.3], "timeBudget": 75, "serves": 3, "difficulty": 2,
+      "id": "yakisoba",
+      "name": "Sabich",
+      "description": "A Tel Aviv house favorite. Ask who is eating before you start.",
+      "ingredients": {
+        "pita": 2,
+        "eggplant": 1,
+        "egg": 2,
+        "tahini": 1
+      },
+      "taste": [
+        0.8,
+        0.4,
+        0.2,
+        0.6,
+        0.7,
+        0.3
+      ],
+      "timeBudget": 75,
+      "serves": 3,
+      "difficulty": 2,
       "steps": [
-        { "id": "cabbage", "type": "chop", "label": "shred cabbage", "deps": [], "seconds": 10, "weight": 1, "params": { "beats": 12, "bpm": 130, "window": 140 } },
-        { "id": "fry", "type": "saute", "label": "fry noodles on high heat", "deps": ["cabbage"], "seconds": 14, "weight": 1.6, "params": { "duration": 12, "bandWidth": 0.24, "bandSpeed": 0.45, "heatRate": 0.7, "coolRate": 0.5 } },
-        { "id": "sauce", "type": "season", "label": "add sauce", "deps": ["fry"], "seconds": 8, "weight": 1.2, "params": { "optimum": 0.72, "tolerance": 0.3, "label": "sauce" } },
-        { "id": "plate", "type": "plate", "label": "top with nori and ginger", "deps": ["sauce"], "seconds": 12, "weight": 0.8, "params": { "items": [{ "id": "noodles", "label": "noodles" }, { "id": "ginger", "label": "ginger" }, { "id": "nori", "label": "nori" }], "layout": [{ "id": "noodles", "x": 0.5, "y": 0.55 }, { "id": "ginger", "x": 0.7, "y": 0.4 }, { "id": "nori", "x": 0.45, "y": 0.4 }] } }
-      ]
+        {
+          "id": "cabbage",
+          "type": "chop",
+          "label": "slice eggplant",
+          "deps": [],
+          "seconds": 10,
+          "weight": 1,
+          "params": {
+            "beats": 12,
+            "bpm": 130,
+            "window": 140
+          }
+        },
+        {
+          "id": "fry",
+          "type": "saute",
+          "label": "fry the eggplant",
+          "deps": [
+            "cabbage"
+          ],
+          "seconds": 14,
+          "weight": 1.6,
+          "params": {
+            "duration": 12,
+            "bandWidth": 0.24,
+            "bandSpeed": 0.45,
+            "heatRate": 0.7,
+            "coolRate": 0.5
+          }
+        },
+        {
+          "id": "sauce",
+          "type": "season",
+          "label": "mix tahini sauce",
+          "deps": [
+            "fry"
+          ],
+          "seconds": 8,
+          "weight": 1.2,
+          "params": {
+            "optimum": 0.72,
+            "tolerance": 0.3,
+            "label": "seasoning"
+          }
+        },
+        {
+          "id": "plate",
+          "type": "plate",
+          "label": "fill the pita",
+          "deps": [
+            "sauce"
+          ],
+          "seconds": 12,
+          "weight": 0.8,
+          "params": {
+            "items": [
+              {
+                "id": "noodles",
+                "label": "pita"
+              },
+              {
+                "id": "ginger",
+                "label": "eggplant"
+              },
+              {
+                "id": "nori",
+                "label": "egg"
+              }
+            ],
+            "layout": [
+              {
+                "id": "noodles",
+                "x": 0.5,
+                "y": 0.55
+              },
+              {
+                "id": "ginger",
+                "x": 0.7,
+                "y": 0.4
+              },
+              {
+                "id": "nori",
+                "x": 0.45,
+                "y": 0.4
+              }
+            ]
+          }
+        }
+      ],
+      "category": "parve",
+      "diet": "vegetarian",
+      "kosher": true
     },
     {
-      "id": "onigiri-set", "name": "Salmon Onigiri Set", "description": "Packed-lunch energy. Good for someone with an early shift.",
-      "ingredients": { "rice": 2, "salmon": 1, "nori": 1 }, "taste": [0.7, 0.1, 0.0, 0.8, 0.3, 0.4], "timeBudget": 80, "serves": 2, "difficulty": 2,
+      "id": "onigiri-set",
+      "name": "Hummus & Pita",
+      "description": "A Tel Aviv house favorite. Ask who is eating before you start.",
+      "ingredients": {
+        "chickpea": 2,
+        "tahini": 1,
+        "pita": 2
+      },
+      "taste": [
+        0.7,
+        0.1,
+        0.0,
+        0.8,
+        0.3,
+        0.4
+      ],
+      "timeBudget": 80,
+      "serves": 2,
+      "difficulty": 2,
       "steps": [
-        { "id": "rice", "type": "boil", "label": "cook the rice", "deps": [], "seconds": 16, "weight": 1.2, "params": { "target": [11, 13.5], "max": 18 } },
-        { "id": "salmon", "type": "season", "label": "salt the salmon", "deps": [], "seconds": 8, "weight": 1, "params": { "optimum": 0.6, "tolerance": 0.3, "label": "salt" } },
-        { "id": "nori", "type": "chop", "label": "cut nori strips", "deps": [], "seconds": 8, "weight": 0.6, "params": { "beats": 6, "bpm": 90, "window": 180 } },
-        { "id": "plate", "type": "plate", "label": "shape and arrange", "deps": ["rice", "salmon", "nori"], "seconds": 14, "weight": 1.2, "params": { "items": [{ "id": "o1", "label": "onigiri" }, { "id": "o2", "label": "onigiri" }, { "id": "pickle", "label": "pickle" }], "layout": [{ "id": "o1", "x": 0.35, "y": 0.5 }, { "id": "o2", "x": 0.6, "y": 0.5 }, { "id": "pickle", "x": 0.5, "y": 0.75 }] } }
-      ]
+        {
+          "id": "rice",
+          "type": "boil",
+          "label": "simmer chickpeas",
+          "deps": [],
+          "seconds": 16,
+          "weight": 1.2,
+          "params": {
+            "target": [
+              11,
+              13.5
+            ],
+            "max": 18
+          }
+        },
+        {
+          "id": "salmon",
+          "type": "season",
+          "label": "season with lemon",
+          "deps": [],
+          "seconds": 8,
+          "weight": 1,
+          "params": {
+            "optimum": 0.6,
+            "tolerance": 0.3,
+            "label": "seasoning"
+          }
+        },
+        {
+          "id": "nori",
+          "type": "chop",
+          "label": "slice warm pita",
+          "deps": [],
+          "seconds": 8,
+          "weight": 0.6,
+          "params": {
+            "beats": 6,
+            "bpm": 90,
+            "window": 180
+          }
+        },
+        {
+          "id": "plate",
+          "type": "plate",
+          "label": "spread hummus and garnish",
+          "deps": [
+            "rice",
+            "salmon",
+            "nori"
+          ],
+          "seconds": 14,
+          "weight": 1.2,
+          "params": {
+            "items": [
+              {
+                "id": "o1",
+                "label": "chickpea"
+              },
+              {
+                "id": "o2",
+                "label": "tahini"
+              },
+              {
+                "id": "pickle",
+                "label": "pita"
+              }
+            ],
+            "layout": [
+              {
+                "id": "o1",
+                "x": 0.35,
+                "y": 0.5
+              },
+              {
+                "id": "o2",
+                "x": 0.6,
+                "y": 0.5
+              },
+              {
+                "id": "pickle",
+                "x": 0.5,
+                "y": 0.75
+              }
+            ]
+          }
+        }
+      ],
+      "category": "parve",
+      "diet": "vegan",
+      "kosher": true
     },
     {
-      "id": "shortcake", "name": "Strawberry Shortcake", "description": "For birthdays and apologies.",
-      "ingredients": { "flour": 1, "egg": 2, "sugar": 1, "milk": 1, "strawberry": 1, "butter": 1 }, "taste": [0.1, 1.0, 0.0, 0.1, 0.7, 0.7], "timeBudget": 120, "serves": 6, "difficulty": 4,
+      "id": "shortcake",
+      "name": "Malabi",
+      "description": "A Tel Aviv house favorite. Ask who is eating before you start.",
+      "ingredients": {
+        "milk": 2,
+        "sugar": 1,
+        "rosewater": 1,
+        "strawberry": 1
+      },
+      "taste": [
+        0.1,
+        1.0,
+        0.0,
+        0.1,
+        0.7,
+        0.7
+      ],
+      "timeBudget": 120,
+      "serves": 6,
+      "difficulty": 4,
       "steps": [
-        { "id": "batter", "type": "season", "label": "sweeten the batter", "deps": [], "seconds": 8, "weight": 1, "params": { "optimum": 0.5, "tolerance": 0.22, "label": "sugar" } },
-        { "id": "bake", "type": "boil", "label": "bake the sponge", "deps": ["batter"], "seconds": 18, "weight": 1.5, "params": { "target": [12, 14], "max": 20 } },
-        { "id": "berries", "type": "chop", "label": "halve the strawberries", "deps": [], "seconds": 10, "weight": 1, "params": { "beats": 10, "bpm": 92, "window": 150 } },
-        { "id": "cream", "type": "saute", "label": "whip the cream (keep it steady)", "deps": [], "seconds": 14, "weight": 1, "params": { "duration": 12, "bandWidth": 0.3, "bandSpeed": 0.2, "heatRate": 0.5, "coolRate": 0.5 } },
-        { "id": "plate", "type": "plate", "label": "decorate the cake", "deps": ["bake", "berries", "cream"], "seconds": 18, "weight": 1.5, "params": { "items": [{ "id": "b1", "label": "berry" }, { "id": "b2", "label": "berry" }, { "id": "b3", "label": "berry" }, { "id": "b4", "label": "berry" }, { "id": "candle", "label": "candle" }], "layout": [{ "id": "b1", "x": 0.3, "y": 0.35 }, { "id": "b2", "x": 0.7, "y": 0.35 }, { "id": "b3", "x": 0.3, "y": 0.65 }, { "id": "b4", "x": 0.7, "y": 0.65 }, { "id": "candle", "x": 0.5, "y": 0.5 }] } }
-      ]
+        {
+          "id": "batter",
+          "type": "season",
+          "label": "sweeten the milk",
+          "deps": [],
+          "seconds": 8,
+          "weight": 1,
+          "params": {
+            "optimum": 0.5,
+            "tolerance": 0.22,
+            "label": "seasoning"
+          }
+        },
+        {
+          "id": "bake",
+          "type": "boil",
+          "label": "simmer the pudding",
+          "deps": [
+            "batter"
+          ],
+          "seconds": 18,
+          "weight": 1.5,
+          "params": {
+            "target": [
+              12,
+              14
+            ],
+            "max": 20
+          }
+        },
+        {
+          "id": "berries",
+          "type": "chop",
+          "label": "slice strawberries",
+          "deps": [],
+          "seconds": 10,
+          "weight": 1,
+          "params": {
+            "beats": 10,
+            "bpm": 92,
+            "window": 150
+          }
+        },
+        {
+          "id": "cream",
+          "type": "saute",
+          "label": "stir the rosewater",
+          "deps": [],
+          "seconds": 14,
+          "weight": 1,
+          "params": {
+            "duration": 12,
+            "bandWidth": 0.3,
+            "bandSpeed": 0.2,
+            "heatRate": 0.5,
+            "coolRate": 0.5
+          }
+        },
+        {
+          "id": "plate",
+          "type": "plate",
+          "label": "decorate the malabi",
+          "deps": [
+            "bake",
+            "berries",
+            "cream"
+          ],
+          "seconds": 18,
+          "weight": 1.5,
+          "params": {
+            "items": [
+              {
+                "id": "b1",
+                "label": "milk"
+              },
+              {
+                "id": "b2",
+                "label": "sugar"
+              },
+              {
+                "id": "b3",
+                "label": "rosewater"
+              },
+              {
+                "id": "b4",
+                "label": "strawberry"
+              },
+              {
+                "id": "candle",
+                "label": "milk"
+              }
+            ],
+            "layout": [
+              {
+                "id": "b1",
+                "x": 0.3,
+                "y": 0.35
+              },
+              {
+                "id": "b2",
+                "x": 0.7,
+                "y": 0.35
+              },
+              {
+                "id": "b3",
+                "x": 0.3,
+                "y": 0.65
+              },
+              {
+                "id": "b4",
+                "x": 0.7,
+                "y": 0.65
+              },
+              {
+                "id": "candle",
+                "x": 0.5,
+                "y": 0.5
+              }
+            ]
+          }
+        }
+      ],
+      "category": "dairy",
+      "diet": "vegetarian",
+      "kosher": true
     },
     {
-      "id": "mapo-tofu", "name": "Mapo Tofu", "description": "Numbing, loud, and divisive.",
-      "ingredients": { "tofu": 2, "pork": 1, "chili": 1, "scallion": 1, "rice": 2 }, "taste": [0.6, 0.1, 1.0, 0.8, 0.6, 0.3], "timeBudget": 85, "serves": 4, "difficulty": 3,
+      "id": "mapo-tofu",
+      "name": "Israeli Salad",
+      "description": "A Tel Aviv house favorite. Ask who is eating before you start.",
+      "ingredients": {
+        "tomato": 2,
+        "cucumber": 2,
+        "onion": 1,
+        "lemon": 1
+      },
+      "taste": [
+        0.6,
+        0.1,
+        1.0,
+        0.8,
+        0.6,
+        0.3
+      ],
+      "timeBudget": 85,
+      "serves": 4,
+      "difficulty": 3,
       "steps": [
-        { "id": "tofu", "type": "chop", "label": "cube the tofu gently", "deps": [], "seconds": 10, "weight": 1, "params": { "beats": 9, "bpm": 84, "window": 140 } },
-        { "id": "scallion", "type": "chop", "label": "mince scallion", "deps": [], "seconds": 8, "weight": 0.6, "params": { "beats": 8, "bpm": 140, "window": 120 } },
-        { "id": "wok", "type": "saute", "label": "stir-fry in the wok", "deps": ["tofu"], "seconds": 14, "weight": 1.6, "params": { "duration": 12, "bandWidth": 0.2, "bandSpeed": 0.55, "heatRate": 0.75, "coolRate": 0.5 } },
-        { "id": "chili", "type": "season", "label": "add chili bean paste", "deps": ["wok"], "seconds": 8, "weight": 1.4, "params": { "optimum": 0.78, "tolerance": 0.25, "label": "chili" } },
-        { "id": "plate", "type": "plate", "label": "serve over rice", "deps": ["chili", "scallion"], "seconds": 12, "weight": 0.8, "params": { "items": [{ "id": "rice", "label": "rice" }, { "id": "mapo", "label": "mapo" }], "layout": [{ "id": "rice", "x": 0.4, "y": 0.55 }, { "id": "mapo", "x": 0.6, "y": 0.5 }] } }
-      ]
+        {
+          "id": "tofu",
+          "type": "chop",
+          "label": "dice the vegetables",
+          "deps": [],
+          "seconds": 10,
+          "weight": 1,
+          "params": {
+            "beats": 9,
+            "bpm": 84,
+            "window": 140
+          }
+        },
+        {
+          "id": "scallion",
+          "type": "chop",
+          "label": "mix lemon dressing",
+          "deps": [],
+          "seconds": 8,
+          "weight": 0.6,
+          "params": {
+            "beats": 8,
+            "bpm": 140,
+            "window": 120
+          }
+        },
+        {
+          "id": "wok",
+          "type": "saute",
+          "label": "plate the salad",
+          "deps": [
+            "tofu"
+          ],
+          "seconds": 14,
+          "weight": 1.6,
+          "params": {
+            "duration": 12,
+            "bandWidth": 0.2,
+            "bandSpeed": 0.55,
+            "heatRate": 0.75,
+            "coolRate": 0.5
+          }
+        },
+        {
+          "id": "chili",
+          "type": "season",
+          "label": "plate the salad",
+          "deps": [
+            "wok"
+          ],
+          "seconds": 8,
+          "weight": 1.4,
+          "params": {
+            "optimum": 0.78,
+            "tolerance": 0.25,
+            "label": "seasoning"
+          }
+        },
+        {
+          "id": "plate",
+          "type": "plate",
+          "label": "plate the salad",
+          "deps": [
+            "chili",
+            "scallion"
+          ],
+          "seconds": 12,
+          "weight": 0.8,
+          "params": {
+            "items": [
+              {
+                "id": "rice",
+                "label": "tomato"
+              },
+              {
+                "id": "mapo",
+                "label": "cucumber"
+              }
+            ],
+            "layout": [
+              {
+                "id": "rice",
+                "x": 0.4,
+                "y": 0.55
+              },
+              {
+                "id": "mapo",
+                "x": 0.6,
+                "y": 0.5
+              }
+            ]
+          }
+        }
+      ],
+      "category": "parve",
+      "diet": "vegan",
+      "kosher": true
     },
     {
-      "id": "okonomiyaki", "name": "Okonomiyaki", "description": "A savory pancake and a test of nerve: the flip.",
-      "ingredients": { "flour": 1, "cabbage": 1, "egg": 2, "pork": 1 }, "taste": [0.7, 0.4, 0.1, 0.7, 0.8, 0.4], "timeBudget": 90, "serves": 3, "difficulty": 3,
+      "id": "okonomiyaki",
+      "name": "Schnitzel",
+      "description": "A Tel Aviv house favorite. Ask who is eating before you start.",
+      "ingredients": {
+        "flour": 1,
+        "egg": 2,
+        "chicken": 1,
+        "breadcrumbs": 1
+      },
+      "taste": [
+        0.7,
+        0.4,
+        0.1,
+        0.7,
+        0.8,
+        0.4
+      ],
+      "timeBudget": 90,
+      "serves": 3,
+      "difficulty": 3,
       "steps": [
-        { "id": "cabbage", "type": "chop", "label": "chop cabbage fine", "deps": [], "seconds": 10, "weight": 1, "params": { "beats": 12, "bpm": 120, "window": 140 } },
-        { "id": "batter", "type": "season", "label": "mix the batter", "deps": ["cabbage"], "seconds": 8, "weight": 1, "params": { "optimum": 0.45, "tolerance": 0.3, "label": "dashi" } },
-        { "id": "griddle", "type": "saute", "label": "griddle and flip", "deps": ["batter"], "seconds": 16, "weight": 1.8, "params": { "duration": 14, "bandWidth": 0.22, "bandSpeed": 0.4, "heatRate": 0.6, "coolRate": 0.45 } },
-        { "id": "plate", "type": "plate", "label": "sauce, mayo, bonito", "deps": ["griddle"], "seconds": 14, "weight": 1, "params": { "items": [{ "id": "sauce", "label": "sauce" }, { "id": "mayo", "label": "mayo" }, { "id": "bonito", "label": "bonito" }], "layout": [{ "id": "sauce", "x": 0.5, "y": 0.5 }, { "id": "mayo", "x": 0.5, "y": 0.35 }, { "id": "bonito", "x": 0.5, "y": 0.65 }] } }
-      ]
+        {
+          "id": "cabbage",
+          "type": "chop",
+          "label": "flatten the chicken",
+          "deps": [],
+          "seconds": 10,
+          "weight": 1,
+          "params": {
+            "beats": 12,
+            "bpm": 120,
+            "window": 140
+          }
+        },
+        {
+          "id": "batter",
+          "type": "season",
+          "label": "mix the crumb coating",
+          "deps": [
+            "cabbage"
+          ],
+          "seconds": 8,
+          "weight": 1,
+          "params": {
+            "optimum": 0.45,
+            "tolerance": 0.3,
+            "label": "seasoning"
+          }
+        },
+        {
+          "id": "griddle",
+          "type": "saute",
+          "label": "fry and turn the schnitzel",
+          "deps": [
+            "batter"
+          ],
+          "seconds": 16,
+          "weight": 1.8,
+          "params": {
+            "duration": 14,
+            "bandWidth": 0.22,
+            "bandSpeed": 0.4,
+            "heatRate": 0.6,
+            "coolRate": 0.45
+          }
+        },
+        {
+          "id": "plate",
+          "type": "plate",
+          "label": "plate with lemon",
+          "deps": [
+            "griddle"
+          ],
+          "seconds": 14,
+          "weight": 1,
+          "params": {
+            "items": [
+              {
+                "id": "sauce",
+                "label": "flour"
+              },
+              {
+                "id": "mayo",
+                "label": "egg"
+              },
+              {
+                "id": "bonito",
+                "label": "chicken"
+              }
+            ],
+            "layout": [
+              {
+                "id": "sauce",
+                "x": 0.5,
+                "y": 0.5
+              },
+              {
+                "id": "mayo",
+                "x": 0.5,
+                "y": 0.35
+              },
+              {
+                "id": "bonito",
+                "x": 0.5,
+                "y": 0.65
+              }
+            ]
+          }
+        }
+      ],
+      "category": "meat",
+      "diet": "omnivore",
+      "kosher": true
     },
     {
-      "id": "nabe", "name": "Hot Pot Nabe", "description": "One pot in the middle of the table. Group dinner classic.",
-      "ingredients": { "cabbage": 1, "tofu": 1, "chicken": 1, "mushroom": 1, "scallion": 1, "soy": 1 }, "taste": [0.5, 0.2, 0.2, 0.9, 0.5, 0.8], "timeBudget": 100, "serves": 6, "difficulty": 2,
+      "id": "nabe",
+      "name": "Friday Mangal",
+      "description": "A Tel Aviv house favorite. Ask who is eating before you start.",
+      "ingredients": {
+        "eggplant": 1,
+        "pepper": 1,
+        "chicken": 2,
+        "onion": 1,
+        "spice": 1
+      },
+      "taste": [
+        0.5,
+        0.2,
+        0.2,
+        0.9,
+        0.5,
+        0.8
+      ],
+      "timeBudget": 100,
+      "serves": 6,
+      "difficulty": 2,
       "steps": [
-        { "id": "veg", "type": "chop", "label": "cut cabbage and mushrooms", "deps": [], "seconds": 12, "weight": 1, "params": { "beats": 12, "bpm": 104, "window": 150 } },
-        { "id": "meat", "type": "chop", "label": "slice chicken", "deps": [], "seconds": 10, "weight": 1, "params": { "beats": 8, "bpm": 96, "window": 150 } },
-        { "id": "broth", "type": "boil", "label": "heat the broth", "deps": [], "seconds": 14, "weight": 1, "params": { "target": [9, 11.5], "max": 16 } },
-        { "id": "season", "type": "season", "label": "season the broth", "deps": ["broth"], "seconds": 8, "weight": 1.2, "params": { "optimum": 0.5, "tolerance": 0.35, "label": "soy" } },
-        { "id": "plate", "type": "plate", "label": "arrange the pot", "deps": ["veg", "meat", "season"], "seconds": 16, "weight": 1.2, "params": { "items": [{ "id": "cabbage", "label": "cabbage" }, { "id": "tofu", "label": "tofu" }, { "id": "chicken", "label": "chicken" }, { "id": "shroom", "label": "mushroom" }], "layout": [{ "id": "cabbage", "x": 0.3, "y": 0.4 }, { "id": "tofu", "x": 0.7, "y": 0.4 }, { "id": "chicken", "x": 0.3, "y": 0.65 }, { "id": "shroom", "x": 0.7, "y": 0.65 }] } }
-      ]
+        {
+          "id": "veg",
+          "type": "chop",
+          "label": "cut vegetables",
+          "deps": [],
+          "seconds": 12,
+          "weight": 1,
+          "params": {
+            "beats": 12,
+            "bpm": 104,
+            "window": 150
+          }
+        },
+        {
+          "id": "meat",
+          "type": "chop",
+          "label": "slice chicken",
+          "deps": [],
+          "seconds": 10,
+          "weight": 1,
+          "params": {
+            "beats": 8,
+            "bpm": 96,
+            "window": 150
+          }
+        },
+        {
+          "id": "broth",
+          "type": "boil",
+          "label": "heat the grill",
+          "deps": [],
+          "seconds": 14,
+          "weight": 1,
+          "params": {
+            "target": [
+              9,
+              11.5
+            ],
+            "max": 16
+          }
+        },
+        {
+          "id": "season",
+          "type": "season",
+          "label": "season the skewers",
+          "deps": [
+            "broth"
+          ],
+          "seconds": 8,
+          "weight": 1.2,
+          "params": {
+            "optimum": 0.5,
+            "tolerance": 0.35,
+            "label": "seasoning"
+          }
+        },
+        {
+          "id": "plate",
+          "type": "plate",
+          "label": "arrange the mangal",
+          "deps": [
+            "veg",
+            "meat",
+            "season"
+          ],
+          "seconds": 16,
+          "weight": 1.2,
+          "params": {
+            "items": [
+              {
+                "id": "cabbage",
+                "label": "eggplant"
+              },
+              {
+                "id": "tofu",
+                "label": "pepper"
+              },
+              {
+                "id": "chicken",
+                "label": "chicken"
+              },
+              {
+                "id": "shroom",
+                "label": "onion"
+              }
+            ],
+            "layout": [
+              {
+                "id": "cabbage",
+                "x": 0.3,
+                "y": 0.4
+              },
+              {
+                "id": "tofu",
+                "x": 0.7,
+                "y": 0.4
+              },
+              {
+                "id": "chicken",
+                "x": 0.3,
+                "y": 0.65
+              },
+              {
+                "id": "shroom",
+                "x": 0.7,
+                "y": 0.65
+              }
+            ]
+          }
+        }
+      ],
+      "category": "meat",
+      "diet": "omnivore",
+      "kosher": true
     }
   ]
 }

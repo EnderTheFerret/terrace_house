@@ -50,3 +50,32 @@ export function chime(kind: 'ok' | 'soft' | 'bad' = 'ok') {
 export function unlockAudio() {
   void ac()?.resume();
 }
+
+/** Quiet procedural room tone; stop every node when the room or screen changes. */
+export function ambience(room: string, weather: string, music: boolean): () => void {
+  const a = ac();
+  if (!a) return () => {};
+  const outdoor = room === 'backyard' || room.startsWith('balcony');
+  const buffer = a.createBuffer(1, a.sampleRate * 2, a.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const noise = a.createBufferSource();
+  noise.buffer = buffer;
+  noise.loop = true;
+  const filter = a.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = weather === 'rain' ? 1800 : outdoor ? 500 : 150;
+  const gain = a.createGain();
+  gain.gain.value = weather === 'rain' ? 0.015 : outdoor ? 0.008 : 0.003;
+  noise.connect(filter).connect(gain).connect(a.destination);
+  noise.start();
+  const notes: OscillatorNode[] = [];
+  const volumes: GainNode[] = [];
+  if (music && room === 'living') for (const f of [220, 277.18, 329.63]) {
+    const note = a.createOscillator();
+    const volume = a.createGain();
+    note.type = 'sine'; note.frequency.value = f; volume.gain.value = 0.002;
+    note.connect(volume).connect(a.destination); note.start(); notes.push(note); volumes.push(volume);
+  }
+  return () => { noise.stop(); noise.disconnect(); filter.disconnect(); gain.disconnect(); notes.forEach((note) => { note.stop(); note.disconnect(); }); volumes.forEach((volume) => volume.disconnect()); };
+}

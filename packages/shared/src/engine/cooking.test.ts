@@ -129,7 +129,7 @@ describe('cooking state machine', () => {
     expect(good.state.rel.ren.player.affinity).toBeGreaterThan(bad.state.rel.ren.player.affinity);
     expect(bad.state.rel.ren.player.affinity).toBeLessThanOrEqual(before);
     expect(good.receptions).toHaveLength(3);
-    expect(s.house.fridge.curry).toBe(1); // input untouched (pure)
-    expect(good.state.house.fridge.curry).toBe(0);
+    expect(s.house.fridge.spice).toBe(3); // input untouched (pure)
+    expect(good.state.house.fridge.spice).toBe(2);
   });
 });

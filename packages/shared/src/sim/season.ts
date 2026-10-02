@@ -5,6 +5,8 @@ import { autoChoices, createGame, finishSlot, planSlot, proposeOutcome, resolveS
 import { proposeCondition, recordCommentary } from '../engine/predictions';
 import { mockCommentary } from '../gen/mock';
 import { withRng } from '../engine/core';
+import { reachability } from '../engine/city';
+import { isShabbat } from '../engine/agents';
 
 export interface SimEvent {
   ep: number;
@@ -33,14 +35,17 @@ export function activePolicy(seed: number): Policy {
       if (!others.length) return { type: 'idle' };
       const fav = others.sort((a, b) => (s.rel[P.id]?.[b.id]?.romance ?? 0) - (s.rel[P.id]?.[a.id]?.romance ?? 0))[0];
       const slot = s.world.slot;
-      if (slot === 'morning') return rng.chance(0.5) ? { type: 'talk', target: rng.pick(others).id } : { type: 'house', activity: 'hangout' };
-      if (slot === 'evening') return rng.chance(0.4) ? { type: 'house', activity: 'cook' } : { type: 'talk', target: fav.id };
-      if (s.world.cityEvent === 'typhoon') return { type: 'house', activity: 'hangout' };
+      const home = others.filter((c) => !['work', 'goOut', 'sleep', 'nap', 'shower'].includes(c.lastAction ?? ''));
+      if (slot === 'morning') return home.length && rng.chance(0.5) ? { type: 'talk', target: rng.pick(home).id } : { type: 'house', activity: 'hangout' };
+      if (slot === 'evening' || slot === 'lateNight') return rng.chance(0.4) && !isShabbat(s, P) ? { type: 'house', activity: 'cook' } : { type: 'house', activity: 'hangout' };
+      if (['heatwave', 'typhoon'].includes(s.world.weather) || isShabbat(s, P)) return { type: 'house', activity: 'hangout' };
       const r = rng.next();
-      if (r < 0.35) return { type: 'goOut', node: rng.pick(['cafe', 'riverside', 'park', 'arcade']), activity: 'date', invite: fav.id };
-      if (r < 0.5) return { type: 'goOut', node: 'konbini', activity: 'work' };
-      if (r < 0.65) return { type: 'text', target: fav.id };
-      return { type: 'house', activity: rng.pick(['hangout', 'rooftop', 'hobby'] as const) };
+      const reachable = reachability('house', slot, s.world.money, s.world.carUsedBy === null, s.world.minutes, s.world.weekday).filter((r) => r.reachable);
+      const dates = reachable.filter((r) => ['cafe', 'arcade'].includes(r.node));
+      if (r < 0.35 && dates.length && !['work', 'sleep', 'nap', 'shower'].includes(fav.lastAction ?? '') && !isShabbat(s, fav)) return { type: 'goOut', node: rng.pick(dates).node, activity: 'date', invite: fav.id };
+      if (r < 0.5 && reachable.some((r) => r.node === 'konbini')) return { type: 'goOut', node: 'konbini', activity: 'work' };
+      if (r < 0.65 && !isShabbat(s, fav)) return { type: 'text', target: fav.id };
+      return { type: 'house', activity: rng.pick(['hangout', 'backyard', 'hobby'] as const) };
     },
     respond: () => (rng.chance(0.5) ? 'join' : 'eavesdrop'),
     intent: (_s, ev) => rng.pick(ev.intents),
@@ -87,11 +92,11 @@ export function runSlot(s0: GameState, policy: Policy, events: SimEvent[], hooks
 }
 
 export function simulateSeason(opts: NewGameOptions & { policy?: Policy; hooks?: SimHooks }): SimResult {
-  let s = createGame(opts);
+  let s = createGame({ ...opts, seasonLength: opts.seasonLength ?? 24 });
   const policy = opts.policy ?? idlePolicy;
   const events: SimEvent[] = [];
   let slots = 0;
-  const max = (opts.seasonLength ?? 24) * 5 + 10;
+  const max = (opts.seasonLength || 24) * 6 + 10;
   while (!s.seasonOver && slots < max) {
     s = runSlot(s, policy, events, opts.hooks);
     slots++;

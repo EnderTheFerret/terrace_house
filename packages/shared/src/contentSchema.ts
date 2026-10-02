@@ -130,6 +130,9 @@ export const CastEntry = z.object({
 export type CastEntry = z.infer<typeof CastEntry>;
 
 export const Archetype = z.object({
+  kashrut: z.enum(['strict', 'style', 'none']).default('none'),
+  diet: z.enum(['omnivore', 'vegetarian', 'vegan']).default('omnivore'),
+  keepsShabbat: z.boolean().default(false),
   id: z.string(),
   label: z.string(),
   gender: Gender.optional(),
@@ -177,6 +180,7 @@ export const ArcBeat = z.object({
   outcomes: z.array(z.string()).optional(),
 });
 export const Arc = z.object({
+  category: z.string().optional(),
   id: z.string(),
   charId: z.string().optional(), // default cast id
   template: z.string().optional(), // archetype arc template id
@@ -220,6 +224,7 @@ export const CityNode = z.object({
   x: z.number(),
   y: z.number(),
   open: z.tuple([z.number(), z.number()]), // hours [from, to) 0-24 (to may be >24)
+  openDays: z.record(z.string(), z.tuple([z.number(), z.number()])).optional(),
   activities: z.array(z.string()),
   cost: z.number().default(0),
   romantic: z.number().default(0),
@@ -246,6 +251,9 @@ export const RecipeStep = z.object({
 });
 export type RecipeStep = z.infer<typeof RecipeStep>;
 export const Recipe = z.object({
+  category: z.enum(['meat', 'dairy', 'parve']).default('parve'),
+  kosher: z.boolean().default(true),
+  diet: z.enum(['omnivore', 'vegetarian', 'vegan']).default('omnivore'),
   id: z.string(),
   name: z.string(),
   description: z.string(),
@@ -262,11 +270,11 @@ export const HouseContent = z.object({
   width: z.number().int(),
   height: z.number().int(),
   rooms: z.array(
-    z.object({ id: z.string(), name: z.string(), x: z.number(), y: z.number(), w: z.number(), h: z.number(), floor: z.string(), private: z.boolean().default(false), spots: z.array(z.tuple([z.number(), z.number()])) }),
+    z.object({ id: z.string(), name: z.string(), x: z.number(), y: z.number(), w: z.number(), h: z.number(), floor: z.number().int().default(0), material: z.string().default('wood'), private: z.boolean().default(false), spots: z.array(z.tuple([z.number(), z.number()])) }),
   ),
-  doors: z.array(z.tuple([z.number(), z.number()])),
-  furniture: z.array(z.object({ type: z.string(), x: z.number(), y: z.number(), w: z.number().default(1), h: z.number().default(1), solid: z.boolean().default(true) })),
-  hotspots: z.array(z.object({ id: z.string(), label: z.string(), x: z.number(), y: z.number(), action: z.string() })),
+  doors: z.array(z.tuple([z.number(), z.number(), z.number().int()])),
+  furniture: z.array(z.object({ type: z.string(), x: z.number(), y: z.number(), floor: z.number().int().default(0), w: z.number().default(1), h: z.number().default(1), solid: z.boolean().default(true) })),
+  hotspots: z.array(z.object({ id: z.string(), label: z.string(), x: z.number(), y: z.number(), floor: z.number().int().default(0), action: z.string() })),
   ingredients: z.array(z.object({ id: z.string(), name: z.string(), price: z.number() })),
   startFridge: z.record(z.string(), z.number()),
   chores: z.array(z.string()),

@@ -23,7 +23,7 @@ export function Bible() {
           return (
             <Panel key={b.id}>
               <div className="flex gap-3">
-                <Portrait charId={c.id} appearance={c.appearance} gender={c.gender} seed={c.portraitSeed} size={88} label={c.name} />
+                <Portrait key={`${view.gameId}:${c.portraitSeed}`} charId={c.id} appearance={c.appearance} gender={c.gender} seed={c.portraitSeed} size={110} label={c.name} expressions />
                 <div className="text-sm">
                   <div className="text-base">{c.name}</div>
                   <div className="caption text-xs">{c.age} · {c.occupation} · from {c.hometown}</div>
@@ -36,6 +36,10 @@ export function Bible() {
                 <dd>{b.hobbies?.join(', ') ?? '— spend more time together'}</dd>
                 <dt className="caption">work</dt>
                 <dd>{b.work ?? '— you only know the job title'}</dd>
+                <dt className="caption">routines</dt>
+                <dd>{b.routines?.join(' · ') || '— watch how they spend their day'}</dd>
+                <dt className="caption">kitchen</dt>
+                <dd>{b.diet ?? '— ask what they like to eat'}</dd>
                 <dt className="caption">wants</dt>
                 <dd>{b.goals?.join(' · ') ?? '— they haven’t opened up yet'}</dd>
                 <dt className="caption">fears</dt>
@@ -47,6 +51,11 @@ export function Bible() {
                 <dt className="caption">secret</dt>
                 <dd>{b.secret ? <>{b.secret.text}<Tag kind={b.secret.reliability} /></> : '—'}</dd>
               </dl>
+              <details className="mt-3 text-xs">
+                <summary className="cursor-pointer">your shared history</summary>
+                <p className="mt-2">{b.sharedHistory.summary}</p>
+                {b.sharedHistory.memories.length ? <ul className="mt-2 space-y-1">{b.sharedHistory.memories.map((m, i) => <li key={i}><span className="caption">episode {m.episode} · </span>{m.text}</li>)}</ul> : <p className="caption mt-2">Spend time together to build memories.</p>}
+              </details>
               {b.knownFacts.length > 0 && (
                 <ul className="mt-2 text-xs">
                   {b.knownFacts.map((f, i) => (
@@ -80,7 +89,9 @@ export function Fridge() {
               </li>
             ))}
           </ul>
-          <p className="caption mt-2 text-xs">grocery envelope: ¥{h.groceryBudget.toLocaleString()}</p>
+          <p className="caption mt-2 text-xs">grocery envelope: ₪{h.groceryBudget.toLocaleString()}</p>
+          <div className="mt-3 text-xs"><div className="caption">marked kosher shelf</div>{h.kitchen.kosherShelf.join(', ') || 'empty'}</div>
+          <div className="mt-2 text-xs">meat pan: {h.kitchen.meatPanClean ? 'clean' : 'needs cleaning'} · dairy pan: {h.kitchen.dairyPanClean ? 'clean' : 'needs cleaning'}</div>
           {h.labeledFood.length > 0 && (
             <div className="mt-2 text-xs">
               <div className="caption">labeled</div>
@@ -202,7 +213,7 @@ export function Settings() {
             <Toggle k="typewriter" label="typewriter text" />
             <Toggle k="reducedMotion" label="reduced motion" />
             <Toggle k="images" label="image generation (off = procedural placeholders only)" />
-            <Toggle k="sound" label="sound (synth blips)" />
+            <Toggle k="sound" label="sound (dialogue and room ambience)" />
             <label className="flex items-center gap-2 text-sm">
               text size
               <select className="px-panel-soft px-2 py-1" value={settings.textScale} onChange={(e) => setSettings({ textScale: Number(e.target.value) })}>

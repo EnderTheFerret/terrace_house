@@ -20,27 +20,28 @@ interface Job {
 const jobs: Job[] = [];
 const manifest: Record<string, string> = {};
 const add = (r: ImageRequest, rel: string, pixel: number, colors: number) => {
-  jobs.push({ out: `apps/web/public/assets/${rel}`, prompt: r.prompt, negative: r.negative, seed: r.seed, width: r.width, height: r.height, pixel, colors });
+  const background = r.kind === 'location';
+  jobs.push({ out: `apps/web/public/assets/${rel}`, prompt: r.prompt, negative: r.negative, seed: r.seed, width: background ? 832 : r.width, height: background ? 576 : r.height, pixel: background ? 4 : pixel, colors });
   manifest[r.subjectKey] = rel;
 };
 
-for (const c of [...defaultCast(), playerFromSetup(DEFAULT_PLAYER)]) add(portraitRequest(c), `portraits/${c.id}.png`, 8, 32);
+for (const c of [...defaultCast(), playerFromSetup(DEFAULT_PLAYER)]) add(portraitRequest(c), `portraits/tel-aviv-${c.id}.png`, 8, 32);
 for (const p of content().panel) add(avatarRequest(p.id), `panel/${p.id}.png`, 6, 32);
 const slotFor = { morning: 'morning', day: 'slot1', evening: 'slot3', night: 'evening' } as const;
 for (const n of content().city.nodes) {
   if (n.id === 'house') continue;
-  for (const tod of ['day', 'evening'] as const) add(locationRequest(n.id, slotFor[tod], 'sunny'), `locations/${n.id}-${tod}.png`, 6, 40);
+  for (const tod of ['day', 'evening'] as const) add(locationRequest(n.id, slotFor[tod], 'sunny'), `locations/tel-aviv-${n.id}-${tod}.png`, 6, 40);
 }
-for (const r of content().house.rooms) for (const tod of ['morning', 'day', 'night'] as const) add(locationRequest(r.id, slotFor[tod], 'sunny'), `locations/${r.id}-${tod}.png`, 6, 40);
+for (const r of content().house.rooms) for (const tod of ['morning', 'day', 'night'] as const) add(locationRequest(r.id, slotFor[tod], 'sunny'), `locations/tel-aviv-${r.id}-${tod}.png`, 6, 40);
 
 jobs.push({
-  out: 'apps/web/public/assets/title.png',
-  prompt: `${config.stylePrefix}, wide establishing shot of a white two-story share house with a rooftop terrace in a small japanese seaside town at golden hour, cherry blossom trees, the sea and a lighthouse in the distance, calm, no people, no text`,
+  out: 'apps/web/public/assets/tel-aviv-title.png',
+  prompt: `${config.stylePrefix}, wide establishing shot of a white two-story Tel Aviv share house with bedroom balconies and a small backyard with string lights, Mediterranean Bauhaus neighborhood at golden hour, date palms, bougainvillea and the sea in the distance, calm, no people, no text`,
   negative: 'text, letters, watermark, logo, people, blurry, photo, 3d render',
   seed: 777,
-  width: 1216,
-  height: 832,
-  pixel: 6,
+  width: 832,
+  height: 576,
+  pixel: 4,
   colors: 40,
 });
 

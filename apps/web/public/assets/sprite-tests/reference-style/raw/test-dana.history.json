@@ -1,0 +1,48 @@
+{
+  "prompt_id": "6a459021-8552-49d5-96d4-5ed6cbab88bb",
+  "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+      [
+        "execution_start",
+        {
+          "prompt_id": "6a459021-8552-49d5-96d4-5ed6cbab88bb",
+          "timestamp": 1790935699515
+        }
+      ],
+      [
+        "execution_cached",
+        {
+          "nodes": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "12",
+            "13",
+            "8",
+            "15",
+            "9"
+          ],
+          "prompt_id": "6a459021-8552-49d5-96d4-5ed6cbab88bb",
+          "timestamp": 1790935699559
+        }
+      ],
+      [
+        "execution_success",
+        {
+          "prompt_id": "6a459021-8552-49d5-96d4-5ed6cbab88bb",
+          "timestamp": 1790935729755
+        }
+      ]
+    ]
+  },
+  "image": {
+    "filename": "test-dana_00002_.png",
+    "subfolder": "shared_roof_sprite_tests",
+    "type": "output"
+  }
+}

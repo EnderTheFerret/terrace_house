@@ -272,6 +272,9 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
   const recipes = content().recipes;
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [partner, setPartner] = useState('');
+  const [utensil, setUtensil] = useState<'meat' | 'dairy' | 'parve'>('parve');
+  const [error, setError] = useState('');
+  const submitting = useRef(false);
   const housemates = view?.characters.filter((c) => c.status === 'inHouse' && !c.isPlayer) ?? [];
   const [serve, setServe] = useState<string[]>(housemates.map((c) => c.id));
   const [cs, setCs] = useState<CookingState | null>(null);
@@ -281,6 +284,8 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
   const have = (r: Recipe) => practice || !view || Object.entries(r.ingredients).every(([k, n]) => (view.house.fridge[k] ?? 0) >= n);
   const start = (r: Recipe) => {
     setRecipe(r);
+    submitting.current = false;
+    setError('');
     const pc = view?.characters.find((c) => c.id === partner);
     // co-op skill is computed server-side canonically; for the minigame preview we use a neutral 0.65
     setCs(startCooking(r, pc ? { id: pc.id, skill: 0.65 } : undefined));
@@ -294,12 +299,13 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
     chime(score > 0.7 ? 'ok' : score > 0.4 ? 'soft' : 'bad');
   };
   useEffect(() => {
-    if (!cs?.done || !recipe || practice || result || !view) return;
-    void api.cooking({ recipeId: recipe.id, quality: cs.quality ?? 0, partner: partner || undefined, servedTo: serve }).then((r) => {
+    if (!cs?.done || !recipe || practice || result || !view || submitting.current) return;
+    submitting.current = true;
+    void api.cooking({ recipeId: recipe.id, quality: cs.quality ?? 0, partner: partner || undefined, servedTo: serve, utensil }).then((r) => {
       setView(r.view);
       setResult({ receptions: r.receptions, improvised: r.improvised });
-    });
-  }, [cs?.done, recipe, practice, result, view, partner, serve, cs?.quality, setView]);
+    }).catch((e) => setError((e as Error).message));
+  }, [cs?.done, recipe, practice, result, view, partner, serve, cs?.quality, setView, utensil]);
 
   if (!recipe || !cs) {
     return (
@@ -313,9 +319,10 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
                   <button className="px-panel-soft w-full p-2 text-left disabled:opacity-50" disabled={!have(r)} onClick={() => start(r)}>
                     <div className="flex justify-between">
                       <span>{r.name}</span>
-                      <span className="caption text-xs">{'★'.repeat(r.difficulty)} · serves {r.serves}</span>
+                      <span className="caption text-xs">{'★'.repeat(r.difficulty)} · serves {r.serves} · {r.category}</span>
                     </div>
                     <div className="caption text-xs">{r.description}</div>
+                    <div className="caption text-xs">{r.diet}{r.kosher ? ' · kosher ingredients' : ' · not kosher'}</div>
                     <div className="text-[0.65rem]">{r.steps.map((s) => s.type).join(' → ')} · {TASTE_AXES.filter((_, i) => r.taste[i] > 0.6).join(', ')}</div>
                     {!have(r) && <div className="text-[0.65rem] text-rose">missing ingredients</div>}
                   </button>
@@ -324,6 +331,7 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
             </ul>
             {!practice && view && (
               <div className="mt-4 flex flex-wrap gap-6 text-sm">
+                <label className="flex items-center gap-2">cookware<select aria-label="cookware" className="px-panel-soft px-2 py-1" value={utensil} onChange={(e) => setUtensil(e.target.value as typeof utensil)}><option value="parve">parve pan</option><option value="meat">meat pan {view.house.kitchen.meatPanClean ? '(clean)' : '(needs cleaning)'}</option><option value="dairy">dairy pan {view.house.kitchen.dairyPanClean ? '(clean)' : '(needs cleaning)'}</option></select></label>
                 <label className="flex items-center gap-2">
                   cook with
                   <select className="px-panel-soft px-2 py-1" value={partner} onChange={(e) => setPartner(e.target.value)}>
@@ -336,7 +344,7 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
                   {housemates.map((c) => (
                     <label key={c.id} className="flex items-center gap-1">
                       <input type="checkbox" checked={serve.includes(c.id)} onChange={(e) => setServe(e.target.checked ? [...serve, c.id] : serve.filter((x) => x !== c.id))} />
-                      {c.name.split(' ')[0]}
+                      {c.name.split(' ')[0]} <span className="caption text-xs">{view.bible.find((b) => b.id === c.id)?.diet ?? 'ask about diet'}</span>
                     </label>
                   ))}
                 </fieldset>
@@ -389,6 +397,7 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
           {cs.done && (
             <div className="flex flex-col items-center gap-3 text-center">
               <div className="text-4xl">{Math.round((cs.quality ?? 0) * 100)}<span className="caption text-base">/100</span></div>
+              {error && <p role="alert" className="text-sm text-rose">{error}</p>}
               <p className="text-sm">{(cs.quality ?? 0) > 0.8 ? 'restaurant quality.' : (cs.quality ?? 0) > 0.55 ? 'solid home cooking.' : (cs.quality ?? 0) > 0.3 ? 'edible. mostly.' : 'a learning experience.'}</p>
               {result && (
                 <ul className="text-sm">
@@ -401,8 +410,8 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
               <div className="flex gap-2">
                 <Btn onClick={() => { setRecipe(null); setCs(null); }}>cook again</Btn>
                 {!practice && view && (
-                  <Btn primary onClick={() => void act({ type: 'house', activity: 'cook', target: partner || undefined })}>
-                    sit down to eat (uses this slot)
+                  <Btn primary disabled={!result} onClick={() => void act({ type: 'house', activity: 'cook', target: partner || undefined })}>
+                    sit down to eat (60 minutes)
                   </Btn>
                 )}
                 {practice && <Btn onClick={() => setScreen('title')}>title</Btn>}

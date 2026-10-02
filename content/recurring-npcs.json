@@ -1,34 +1,339 @@
 {
   "npcs": [
-    { "id": "hamabe", "name": "Mrs. Hamabe", "role": "cafe owner", "traits": ["warm", "nosy"], "location": "cafe", "schedule": { "weekdays": [0, 1, 2, 3, 4, 5, 6], "slots": ["slot1", "slot2", "slot3"] },
-      "lines": ["Window seat's free, if you're quick.", "You look like someone who needs cake.", "Sit, sit. I'll bring the usual."],
-      "returningLines": ["Back again? Your usual, then.", "Oh, it's you. Bring someone nice next time.", "You came with {b} last time. Just saying."] },
-    { "id": "tsutomu", "name": "Tsutomu", "role": "convenience-store clerk", "traits": ["deadpan"], "location": "konbini", "schedule": { "weekdays": [0, 1, 2, 3, 4, 5, 6], "slots": ["morning", "slot1", "slot2", "slot3", "evening"] },
-      "lines": ["Bag? ...No bag.", "Hot or cold?", "Points card. No? Okay."],
-      "returningLines": ["The melon bread again.", "Your housemate bought the last pudding. Sorry.", "Same time as yesterday. Interesting."] },
-    { "id": "daisuke", "name": "Daisuke", "role": "Mio's ex", "traits": ["charming", "persistent"], "location": "cafe", "linkedTo": "mio", "schedule": { "weekdays": [6, 0], "slots": ["slot2"] },
-      "lines": ["Mio. Hey. I was in town, so...", "You look good. The city suits you."],
-      "returningLines": ["We keep running into each other.", "Tell your housemates I said hi. Or don't."] },
-    { "id": "kaede", "name": "Kaede Aizawa", "role": "Ren's younger sister who phones", "traits": ["blunt", "caring"], "location": "phone", "linkedTo": "ren", "schedule": { "weekdays": [0, 3], "slots": ["evening"] },
-      "lines": ["Onii, Mom asked if you're eating.", "Did you tell them about the shop yet?"],
-      "returningLines": ["It's me again. Don't hang up.", "Mom says the shop's landlord called."] },
-    { "id": "gonda", "name": "Chef Gonda", "role": "boss at the Harbor Grill", "traits": ["gruff", "fair"], "location": "grill", "schedule": { "weekdays": [1, 2, 3, 4, 5, 6], "slots": ["slot2", "slot3"] },
-      "lines": ["You're late. Apron. Go.", "Again. Faster. Good."],
-      "returningLines": ["The new one's back. Don't burn anything.", "You've gotten quicker. Don't let it go to your head."] },
-    { "id": "yoshioka", "name": "Mr. Yoshioka", "role": "next-door neighbor", "traits": ["grumpy", "lonely"], "location": "house", "schedule": { "weekdays": [0, 1, 2, 3, 4, 5, 6], "slots": ["morning", "evening"] },
-      "lines": ["Some of us sleep, you know.", "Your trash is out on the wrong day. Again."],
-      "returningLines": ["You again. ...Thank you for the curry last time.", "Quieter this week. Good."] },
-    { "id": "tak", "name": "Tak", "role": "street musician at the station", "traits": ["free-spirited"], "location": "station", "schedule": { "weekdays": [5, 6, 0], "slots": ["slot2", "slot3"] },
-      "lines": ["Any requests? I know four songs.", "Coins for the guitar, wisdom for free."],
-      "returningLines": ["My favorite audience member!", "Your friend with the teal hair played with me last week. Talented."] },
-    { "id": "natsume", "name": "Natsume", "role": "former housemate visiting", "traits": ["nostalgic", "frank"], "location": "house", "schedule": { "weekdays": [6], "slots": ["evening"] },
-      "lines": ["The rooftop still squeaks. Of course it does.", "When I lived here, we had a rule about the bath. Do you still?"],
-      "returningLines": ["Couldn't stay away. How's everyone?", "I brought sake. For the drama."] },
-    { "id": "mama-hayakawa", "name": "Shun's mother", "role": "phones about marriage meetings", "traits": ["pushy", "loving"], "location": "phone", "linkedTo": "shun", "schedule": { "weekdays": [0], "slots": ["evening"] },
-      "lines": ["Shun, the Takeda family's daughter is still waiting for an answer.", "Your father won't say it, but he worries."],
-      "returningLines": ["I'm calling again because you didn't call me.", "Have you met anyone in that house? Anyone at all?"] },
-    { "id": "sponsor", "name": "Ms. Kuroki", "role": "brand manager eyeing Kaito", "traits": ["slick"], "location": "arcade", "linkedTo": "kaito", "schedule": { "weekdays": [3, 4], "slots": ["slot2"] },
-      "lines": ["Your engagement rate is... interesting. Let's talk.", "We love authenticity. Can you send the analytics?"],
-      "returningLines": ["Still waiting on those analytics, Kaito.", "The numbers don't quite match the vibe, do they?"] }
+    {
+      "id": "hamabe",
+      "name": "Dalia",
+      "role": "cafe owner",
+      "traits": [
+        "warm",
+        "nosy"
+      ],
+      "location": "cafe",
+      "schedule": {
+        "weekdays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "slots": [
+          "slot1",
+          "slot2",
+          "slot3"
+        ]
+      },
+      "lines": [
+        "Window seat's free, if you're quick.",
+        "You look like someone who needs cake.",
+        "Sit, sit. I'll bring the usual."
+      ],
+      "returningLines": [
+        "Back again? Your usual, then.",
+        "Oh, it's you. Bring someone nice next time.",
+        "You came with {b} last time. Just saying."
+      ]
+    },
+    {
+      "id": "tsutomu",
+      "name": "Yossi",
+      "role": "makolet owner",
+      "traits": [
+        "deadpan"
+      ],
+      "location": "konbini",
+      "schedule": {
+        "weekdays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "slots": [
+          "morning",
+          "slot1",
+          "slot2",
+          "slot3",
+          "evening"
+        ]
+      },
+      "lines": [
+        "Bag? ...No bag.",
+        "Hot or cold?",
+        "Points card. No? Okay."
+      ],
+      "returningLines": [
+        "The warm pita again?",
+        "Your housemate bought the last malabi. Sorry.",
+        "Same time as yesterday. Interesting."
+      ]
+    },
+    {
+      "id": "daisuke",
+      "name": "Daniel",
+      "role": "Maya's ex",
+      "traits": [
+        "charming",
+        "persistent"
+      ],
+      "location": "cafe",
+      "linkedTo": "mio",
+      "schedule": {
+        "weekdays": [
+          5,
+          6
+        ],
+        "slots": [
+          "slot2"
+        ]
+      },
+      "lines": [
+        "Maya. Hey. I was in town, so...",
+        "You look good. The city suits you."
+      ],
+      "returningLines": [
+        "We keep running into each other.",
+        "Tell your housemates I said hi. Or don't."
+      ]
+    },
+    {
+      "id": "kaede",
+      "name": "Yael Azulay",
+      "role": "Ron's younger sister who phones",
+      "traits": [
+        "blunt",
+        "caring"
+      ],
+      "location": "phone",
+      "linkedTo": "ren",
+      "schedule": {
+        "weekdays": [
+          0,
+          3
+        ],
+        "slots": [
+          "evening"
+        ]
+      },
+      "lines": [
+        "Ron, Mom asked if you are eating.",
+        "Did you tell them about the restaurant yet?"
+      ],
+      "returningLines": [
+        "It's me again. Don't hang up.",
+        "Mom says the shop's landlord called."
+      ]
+    },
+    {
+      "id": "gonda",
+      "name": "Chef Eli",
+      "role": "boss at Florentin Mangal",
+      "traits": [
+        "gruff",
+        "fair"
+      ],
+      "location": "grill",
+      "schedule": {
+        "weekdays": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "slots": [
+          "slot2",
+          "slot3"
+        ]
+      },
+      "lines": [
+        "You're late. Apron. Go.",
+        "Again. Faster. Good."
+      ],
+      "returningLines": [
+        "The new one's back. Don't burn anything.",
+        "You've gotten quicker. Don't let it go to your head."
+      ]
+    },
+    {
+      "id": "yoshioka",
+      "name": "Mr. Sasson",
+      "role": "next-door neighbor",
+      "traits": [
+        "grumpy",
+        "lonely"
+      ],
+      "location": "house",
+      "schedule": {
+        "weekdays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "slots": [
+          "morning",
+          "evening"
+        ]
+      },
+      "lines": [
+        "Some of us sleep, you know.",
+        "Your trash is out on the wrong day. Again."
+      ],
+      "returningLines": [
+        "You again. ...Thank you for the shakshuka last time.",
+        "Quieter this week. Good."
+      ]
+    },
+    {
+      "id": "tak",
+      "name": "Itai",
+      "role": "Dizengoff street musician",
+      "traits": [
+        "free-spirited"
+      ],
+      "location": "station",
+      "schedule": {
+        "weekdays": [
+          4,
+          5,
+          6
+        ],
+        "slots": [
+          "slot2",
+          "slot3"
+        ]
+      },
+      "lines": [
+        "Any requests? I know four songs.",
+        "Coins for the guitar, wisdom for free."
+      ],
+      "returningLines": [
+        "My favorite audience member!",
+        "Your friend with the teal hair played with me last week. Talented."
+      ]
+    },
+    {
+      "id": "natsume",
+      "name": "Neta",
+      "role": "former housemate visiting",
+      "traits": [
+        "nostalgic",
+        "frank"
+      ],
+      "location": "house",
+      "schedule": {
+        "weekdays": [
+          6
+        ],
+        "slots": [
+          "evening"
+        ]
+      },
+      "lines": [
+        "The backyard still squeaks. Of course it does.",
+        "When I lived here, we had a rule about the bath. Do you still?"
+      ],
+      "returningLines": [
+        "Couldn't stay away. How's everyone?",
+        "I brought wine. For the drama."
+      ]
+    },
+    {
+      "id": "mama-hayakawa",
+      "name": "Shai's mother",
+      "role": "phones about marriage meetings",
+      "traits": [
+        "pushy",
+        "loving"
+      ],
+      "location": "phone",
+      "linkedTo": "shun",
+      "schedule": {
+        "weekdays": [
+          0
+        ],
+        "slots": [
+          "evening"
+        ]
+      },
+      "lines": [
+        "Shai, my friend's daughter is still waiting for you to call.",
+        "Your father won't say it, but he worries."
+      ],
+      "returningLines": [
+        "I'm calling again because you didn't call me.",
+        "Have you met anyone in that house? Anyone at all?"
+      ]
+    },
+    {
+      "id": "sponsor",
+      "name": "Roni",
+      "role": "brand manager eyeing Kai",
+      "traits": [
+        "slick"
+      ],
+      "location": "arcade",
+      "linkedTo": "kaito",
+      "schedule": {
+        "weekdays": [
+          3,
+          4
+        ],
+        "slots": [
+          "slot2"
+        ]
+      },
+      "lines": [
+        "Your engagement rate is... interesting. Let's talk.",
+        "We love authenticity. Can you send the analytics?"
+      ],
+      "returningLines": [
+        "Still waiting on those analytics, Kai.",
+        "The numbers don't quite match the vibe, do they?"
+      ]
+    },
+    {
+      "id": "falafel-owner",
+      "name": "Samir",
+      "role": "Jaffa falafel stand owner",
+      "traits": [
+        "warm",
+        "direct"
+      ],
+      "location": "market",
+      "schedule": {
+        "weekdays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "slots": [
+          "slot1",
+          "slot2"
+        ]
+      },
+      "lines": [
+        "Spicy? Ask first, that is my rule.",
+        "Sit. Fresh falafel takes a minute."
+      ],
+      "returningLines": [
+        "Your usual? I remember.",
+        "Bring your housemates next time."
+      ]
+    }
   ]
 }

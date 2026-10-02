@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { BeatSheet, createGame, makeEvent, eventTemplate, stableStringify, type ImageBackend, type ImageRequest, type LlmClient, type LlmRequest } from '@shared-roof/shared';
+import { BeatSheet, createGame, makeEvent, eventTemplate, passTime, stableStringify, type ImageBackend, type ImageRequest, type LlmClient, type LlmRequest } from '@shared-roof/shared';
 import { openDb, Store, migrateState } from './db';
 import { MockLlm } from './llm/mock';
 import { OllamaClient } from './llm/ollama';
@@ -17,6 +17,7 @@ import { GameSession } from './game/session';
 import { Generator } from './game/generate';
 import { replayEvents } from './game/replay';
 import { ROOT } from './config';
+import { freezeRequest, locationRequest } from './image/requests';
 
 class DownLlm implements LlmClient {
   readonly name = 'ollama';
@@ -50,20 +51,37 @@ const tmp = () => mkdtempSync(join(tmpdir(), 'sr-'));
 describe('prompt builder', () => {
   const s = createGame({ seed: 3 });
   const ev = makeEvent(s, eventTemplate('late-night-kitchen'), { a: 'ren', b: 'mio' }, 'kitchen');
+  it('keeps room viewpoints grounded in both location art and freeze frames', () => {
+    const room = locationRequest('kitchen', 'lateNight', 'rain');
+    expect(room.prompt).toContain('interior of a shared kitchen');
+    expect(room.prompt).not.toContain('reality show still');
+    expect(room.prompt).toContain('night lighting, rain weather');
+    expect(room.subjectKey).toBe('location:kitchen:night:rain');
+    expect(freezeRequest(s, ev).prompt).toContain('interior of a shared kitchen');
+    expect(locationRequest('backyard', 'evening', 'sunny').prompt).toContain('entire ground covered by lawn');
+  });
   it('respects the hard token budget per call type', () => {
     expect(approxTokens(beatSheetPrompt(s, ev))).toBeLessThanOrEqual(TOKEN_BUDGET.beats);
     expect(approxTokens(linesPrompt(s, ev, [{ speaker: 'ren', intent: 'x', emotion: 'neutral', beatType: 'open', subtext: '', depth: 'smalltalk', topic: 't' }], [], [undefined]))).toBeLessThanOrEqual(TOKEN_BUDGET.lines);
   });
+  it('prioritizes typed words over an unrelated scripted topic', () => {
+    const reply = 'No, I do not want to go on a date. Please respect that.';
+    const prompt = linesPrompt(s, ev, [{ speaker: 'ren', intent: 'answer the player', emotion: 'neutral', beatType: 'comfort', subtext: '', depth: 'smalltalk', topic: 'irrelevant scripted topic' }], [], [undefined], reply);
+    expect(prompt).toContain(`answer the player's exact words: ${JSON.stringify(reply)}`);
+    expect(prompt).not.toContain('topic "irrelevant scripted topic"');
+    expect(prompt).toContain('Acknowledge refusals without bargaining');
+  });
   it('assembles in order: rules → persona → relationship → memories → premise → output', () => {
     const p = beatSheetPrompt(s, ev);
-    const order = ['dialogue for a calm', '## Ren Aizawa', 'Ren', 'Scene:', 'Output JSON only'];
+    const order = ['dialogue for a calm', `## ${s.characters.ren.name}`, s.characters.ren.name.split(' ')[0], 'Scene:', 'Output JSON only'];
     let last = -1;
     for (const marker of order) {
       const i = p.indexOf(marker, last + 1);
       expect(i, marker).toBeGreaterThan(last);
       last = i;
     }
-    expect(p).toContain('There\'s rice left'); // exemplar line anchoring
+    expect(p).toContain(s.characters.ren.persona.speech.exemplars[0]);
+    expect(p).toContain(s.characters.ren.persona.backstory.slice(0, 240));
   });
   it('drops low-priority sections first when over budget', () => {
     const out = assemble(
@@ -93,7 +111,7 @@ describe('prompt builder', () => {
 
 describe('structured LLM calls', () => {
   const s = createGame({ seed: 5 });
-  const ev = makeEvent(s, eventTemplate('rooftop-talk'), { a: 'shun', b: 'mio' }, 'rooftop');
+    const ev = makeEvent(s, eventTemplate('backyard-talk'), { a: 'shun', b: 'mio' }, 'backyard');
   const req: LlmRequest = { kind: 'beats', prompt: 'p', temperature: 0.7, context: { kind: 'beats', state: s, event: ev } };
   it('falls back to the mock when the service is down (no retry storm)', async () => {
     const down = new DownLlm();
@@ -265,10 +283,10 @@ async function playEpisode(session: GameSession) {
   const s0 = session.state!;
   const ep = s0.world.episode;
   let guard = 0;
-  while (session.state!.world.episode === ep && !session.state!.seasonOver && guard++ < 10) {
+  while (session.state!.world.episode === ep && !session.state!.seasonOver && guard++ < 60) { // hangouts use part of a block, outings all of it
     const slot = session.state!.world.slot;
-    const action = slot === 'morning' || slot === 'evening' ? { type: 'house', activity: 'hangout' } : { type: 'goOut', node: 'cafe', activity: 'date', invite: 'ren' };
-    const { scenes } = session.act(action);
+    const action = slot === 'morning' || slot === 'evening' ? { type: 'house', activity: 'hangout' } : { type: 'idle' };
+    const { scenes } = await session.act(action);
     for (const sc of scenes) {
       if (sc.phase === 'awaiting-response') session.respond(sc.id, 'join');
       if (!sc.rendered && sc.phase === 'done') continue;
@@ -280,18 +298,55 @@ async function playEpisode(session: GameSession) {
       }
       expect(session.runs.get(sc.id)!.phase).toBe('done');
     }
-    session.endSlot();
+    await session.endSlot();
   }
 }
 
 describe('game session (mock + failing adapters)', () => {
+  it('closes an observing phone conversation at sundown and logs the exact capped time for replay', async () => {
+    const dir = tmp();
+    const store = new Store(openDb(':memory:'));
+    const queue = new ImageQueue(new MockImageBackend(dir), new MockImageBackend(dir), store, 'mock', dir, null);
+    const down = new DownLlm();
+    let dialogueCalls = 0;
+    const generatedKinds: string[] = [];
+    const adapter: LlmClient = { name: 'test', health: async () => true, complete: async (r) => { generatedKinds.push(r.kind); return down.complete(r); }, stream: async function* (r) { dialogueCalls++; yield* down.stream(r); } };
+    const session = new GameSession(store, new Generator(adapter), queue);
+    await session.newGame({ seed: 7 });
+    for (let i = 0; i < 2; i++) { await session.act({ type: 'sleep' }); await session.endSlot(); }
+    expect(session.state!.world.weekday).toBe(5);
+    for (let i = 0; i < 3; i++) { await session.act({ type: 'skip' }); await session.endSlot(); }
+    expect(session.state!.world.slot).toBe('slot3');
+    // Clock fixture: advance to 17:50 with the same logged engine operation replay uses.
+    session.state = passTime(session.state!, 110 / 3);
+    session.logSeq = store.appendEvent(session.state.gameId, 'time', { lines: 110 / 3 });
+    const target = Object.values(session.state.characters).find(c => !c.isPlayer && c.status === 'inHouse' && c.persona.keepsShabbat)!;
+    expect(target).toBeDefined();
+    generatedKinds.length = 0;
+    const { scenes } = await session.act({ type: 'text', target: target.id, text: 'Are you free tonight?' });
+    const phone = scenes.find(sc => sc.chat && sc.isPlayerScene)!;
+    const output: { event: string; data: any }[] = [];
+    await session.stream(phone.id, (event, data) => output.push({ event, data }));
+    expect(session.runs.get(phone.id)!.phase).toBe('done');
+    expect(session.state.world.minutes).toBe(120);
+    expect(output.filter(e => e.event === 'line-end')).toHaveLength(1);
+    expect(output.some(e => e.event === 'choice')).toBe(false);
+    expect(output.find(e => e.event === 'outcome')?.data.cues.join(' ')).toContain('put away for Shabbat');
+    expect(dialogueCalls).toBe(1);
+    expect(generatedKinds).not.toContain('deltas');
+    expect(generatedKinds).not.toContain('commentary');
+    await session.stream(phone.id, () => {});
+    expect(dialogueCalls).toBe(1);
+    expect(replayEvents(store.events(session.state.gameId))).toEqual(session.state);
+  });
+
   it('plays a full episode with Ollama and ComfyUI down: every call falls back, nothing blocks', async () => {
     const dir = tmp();
     const store = new Store(openDb(join(dir, 'db.sqlite')));
     const queue = new ImageQueue(new DownImages(), new MockImageBackend(dir), store, 'w', dir, null);
     const down = new DownLlm();
     const session = new GameSession(store, new Generator(down), queue);
-    session.newGame({ seed: 11 });
+    await session.newGame({ seed: 11 });
     await playEpisode(session);
     expect(session.state!.world.episode).toBe(2);
     expect(down.calls).toBeGreaterThan(0); // tried, failed, fell back
@@ -311,7 +366,7 @@ describe('game session (mock + failing adapters)', () => {
     const store = new Store(openDb(join(dir, 'db.sqlite')));
     const queue = new ImageQueue(new MockImageBackend(dir), new MockImageBackend(dir), store, 'mock', dir, null);
     const session = new GameSession(store, new Generator(new MockLlm()), queue);
-    session.newGame({ seed: 21 });
+    await session.newGame({ seed: 21 });
     await playEpisode(session);
     await playEpisode(session);
     const replayed = replayEvents(store.events(session.state!.gameId));
@@ -323,10 +378,10 @@ describe('game session (mock + failing adapters)', () => {
     const store = new Store(openDb(join(dir, 'db.sqlite')));
     const queue = new ImageQueue(new MockImageBackend(dir), new MockImageBackend(dir), store, 'mock', dir, null);
     const session = new GameSession(store, new Generator(new MockLlm()), queue);
-    session.newGame({ seed: 21 });
+    await session.newGame({ seed: 21 });
     const drive = async (action: unknown, typed?: string) => {
       const events: { e: string; d: any }[] = [];
-      const { scenes } = session.act(action);
+      const { scenes } = await session.act(action);
       for (const sc of scenes) {
         if (sc.phase === 'awaiting-response') session.respond(sc.id, 'ignore');
         for (let i = 0; i < 12 && session.runs.get(sc.id)!.phase !== 'done'; i++) {
@@ -338,7 +393,7 @@ describe('game session (mock + failing adapters)', () => {
           else session.choose(sc.id, run.ev.intents[0]);
         }
       }
-      session.endSlot();
+      await session.endSlot();
       return events;
     };
     // morning: talk to Ren and say something in your own words
@@ -361,7 +416,7 @@ describe('game session (mock + failing adapters)', () => {
     const before = session.state!.playerId;
     await drive({ type: 'graduate' });
     expect(session.state!.awaitingPlayer).toBe(true);
-    expect(() => session.act({ type: 'idle' })).toThrow(/move in first/);
+    await expect(session.act({ type: 'idle' })).rejects.toThrow(/move in first/);
     const v = session.newPlayer({ name: 'Aki Mori', age: 26, gender: 'man', interestedIn: ['woman'], hometown: 'Kobe', occupation: 'barista', traits: [0.5, 0.5, 0.5, 0.5, 0.5], quirks: [], tastes: [0, 0, 0, 0, 0, 0], hobbies: ['surfing', 'film', 'running'], appearance: { hairStyle: 'short messy', hairColor: 'black', eyeColor: 'brown', build: 'average', outfit: 'linen shirt', accessory: 'none', skinTone: 'tan' } });
     expect(v.playerId).not.toBe(before);
     await drive({ type: 'idle' });
@@ -374,7 +429,7 @@ describe('game session (mock + failing adapters)', () => {
     const store = new Store(openDb(join(dir, 'db.sqlite')));
     const queue = new ImageQueue(new MockImageBackend(dir), new MockImageBackend(dir), store, 'mock', dir, null);
     const session = new GameSession(store, new Generator(new MockLlm()), queue);
-    session.newGame({ seed: 4 });
+    await session.newGame({ seed: 4 });
     const id = session.save(2, 'test');
     const loaded = store.load(id)!;
     expect(loaded.state.gameId).toBe(session.state!.gameId);

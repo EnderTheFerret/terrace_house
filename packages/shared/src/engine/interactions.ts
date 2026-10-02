@@ -37,7 +37,7 @@ function pickType(s: GameState, rng: Rng, a: Character, b: Character): IxType {
     ['chat', 1],
     ['joke', 0.3 + ta.E * 0.6 + (a.persona.speech.humor !== 'none' ? 0.3 : 0)],
     ['deep', depth === 'smalltalk' ? 0.1 : depth === 'personal' ? 0.6 : 1.0],
-    ['flirt', attracted(a, b) && r.romance > 15 ? r.romance / 28 + (s.world.cityEvent === 'typhoon' ? 0.3 : 0) : 0],
+    ['flirt', attracted(a, b) && r.romance > 15 ? r.romance / 28 + (s.world.cityEvent === 'heatwave' ? 0.3 : 0) : 0],
     ['bicker', (r.tension + rb.tension) / 2 > 22 ? (r.tension / 28) * (a.persona.conflictStyle === 'confront' ? 1.5 : a.persona.conflictStyle === 'avoid' ? 0.5 : 1) : 0],
     ['awkward', r.tension > 12 && (a.persona.conflictStyle === 'avoid' || a.persona.attachment === 'avoidant') ? 0.6 : r.closeness < 10 ? 0.3 : 0.05],
   ];

@@ -28,6 +28,8 @@ export * from './gen/mock';
 export * from './gen/voice';
 export * from './sim/season';
 export * from './pixel';
+export * from './sprite-sheet';
 export * from './engine/view';
 export * from './engine/cooking';
 export * from './engine/talk';
+export * from './engine/living';

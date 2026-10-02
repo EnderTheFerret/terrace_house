@@ -1,0 +1,46 @@
+{
+  "prompt_id": "616fdda1-dbf5-469f-8295-8028f181f303",
+  "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+      [
+        "execution_start",
+        {
+          "prompt_id": "616fdda1-dbf5-469f-8295-8028f181f303",
+          "timestamp": 1790935822330
+        }
+      ],
+      [
+        "execution_cached",
+        {
+          "nodes": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "9",
+            "12",
+            "13"
+          ],
+          "prompt_id": "616fdda1-dbf5-469f-8295-8028f181f303",
+          "timestamp": 1790935822400
+        }
+      ],
+      [
+        "execution_success",
+        {
+          "prompt_id": "616fdda1-dbf5-469f-8295-8028f181f303",
+          "timestamp": 1790935874468
+        }
+      ]
+    ]
+  },
+  "image": {
+    "filename": "ren_00003_.png",
+    "subfolder": "shared_roof_sprite_tests",
+    "type": "output"
+  }
+}

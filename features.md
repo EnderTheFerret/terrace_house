@@ -2,6 +2,47 @@
 
 Everything below exists in the current code. Where a feature only works in one mode, it says so.
 
+## Added in the October 2, 2026 update
+
+- **Expression icons:** scene portraits and the character bible offer neutral, happy, sad, angry, in-love, shy, awkward, annoyed, excited and nervous faces. Click to generate through ComfyUI's reference workflow; variants cache separately, keep the original palette and never advance game time. The original portrait must be ready first. Offline mode keeps the original face and reports that the expression is unavailable. Selection changes the illustration, not the character's feelings.
+- **Shared-history journal:** each character bible card shows your current relationship summary and up to five important shared memories, from your character's perspective. Private NPC memories remain hidden. Dialogue now builds relationship summaries from current state, including new interactions before the block ends. Memories and pair summaries already persist in saves; the existing 40-memory importance/recency limit remains.
+- **Minute-by-minute housemate life:** timed activities (40-minute showers, 90-minute naps, 20-minute snacks), hourly conversations/gossip and deterministic time advancement. Working, sleeping, napping or showering housemates cannot be pulled into unrelated house scenes.
+- **More control over time:** six daily blocks, including late night from 23:00–02:00; daily timeline, skip block and sleep until morning. Trips must fit outward travel, the activity and the return journey into the minutes left.
+- **Seasons you can keep playing:** open-ended creator default, optional fixed length and a wrap-season action after episode 3 that makes the next full episode the finale, with confessions, epilogues and prediction resolution.
+- **Career progression:** fourteen career arcs across seven job families, player contracts/workplace scenes, raises, dismissal, offers, coworker visits and work stress.
+- **Generated personalities:** real-mode biographies and speech profiles, field validation/fallback, one retry for overly similar voices, saved persona snapshots and exact replay. Generated content preserves identity, traits and job schedules.
+- **Describe your appearance:** free-text appearance mapping, sanitized image prompts and sprite colors sampled from the approved portrait. Sampled colors take priority over provisional model colors.
+- **Generate scene:** illustrate any conversation you join, including phone messages, from its participants, location and recent dialogue. The button opens an image preview without ending the conversation or advancing time; phone scenes show the characters in separate places.
+- **Tel Aviv setting:** local cast and recurring people, city places, shekel prices, local recipes, Sunday–Thursday work, Friday half-days, holidays, seasonal rain and sharav heatwaves.
+- **Diet and observance:** strict/style/no kashrut, vegetarian/vegan choices, meat/dairy/parve food, separate pans and a marked shelf. Food acceptance, trust and kitchen disagreements respond to those choices. Shabbat observers stop work, cooking, car use and phone activity at the boundary.
+- **Two-floor house:** ground-floor entrance, living room, kitchen, small bathroom and shared backyard; upstairs bedrooms, private balconies and main bathroom. Visible stair traversal and opening/closing doors; private-room invitations are enforced. Reduced motion skips stair animation, and actions are disabled while walking between rooms.
+- **Plans with consequences:** NPC approaches, shared-calendar invitations, kept/broken promises, impossible-plan cancellation and shared-car availability checks. Car reservations and observance/opening-hour changes are respected when plans are carried out.
+- **Small social gestures:** taste-aware gifts, coffee, notes, favors, recurring visitors, housemate barks and daily relationship upkeep.
+- **A visibly lived-in home:** clutter, dishes, laundry, trash, fridge stock, clock-based lighting/lamps, synthesized ambience and phone notifications as game minutes advance.
+- **Weather and learned routines:** tomorrow's forecast, rain-cancelled outdoor plans, heatwave mood effects and routines recorded in the character bible when you observe them.
+- **Social photos and stories:** persisted appearance/location snapshots, feed likes and public knowledge with sources. Posting together establishes a shared moment, not a romance.
+- **More responsive dialogue:** optional separate speaking model (`OLLAMA_MODEL_LINES`), independent fallback, speaker/content checks and stronger exact-word reply instructions. Direct replies prioritize what you typed, including refusals, over competing scripted topics.
+- **New artwork:** 79 new ComfyUI images—six cast portraits, 36 city views, 36 house views and the title image—plus five retained panel avatars. All 83 manifest keys resolve; the title loads separately. Live and prebaked backgrounds share room/location viewpoints.
+- **Model comparison tools:** reproducible 20-scene-per-model benchmark, single-reply probes and a real structured-generation/replay check. Gemma 4 remains the local default after comparison with Stheno; Stheno was faster but less reliable about speaker format and player agency.
+- **A clearer play loop:** choose how to spend limited time, keep plans, learn routines, remember food preferences and follow career/social consequences. Friendship and staying single remain valid paths; player enjoyment still needs playtesting.
+
+Verification: 115 tests in the full run, 29 subsequent focused checks, seven browser flows, production build/typecheck/lint, and live dialogue/commentary/image smoke passed. The real structured-generation probe passed all ten checks. See [IMPLEMENTATION.md](IMPLEMENTATION.md), [artwork coverage](docs/ARTWORK.md) and [model evaluation](docs/ROLEPLAY.md).
+
+Known limits: holidays and Friday/Saturday 18:00 Shabbat boundaries are approximations; NPC time advances with game actions. Portrait colors use central-region sampling rather than segmentation; feed pictures are procedural freeze frames. Additional weather/custom-cast images generate at runtime. Testing with both services open does not establish simultaneous full image-model and LLM GPU residency.
+
+## Start a fresh game on this machine
+
+Keep Ollama and ComfyUI running. The existing `.env` selects real mode, `gemma4:12b` and ComfyUI at port 8188.
+
+```powershell
+cd C:\Projects\terrace_house
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173), click **new season**, complete the five creator steps and click **move in**. Leave the season open-ended to try the new wrap-season flow. Keep the default cast for the new portraits, or choose **randomize cast** to try generated housemates. Leave the terminal running while playing. If the game is already running, reload the page and choose **new season**.
+
+Start by walking with **WASD/arrows**, pressing **E** at a person or hotspot, and opening the phone with **P** to check messages and plans. If you want a quick session without waiting for models, use `npm run dev:mock` instead.
+
 ## Modes and setup
 - **Mock mode** (`npm run dev:mock`): fully playable with no external services. Text comes from templates, images from procedural pixel art plus the prebaked asset library.
 - **Real mode** (`npm run dev`): dialogue from Ollama (any chat model; `gemma3:12b` default, tested with `gemma4:12b`), images from ComfyUI.
@@ -11,24 +52,26 @@ Everything below exists in the current code. Where a feature only works in one m
 - Configuration through `.env` (`.env.example` provided): mode, URLs, model, workflow paths, style prefix, season length, LLM calls per slot, seed, port, timeouts, temperatures, optional premise "flavor pass".
 
 ## Season and episode structure
-- Season of 24 episodes (configurable; `SEASON_LENGTH=0` = endless, the house never closes and the cast keeps rotating); ends early only if 3 or fewer housemates remain and nobody is moving in.
-- Each episode: morning → three daytime slots → evening. Each player choice uses one slot.
+- Open-ended by default (`SEASON_LENGTH=0`); fixed length is optional. After episode 3, announce a finale for the next full episode. Graduations keep rotating the cast until the finale.
+- Each episode: morning → three daytime slots → evening → late night (23:00–02:00), 180 in-game minutes each, with a clock. Talking lasts as long as the conversation (3 min per line); short house activities use part of a slot (tidy 30, cook 60…); going out, resting or letting time pass uses the whole slot.
 - Episode title card ("EPISODE n") with date, season, today's city event and a "previously" recap.
 - Episode end card with a teaser line built from the highest-tension or most one-sided pair.
 - **Studio intermissions** like the show's: the footage stops halfway through the day (after the afternoon) and again after the last scene, and the panel talks over the most important moments since the last break, riffing off each other. The host opens; at the end of an episode the host signs off with the teaser. Works with the LLM or templates.
-- Calendar: one episode per in-game day, 15 days apart, so a season runs April → March. Weekdays and weekends, four seasons, seasonal weather (sun, clouds, rain, snow).
-- Six city events: cherry blossom viewing, summer beach day, harbor fireworks, autumn matsuri, Christmas lights, New Year shrine visit. Plus a typhoon day that keeps everyone in the house.
+- Calendar: consecutive days, Sunday–Thursday work, Friday half-days and Saturday openings. Seasonal sun/cloud/rain and sharav heatwaves; no generated snow. Holiday dates are fixed game-calendar approximations.
+- Local events: Purim, Independence Day, Shavuot, Pride, Rosh Hashanah, Sukkot, Hanukkah, Friday dinner and beach days. A sharav heatwave keeps people indoors.
 - Season finale screen: an epilogue for every housemate (including those who left) and the panel's prediction score.
 - **You can graduate too**: leave the house alone at any time, or with your partner (or with a leaver who asked you to come). Your farewell plays at the door, your partner's place is refilled, and then you **create your next character**, who rings the doorbell as a stranger to everyone (blank-slate relationships, fresh money, no job) while the season carries on.
 
 ## Characters
-- **Jobs with real schedules** (``content/jobs.json``, 77 occupations): each job has a workplace (a city spot, the station for commuters, or their own room for remote work) and a shift pattern (early, day, late, night, flex) on weekdays, weekends or mixed days. Housemates actually go to work on those slots (night-shift nurses are out in the evening, bartenders at the rooftop bar, remote workers in their rooms), so you can run into them at work. The character bible shows where and when they work once you know them a little.
+- Real mode generates validated persona fields and appearance text, retries an overly similar voice once, and logs complete snapshots for deterministic replay. Mock mode uses seeded archetypes.
+- Kashrut (strict/style/none), vegetarian/vegan diets and Shabbat observance affect cooking, work, cars and phone availability.
+- **Jobs with real schedules** (``content/jobs.json``, 77 occupations): each job has a workplace (a city spot, the station for commuters, or their own room for remote work) and a shift pattern (early, day, late, night, flex) on weekdays, weekends or mixed days. Housemates actually go to work on those slots (night-shift nurses are out in the evening, bartenders at the Florentin bar, remote workers in their rooms), so you can run into them at work. The character bible shows where and when they work once you know them a little.
 - Housemates also graduate when they've **found what they came for** (their arc is complete), unless someone in the house is worth staying for.
-- Default cast of five original adults (Ren, Kaito, Shun, Mio, Sora). Each has a full persona: Big-Five traits, attachment style, conflict style, ranked values, need decay rates, long- and short-term goals, a secret, fears, tells, speech profile, weekly routine, tastes, hobbies, backstory and homesickness.
+- Default cast of five original adults (Ron, Kai, Shai, Maya, Shira); stable internal ids remain unchanged. Each has a full persona: Big-Five traits, attachment style, conflict style, ranked values, need decay rates, long- and short-term goals, a secret, fears, tells, speech profile, weekly routine, tastes, hobbies, backstory and homesickness.
 - Speech profiles: sentence length, formality, filler words, humor type, rate-capped catchphrase, chat-app style (stamps, punctuation, reply speed, read-and-ignore chance), three example lines and a "do not" list.
 - **24 personality archetypes** for generated casts (quiet craftsman, hype creator, gentle mediator, anxious caretaker, blunt artist, sunny athlete, cool strategist, dreamy romantic, class clown, homebody gamer, elegant heiress, earnest student, wanderer, big sister, night-shift nurse, ambitious salesperson, aspiring comedian, fashion student, zen instructor, shy illustrator, rebel courier, kindergarten sunshine, jet-setter, country kid). "Randomize cast" uses farthest-point sampling so the five are as different as possible, then resamples until the cast has ≥2 compatible pairs, ≥2 friction pairs, a latent love triangle and a stabilizer.
-- Leaving follows the show: whoever decides to go **announces it to the house** the next day (`I've decided to graduate`), gets one last day in the house, then leaves at the door the morning after. On that last day, a leaver with feelings for someone may make a **last confession** on the rooftop (`would you leave with me?`); a yes means they leave together (the player gets the `graduate together` option).
-- A **welcome party** (hot pot, `so what do you want to get out of this house?`) for each newcomer, the player included.
+- Leaving follows the show: whoever decides to go **announces it to the house** the next day (`I've decided to graduate`), gets one last day in the house, then leaves at the door the morning after. On that last day, a leaver with feelings for someone may make a **last confession** in the backyard (`would you leave with me?`); a yes means they leave together (the player gets the `graduate together` option).
+- A **welcome party** (shared dinner, `so what do you want to get out of this house?`) for each newcomer, the player included.
 - **Every graduation brings a newcomer**: a replacement of the same gender arrives the same day, right up to the last episode. They are chosen to stir things up (a new triangle, friction with the most settled pair) while staying unlike the existing cast.
 - Every character is 20 or older. This is enforced in the creator, the API and every image prompt.
 
@@ -36,18 +79,18 @@ Everything below exists in the current code. Where a feature only works in one m
 1. Identity: name, age (20–35 enforced), gender, who you're interested in, hometown, occupation (77 jobs from the catalogue, or custom).
 2. Personality: start from any of the 24 personality types (sets the sliders and a matching job, shows your closest type), five trait sliders, three quirks (16 to choose from, each with a real effect), and a generated summary sentence.
 3. Tastes: six food-preference sliders and three hobbies.
-4. Appearance: hair style and color, eyes, build, outfit, accessory, skin tone. A live portrait shows instantly as procedural pixel art, then a low-res generated image, then high-res on confirm. Reroll button with a fixed portrait seed.
-5. Housemates: preview of the default cast with portraits, or randomize the cast; optional season seed.
+4. Appearance: hair style/color, eyes, build, outfit, accessory and skin; describe your look in free text and map it to those fields. Generate a portrait when the look is ready, using the same full-size rendering as the housemates. Editing keeps the last portrait visible and creates no image jobs; reroll generates another variation. The default player uses prebaked artwork immediately. The generated portrait supplies a sampled sprite palette; custom portraits show a labeled temporary preview while generating or offline.
+5. Housemates: preview or randomize the cast; optional seed, open-ended default or fixed season length.
 
 ## The house (top-down pixel view)
-- Procedurally drawn floor plan from `content/house.json`: two bedrooms, bathroom, rooftop terrace, entrance, living room and kitchen, with floors, walls, doors and about 30 pieces of furniture.
+- Two floors from `content/house.json`: ground-floor entrance/living/kitchen/small bathroom/backyard; upstairs bedrooms, private balconies and main bathroom. Stairs change floors; visiting another bedroom's balcony requires an invitation.
 - Walk your character with arrow keys/WASD; collision with walls and furniture.
 - Housemates appear as pixel sprites in the room they're actually in, with idle bobbing and walking between rooms. Sprites are shaded (light from the top-left), with per-style hair (bob, braids, ponytail, buzz, messy, long), two-pixel eyes, swinging arms, outfit details (skirts, shorts, aprons, jackets, stripes), build width and accessories (glasses, caps, headphones, scarves, hair clips, ear cuffs).
 - Activity emotes above housemates you can see: asleep, cooking, eating, hobby, working, exercising, texting, tidying, keeping to themselves. Name and mood labels use text plus a symbol, never color alone.
-- Hotspots: press E at the stove (cook), fridge/whiteboard (chores), sofa (hang out), TV (hobby), sink (tidy), rooftop bench, beds (rest) and front door (city map).
+- Hotspots: press E at the stove (cook), fridge/whiteboard (chores), sofa (hang out), TV (hobby), sink (tidy), backyard table, beds (rest) and front door (city map).
 - Walk up to a housemate and press E to talk.
-- Time-of-day tint and rain on the rooftop.
-- Side panel with every action as a button (hang out, cook, rooftop, tidy, hobby, rest, go out, let time pass) and a confirmation of which slot it uses.
+- Clock-based light, lamps and rain on the backyard/balconies; dishes, laundry, trash, groceries and living-room mess are visible.
+- Side panel with every action as a button (hang out, cook, backyard, tidy, hobby, rest, go out, skip block, sleep until morning, wrap season) and a confirmation of which slot it uses.
 - "Who's where" panel: each housemate's portrait, room (or "out"), mood word, new/leaving tags and a talk button.
 
 ## Scenes and dialogue
@@ -63,7 +106,7 @@ Everything below exists in the current code. Where a feature only works in one m
 - Chat scenes are shown inside a phone frame with chat bubbles and a typing indicator.
 - Intro card (portrait, name, age, job, hometown) when a new housemate arrives.
 - Freeze-frame at the end of big scenes: still image, zoom-in effect and caption.
-- Outcome cues with no numbers ("they are together now", "something about Mio came out", "they noticed you listening"); a suitcase animation when someone decides to leave.
+- Outcome cues with no numbers ("they are together now", "something about Maya came out", "they noticed you listening"); a suitcase animation when someone decides to leave.
 - **Eavesdrop / join / ignore** prompt when you walk into an NPC–NPC conversation. Eavesdropping can get you noticed, which costs trust.
 - Real mode: rule-based voice check per line (length, formality, catchphrase cap, banned meta phrases), one regeneration on failure, then a template fallback.
 - The LLM only proposes relationship changes. The engine validates them (zod), clamps each to ±15, drops unknown ids and applies them.
@@ -78,7 +121,10 @@ Everything below exists in the current code. Where a feature only works in one m
 - The panel never gives hints and never changes the game state.
 - Panel avatars are prebaked pixel portraits.
 
-## Living world (runs every slot, with or without the player)
+## Living world (minute schedules and hourly interactions)
+- Activity deadlines let housemates shower for 40 minutes, nap for 90, snack for 20, then choose again. Hourly interactions use lighter relationship changes than full conversations.
+- NPC approaches, invitations on a shared calendar, kept/broken promises, barks, gifts/favors, recurring visitors and daily relationship upkeep.
+- Rain cancels outdoor plans, heatwaves affect mood, tomorrow's forecast is visible, and the bible records routines you actually observe.
 - Needs (energy, hunger, social, privacy, romance, achievement) decay at persona-specific rates.
 - Each housemate picks an action by utility with seeded randomness: sleep, cook, eat, tidy, work, exercise, hobby, go out, seek someone, avoid someone, text someone, gossip, apologize, confess, retreat. Routines, jobs, goals and values all weigh in.
 - Approach/avoid pull toward each person comes from affinity, romance, tension, reputation, beliefs and attachment style (avoidant people damp their pull, anxious people amplify it).
@@ -96,12 +142,13 @@ Everything below exists in the current code. Where a feature only works in one m
 - Tested invariants: no character references a fact they don't know, and every passed-on fact has a valid source chain.
 
 ## Personal arcs
+- Fourteen career arcs: two each for food, health, creative, trades, office, student and service, including player contracts and workplace beats. Shifts can bring raises, dismissal, offers, coworker visits or stress.
 - Three-act arcs for each default housemate, triggered by conditions:
-  - Ren: the family restaurant.
-  - Kaito: inflated follower numbers.
-  - Shun: the marriage meeting.
-  - Mio: the ex.
-  - Sora: the album and joining for exposure.
+  - Ron: the family restaurant.
+  - Kai: inflated follower numbers.
+  - Shai: family pressure about settling down.
+  - Maya: the ex.
+  - Shira: the album and joining for exposure.
 - Five arc templates for generated characters: secret, crossroads, ex returns, breakthrough, homesick.
 - Arc decisions can make a housemate leave; having someone in the house worth staying for lowers the chance.
 
@@ -128,23 +175,23 @@ Everything below exists in the current code. Where a feature only works in one m
 - Fridge & chores screen: ingredient counts, labeled food, rota, done/skipped ledger with warnings, meters for dishes/laundry/trash/noise, aircon setting, house rules.
 
 ## Events
-- 90 event templates: 29 core, 11 domestic, 7 calendar, 30 arc beats, 13 system/interaction templates.
-- Required events included: new arrival at the door, chore-rota conflict, late-night kitchen talk, rooftop talk, shared-car date, part-time job mishap, group dinner, jealousy after a date, confession at a scenic spot, farewell at the door, cooking for someone, silent breakfast, birthday, rainy day indoors, group outing, private chat exchange.
+- Core, domestic, local-calendar, career/personal-arc and system/interaction event templates.
+- Required events included: new arrival at the door, chore-rota conflict, late-night kitchen talk, backyard talk, shared-car date, part-time job mishap, group dinner, jealousy after a date, confession at a scenic spot, farewell at the door, cooking for someone, silent breakfast, birthday, rainy day indoors, group outing, private chat exchange.
 - Also included: café date, karaoke duet, solo wander, work shift, gossip on the sofa, apology, the big argument, morning run, movie night, call from home, former housemate visit, neighbor complaint.
 - Event director scores candidates for expected drama, variety, pacing (confession/farewell budgets, quiet scenes after peaks) and the player's recent choices. It picks with seeded softmax.
 
 ## City
-- Fictional coastal city: 19 places across 4 districts (harbor, old town, hillside, coast) with travel times, opening hours (including late-night venues), costs and activities.
+- Tel Aviv places across Jaffa, Florentin, Neve Tzedek/Rothschild, central/north and beach districts, with weekday opening hours, travel times and shekel prices.
 - Pixel-art map drawn from `city.json` with time-of-day tint. Reachable places blink; unreachable ones are dimmed with a reason (too far, closed, not enough money, needs the car).
-- Shortest-path travel times; a trip must fit the time slot.
+- Shortest-path travel times; outward journey, activity and return journey must fit the minutes remaining, and the venue must be open when you arrive.
 - Shared car: unlocks far places and is faster, but only one person can use it per slot.
 - Activities: date (invite a housemate), wander, work a shift (earns money), shop, karaoke, eat out, invite housemates.
-- **Part-time contracts**: sign on at a work spot for that time slot on three fixed weekdays. Contract shifts pay 25% more than drop-in shifts; the house screen and map remind you when a shift is due; two missed shifts and the manager lets you go (typhoon days excused).
-- Housemates who went to the same place can run into you. Regular locals (café owner, konbini clerk, street musician…) show up on their schedule and remember you.
+- **Part-time contracts**: sign on at a work spot for that time slot on three fixed weekdays. Contract shifts pay 25% more than drop-in shifts; the house screen and map remind you when a shift is due; two missed shifts and the manager lets you go (extreme weather excused).
+- Housemates who went to the same place can run into you. Regular locals (café owner, makolet owner, street musician…) show up on their schedule and remember you.
 - Location backgrounds for every place.
 
 ## Cooking minigame
-- Nine recipes, each with a different chain of steps.
+- Local recipes (shakshuka, sabich, hummus, schnitzel and Friday chicken), each with a chain of steps. Meat/dairy/parve and vegan/vegetarian tags, separate pans and a marked kosher shelf affect whether housemates eat and trust the cook.
 - Five step mechanics:
   - Chop: rhythm hits on a beat track.
   - Boil: stop the timer in the right window.
@@ -160,9 +207,11 @@ Everything below exists in the current code. Where a feature only works in one m
 - Scoring is pure and tested (always between 0 and 1, never lower for more accurate play).
 
 ## Phone
+- Unread notifications update as world minutes advance. Shared plans and a social feed of persisted pixel photos/stories show who posted with whom and who liked them.
+- A photo establishes that people posted together; it does not establish a romance. Public posts enter the existing knowledge system with their source retained.
 - Private chat threads with each housemate, with read/delivered status.
 - House group chat. You can be left out of it; posts carry information to everyone in it.
-- Sending a message uses a time slot and starts a chat scene. You can type the message yourself; the conversation is saved in the thread.
+- Sending a message starts a chat scene and consumes the actual conversation minutes. You can type the message yourself; the conversation is saved in the thread.
 - Housemates text each other and you on their own. Anxious senders take a read-and-ignore badly.
 
 ## Information screens
@@ -175,7 +224,7 @@ Everything below exists in the current code. Where a feature only works in one m
 - ComfyUI backend: API-format workflow plus `mapping.json`, so you can swap workflows without code changes. Progress over websocket.
 - Default workflow: Qwen-Image + Lightning 8-step LoRA.
 - Priority queue (player portrait > current scene > prefetch), one job at a time, cancellation, disk cache keyed by workflow, prompt, seed and size, indexed in SQLite.
-- Prebaked library of 69 pixel-art images (cast and default-player portraits, panel avatars, every city place by day and evening, every house room morning/day/night, title art), generated by `scripts/assets/comfy_gen.py`.
+- Versioned Tel Aviv asset manifest with 84 valid PNGs: 79 newly generated local cast/title/place/room images and five retained panel avatars. All 83 manifest keys resolve. Room viewpoints are shared with live generation; procedural art remains the fallback. See [docs/ARTWORK.md](docs/ARTWORK.md).
 - **Consistent faces**: freeze-frames use the lead character's approved portrait as a reference image through a Qwen-Image-Edit 2511 workflow (`workflows/ref_edit.api.json` + `ref_mapping.json`; swap in an IP-Adapter graph the same way).
 - One GPU for both services: while dialogue streams, the image queue waits and ComfyUI unloads its models so the LLM gets the card.
 - Prompts are built in one place (`compileAppearancePrompt`): style prefix, an adult tag, a fixed tag order and a fixed seed per character, minors-coded words stripped, and a global safety negative prompt.
@@ -198,7 +247,7 @@ Everything below exists in the current code. Where a feature only works in one m
 - Synthesized dialogue blips and chimes (WebAudio, no audio files).
 
 ## Tooling and tests
-- `npm test`: 89 tests, including the 200-seed season simulation (value ranges, knowledge invariant, gossip source chains, NPC romance appearing in some seeds but not all, idle seasons still producing events, departures, arrivals and arc beats), plus determinism, cooking property tests, city tests, prompt budgets, LLM fallback and retry, Ollama streaming, ComfyUI patching, image queue, a full episode with both services down, replay, save/load, and API validation.
+- `npm test`: unit/integration tests, including the 200-seed season simulation (value ranges, knowledge invariant, gossip source chains, NPC romance appearing in some seeds but not all, idle seasons still producing events, departures, arrivals and arc beats), plus determinism, cooking property tests, city tests, prompt budgets, LLM fallback and retry, Ollama streaming, ComfyUI patching, image queue, a full episode with both services down, replay, save/load, and API validation.
 - `npm run test:e2e`: browser end-to-end tests (Playwright, system Edge): creator → a full first episode with both studio intermissions → episode 2, intermission panel lines, typing your own words in a scene, graduating and moving in as someone new, and signing a job contract on the city map.
 - `npm run smoke` (real-service check), `npm run sim` (headless season summary), `scripts/stats.ts` (tuning numbers across seeds).
 - Strict TypeScript everywhere, ESLint, Prettier, `npm run build`.

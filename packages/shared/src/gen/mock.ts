@@ -23,7 +23,7 @@ const DEPTH_RANK: Record<Depth, number> = { smalltalk: 0, personal: 1, vulnerabl
 const TOPICS: Record<string, string[]> = {
   default: ['the weather', 'work', 'dinner', 'the house', 'weekend plans'],
   'chore-conflict': ['the trash', 'the rota', 'fairness'], dishes: ['the dishes', 'who cooked'], 'late-night-talk': ['not sleeping', 'home', 'what we want'],
-  'rooftop-talk': ['the view', 'the future', 'us'], confession: ['us', 'feelings'], farewell: ['leaving', 'what comes next'],
+  'backyard-talk': ['the string lights', 'the future', 'us'], confession: ['us', 'feelings'], farewell: ['leaving', 'what comes next'],
   date: ['the menu', 'childhood', 'types'], jealousy: ['the date', 'who likes who'], gossip: ['someone else', 'secrets'],
   arc: ['the past', 'family', 'the plan'], argument: ['respect', 'the sofa', 'everything'], 'cook-for': ['the food', 'taste'],
 };

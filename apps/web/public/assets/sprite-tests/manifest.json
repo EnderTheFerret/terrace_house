@@ -1,0 +1,137 @@
+[
+  {
+    "id": "noa",
+    "name": "Noa Barak",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/noa-32x40.png",
+    "gameSizeSheet": "sheets/noa-16x20.png",
+    "raw": "raw/noa.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Upgrade this exact reference character, preserving identity, hair color and clothing colors: shoulder-length, dark brown, blue denim jacket over cream shirt, dark jeans, small jacket pockets and pale metal buttons, fair. Create one clean 16-bit pixel-art RPG sprite sheet on pure white background. Exactly FOUR full-body idle sprites in one horizontal row in this order: front facing camera, back facing away, LEFT profile with nose pointing left, RIGHT profile with nose pointing right. Each sprite centered in its own equal-width quarter; equal height and shared foot baseline. Preserve the reference cute top-down chibi proportions with large head and short body, two heads tall. Add readable hand-placed pixel clusters: hair strands and highlights, jacket seams or fabric folds, collar, buttons, pockets, distinct hands, shoe soles, small character accessories. Use a restrained cohesive palette, dark one-pixel outlines and top-left lighting. Crisp square pixels designed to survive a 32 by 40 pixel frame. Entire heads and feet visible with generous white margins. Four characters only, no text, no labels, no grid lines, no scenery, no drop shadow, no gradients, no portrait, no realistic rendering."
+  },
+  {
+    "id": "ren",
+    "name": "Ron Azulay",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/ren-32x40.png",
+    "gameSizeSheet": "sheets/ren-16x20.png",
+    "raw": "raw/ren.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Upgrade this exact reference character, preserving identity, hair color and clothing colors: short messy, black, dark brown, lean, white cook t-shirt and canvas apron, kitchen towel over shoulder, light tan. Create one clean 16-bit pixel-art RPG sprite sheet on pure white background. Exactly FOUR full-body idle sprites in one horizontal row in this order: front facing camera, back facing away, LEFT profile with nose pointing left, RIGHT profile with nose pointing right. Each sprite centered in its own equal-width quarter; equal height and shared foot baseline. Preserve the reference cute top-down chibi proportions with large head and short body, two heads tall. Add readable hand-placed pixel clusters: hair strands and highlights, jacket seams or fabric folds, collar, buttons, pockets, distinct hands, shoe soles, small character accessories. Use a restrained cohesive palette, dark one-pixel outlines and top-left lighting. Crisp square pixels designed to survive a 32 by 40 pixel frame. Entire heads and feet visible with generous white margins. Four characters only, no text, no labels, no grid lines, no scenery, no drop shadow, no gradients, no portrait, no realistic rendering."
+  },
+  {
+    "id": "kaito",
+    "name": "Kai Levi",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/kaito-32x40.png",
+    "gameSizeSheet": "sheets/kaito-16x20.png",
+    "raw": "raw/kaito.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Upgrade this exact reference character, preserving identity, hair color and clothing colors: wavy shoulder-length, sun-bleached brown, brown, athletic, oversized graphic tee and board shorts, shell necklace, tan. Create one clean 16-bit pixel-art RPG sprite sheet on pure white background. Exactly FOUR full-body idle sprites in one horizontal row in this order: front facing camera, back facing away, LEFT profile with nose pointing left, RIGHT profile with nose pointing right. Each sprite centered in its own equal-width quarter; equal height and shared foot baseline. Preserve the reference cute top-down chibi proportions with large head and short body, two heads tall. Add readable hand-placed pixel clusters: hair strands and highlights, jacket seams or fabric folds, collar, buttons, pockets, distinct hands, shoe soles, small character accessories. Use a restrained cohesive palette, dark one-pixel outlines and top-left lighting. Crisp square pixels designed to survive a 32 by 40 pixel frame. Entire heads and feet visible with generous white margins. Four characters only, no text, no labels, no grid lines, no scenery, no drop shadow, no gradients, no portrait, no realistic rendering."
+  },
+  {
+    "id": "shun",
+    "name": "Shai Ben-David",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/shun-32x40.png",
+    "gameSizeSheet": "sheets/shun-16x20.png",
+    "raw": "raw/shun.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Upgrade this exact reference character, preserving identity, hair color and clothing colors: neat side part, dark brown, brown, tall and slim, navy knit sweater over collared shirt, thin round glasses, fair. Create one clean 16-bit pixel-art RPG sprite sheet on pure white background. Exactly FOUR full-body idle sprites in one horizontal row in this order: front facing camera, back facing away, LEFT profile with nose pointing left, RIGHT profile with nose pointing right. Each sprite centered in its own equal-width quarter; equal height and shared foot baseline. Preserve the reference cute top-down chibi proportions with large head and short body, two heads tall. Add readable hand-placed pixel clusters: hair strands and highlights, jacket seams or fabric folds, collar, buttons, pockets, distinct hands, shoe soles, small character accessories. Use a restrained cohesive palette, dark one-pixel outlines and top-left lighting. Crisp square pixels designed to survive a 32 by 40 pixel frame. Entire heads and feet visible with generous white margins. Four characters only, no text, no labels, no grid lines, no scenery, no drop shadow, no gradients, no portrait, no realistic rendering."
+  },
+  {
+    "id": "mio",
+    "name": "Maya Cohen",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/mio-32x40.png",
+    "gameSizeSheet": "sheets/mio-16x20.png",
+    "raw": "raw/mio.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Upgrade this exact reference character, preserving identity, hair color and clothing colors: long with soft bangs, chestnut brown, hazel, petite, pastel cardigan over a long skirt, small hair clip, fair. Create one clean 16-bit pixel-art RPG sprite sheet on pure white background. Exactly FOUR full-body idle sprites in one horizontal row in this order: front facing camera, back facing away, LEFT profile with nose pointing left, RIGHT profile with nose pointing right. Each sprite centered in its own equal-width quarter; equal height and shared foot baseline. Preserve the reference cute top-down chibi proportions with large head and short body, two heads tall. Add readable hand-placed pixel clusters: hair strands and highlights, jacket seams or fabric folds, collar, buttons, pockets, distinct hands, shoe soles, small character accessories. Use a restrained cohesive palette, dark one-pixel outlines and top-left lighting. Crisp square pixels designed to survive a 32 by 40 pixel frame. Entire heads and feet visible with generous white margins. Four characters only, no text, no labels, no grid lines, no scenery, no drop shadow, no gradients, no portrait, no realistic rendering."
+  },
+  {
+    "id": "sora",
+    "name": "Shira Mizrahi",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/sora-32x40.png",
+    "gameSizeSheet": "sheets/sora-16x20.png",
+    "raw": "raw/sora.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Upgrade this exact reference character, preserving identity, hair color and clothing colors: asymmetric bob, black with teal tips, dark brown, slim, vintage band tee, denim jacket, cargo pants, silver ear cuffs, light. Create one clean 16-bit pixel-art RPG sprite sheet on pure white background. Exactly FOUR full-body idle sprites in one horizontal row in this order: front facing camera, back facing away, LEFT profile with nose pointing left, RIGHT profile with nose pointing right. Each sprite centered in its own equal-width quarter; equal height and shared foot baseline. Preserve the reference cute top-down chibi proportions with large head and short body, two heads tall. Add readable hand-placed pixel clusters: hair strands and highlights, jacket seams or fabric folds, collar, buttons, pockets, distinct hands, shoe soles, small character accessories. Use a restrained cohesive palette, dark one-pixel outlines and top-left lighting. Crisp square pixels designed to survive a 32 by 40 pixel frame. Entire heads and feet visible with generous white margins. Four characters only, no text, no labels, no grid lines, no scenery, no drop shadow, no gradients, no portrait, no realistic rendering."
+  },
+  {
+    "id": "test-tamar",
+    "name": "Tamar / new test",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/test-tamar-32x40.png",
+    "gameSizeSheet": "sheets/test-tamar-16x20.png",
+    "raw": "raw/test-tamar.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Redesign the reference into this new adult character: adult woman age 29, dark curly bun, olive utility jacket, cream shirt, rust trousers, gold hoop earrings, medium brown skin. Create one clean 16-bit pixel-art RPG sprite sheet on pure white background. Exactly FOUR full-body idle sprites in one horizontal row in this order: front facing camera, back facing away, LEFT profile with nose pointing left, RIGHT profile with nose pointing right. Each sprite centered in its own equal-width quarter; equal height and shared foot baseline. Preserve the reference cute top-down chibi proportions with large head and short body, two heads tall. Add readable hand-placed pixel clusters: hair strands and highlights, jacket seams or fabric folds, collar, buttons, pockets, distinct hands, shoe soles, small character accessories. Use a restrained cohesive palette, dark one-pixel outlines and top-left lighting. Crisp square pixels designed to survive a 32 by 40 pixel frame. Entire heads and feet visible with generous white margins. Four characters only, no text, no labels, no grid lines, no scenery, no drop shadow, no gradients, no portrait, no realistic rendering."
+  },
+  {
+    "id": "test-eli",
+    "name": "Eli / new test",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/test-eli-32x40.png",
+    "gameSizeSheet": "sheets/test-eli-16x20.png",
+    "raw": "raw/test-eli.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Redesign the reference into this new adult character: adult man age 32, short black curly hair, short beard, round glasses, burgundy overshirt with patch pockets, charcoal trousers, tan skin. Create one clean 16-bit pixel-art RPG sprite sheet on pure white background. Exactly FOUR full-body idle sprites in one horizontal row in this order: front facing camera, back facing away, LEFT profile with nose pointing left, RIGHT profile with nose pointing right. Each sprite centered in its own equal-width quarter; equal height and shared foot baseline. Preserve the reference cute top-down chibi proportions with large head and short body, two heads tall. Add readable hand-placed pixel clusters: hair strands and highlights, jacket seams or fabric folds, collar, buttons, pockets, distinct hands, shoe soles, small character accessories. Use a restrained cohesive palette, dark one-pixel outlines and top-left lighting. Crisp square pixels designed to survive a 32 by 40 pixel frame. Entire heads and feet visible with generous white margins. Four characters only, no text, no labels, no grid lines, no scenery, no drop shadow, no gradients, no portrait, no realistic rendering."
+  },
+  {
+    "id": "test-dana",
+    "name": "Dana / new test",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/test-dana-32x40.png",
+    "gameSizeSheet": "sheets/test-dana-16x20.png",
+    "raw": "raw/test-dana.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Redesign the reference into this new adult character: adult woman age 27, short silver pixie haircut, lilac hoodie with drawstrings, black shorts, high-top cream sneakers, freckles, fair skin. Create one clean 16-bit pixel-art RPG sprite sheet on pure white background. Exactly FOUR full-body idle sprites in one horizontal row in this order: front facing camera, back facing away, LEFT profile with nose pointing left, RIGHT profile with nose pointing right. Each sprite centered in its own equal-width quarter; equal height and shared foot baseline. Preserve the reference cute top-down chibi proportions with large head and short body, two heads tall. Add readable hand-placed pixel clusters: hair strands and highlights, jacket seams or fabric folds, collar, buttons, pockets, distinct hands, shoe soles, small character accessories. Use a restrained cohesive palette, dark one-pixel outlines and top-left lighting. Crisp square pixels designed to survive a 32 by 40 pixel frame. Entire heads and feet visible with generous white margins. Four characters only, no text, no labels, no grid lines, no scenery, no drop shadow, no gradients, no portrait, no realistic rendering."
+  }
+]

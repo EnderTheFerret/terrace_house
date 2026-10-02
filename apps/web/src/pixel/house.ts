@@ -5,32 +5,32 @@ export const TILE = 16;
 
 const house = (): HouseContent => content().house;
 
-export function roomAt(x: number, y: number): string | null {
-  const r = house().rooms.find((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+export function roomAt(x: number, y: number, floor = 0): string | null {
+  const r = house().rooms.find((r) => r.floor === floor && x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
   return r?.id ?? null;
 }
 
-function isDoor(x: number, y: number, nx: number, ny: number): boolean {
-  const doors = house().doors;
+function isDoor(x: number, y: number, nx: number, ny: number, floor = 0): boolean {
+  const doors = house().doors.filter((d) => d[2] === floor);
   // door [dx, dy] opens the boundary between (dx,dy) and its neighbour above or to the left
   return doors.some(([dx, dy]) => (dx === x && dy === y && ((nx === x && ny === y - 1) || (nx === x - 1 && ny === y))) || (dx === nx && dy === ny && ((x === nx && y === ny - 1) || (x === nx - 1 && y === ny))));
 }
 
 /** Can you walk from tile a to adjacent tile b? (walls between rooms except doors, solid furniture) */
-export function passable(ax: number, ay: number, bx: number, by: number, solid: Set<string>): boolean {
+export function passable(ax: number, ay: number, bx: number, by: number, solid: Set<string>, floor = 0): boolean {
   const H = house();
   if (bx < 0 || by < 0 || bx >= H.width || by >= H.height) return false;
   if (solid.has(`${bx},${by}`)) return false;
-  const ra = roomAt(ax, ay);
-  const rb = roomAt(bx, by);
+  const ra = roomAt(ax, ay, floor);
+  const rb = roomAt(bx, by, floor);
   if (!rb) return false;
-  if (ra !== rb && !isDoor(ax, ay, bx, by)) return false;
+  if (ra !== rb && !isDoor(ax, ay, bx, by, floor)) return false;
   return true;
 }
 
-export function solidTiles(): Set<string> {
+export function solidTiles(floor = 0): Set<string> {
   const s = new Set<string>();
-  for (const f of house().furniture) if (f.solid !== false) for (let j = 0; j < f.h; j++) for (let i = 0; i < f.w; i++) s.add(`${f.x + i},${f.y + j}`);
+  for (const f of house().furniture) if (f.floor === floor && f.solid !== false) for (let j = 0; j < f.h; j++) for (let i = 0; i < f.w; i++) s.add(`${f.x + i},${f.y + j}`);
   return s;
 }
 
@@ -103,6 +103,10 @@ const box = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h: nu
 };
 
 const FURN: Record<string, Draw> = {
+  stairs: (c, x, y, w, h) => {
+    box(c, x, y, w, h, '#bdb4aa');
+    for (let j = 4; j < h; j += 4) { px(c, '#e6e9ef', x + 2, y + j, w - 4, 2); px(c, '#8a7f8e', x + 2, y + j + 2, w - 4, 1); }
+  },
   bed: (c, x, y, w, h) => {
     box(c, x + 1, y + 1, w - 2, h - 2, '#f7f2ea');
     px(c, '#fff', x + 3, y + 3, w - 6, 5);
@@ -224,25 +228,24 @@ const FURN: Record<string, Draw> = {
 };
 
 /** Render the static house layer (floors, walls, furniture) at 1 px = 1 px. Cached by caller. */
-export function renderHouse(): HTMLCanvasElement {
+export function renderHouse(floor = 0): HTMLCanvasElement {
   const H = house();
   const c = document.createElement('canvas');
   c.width = H.width * TILE;
   c.height = H.height * TILE;
   const ctx = c.getContext('2d')!;
   ctx.imageSmoothingEnabled = false;
-  for (const r of H.rooms) {
+  for (const r of H.rooms.filter((r) => r.floor === floor)) {
     const rng = mulberry32(hashSeed(r.id));
-    const f = FLOOR[r.floor] ?? FLOOR.wood;
+    const f = FLOOR[r.material] ?? FLOOR.wood;
     for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) f(ctx, x * TILE, y * TILE, () => rng.next());
   }
-  // rooftop sky edge
-  const roof = H.rooms.find((r) => r.id === 'rooftop');
+  const roof = H.rooms.find((r) => r.id === 'backyard' && r.floor === floor);
   if (roof) {
     ctx.fillStyle = 'rgba(159,211,230,0.35)';
     ctx.fillRect(roof.x * TILE, roof.y * TILE, roof.w * TILE, 6);
   }
-  for (const f of H.furniture) {
+  for (const f of H.furniture.filter((f) => f.floor === floor)) {
     const draw = FURN[f.type];
     if (draw) draw(ctx, f.x * TILE, f.y * TILE, f.w * TILE, f.h * TILE);
     else box(ctx, f.x * TILE, f.y * TILE, f.w * TILE, f.h * TILE, '#cccccc');
@@ -251,13 +254,13 @@ export function renderHouse(): HTMLCanvasElement {
   ctx.fillStyle = OUT;
   for (let y = 0; y < H.height; y++)
     for (let x = 0; x < H.width; x++) {
-      const r = roomAt(x, y);
+      const r = roomAt(x, y, floor);
       if (!r) continue;
       const X = x * TILE;
       const Y = y * TILE;
       const edge = (nx: number, ny: number) => {
-        const nr = roomAt(nx, ny);
-        return nr !== r && !(nr && isDoor(x, y, nx, ny));
+        const nr = roomAt(nx, ny, floor);
+        return nr !== r && !(nr && isDoor(x, y, nx, ny, floor));
       };
       if (edge(x, y - 1)) ctx.fillRect(X, Y, TILE, 3);
       if (edge(x - 1, y)) ctx.fillRect(X, Y, 3, TILE);
@@ -279,5 +282,5 @@ export function spotFor(room: string, index: number): [number, number] {
   return [s[0] + (extra % 2), s[1] - extra];
 }
 
-export const hotspots = () => house().hotspots;
+export const hotspots = (floor = 0) => house().hotspots.filter((h) => h.floor === floor);
 export const houseSize = () => [house().width * TILE, house().height * TILE] as const;

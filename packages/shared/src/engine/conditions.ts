@@ -35,7 +35,7 @@ export function evalCond(s: GameState, c: Cond, b: Binding, rng: Rng | null, hou
   if (c.weather && !c.weather.includes(s.world.weather)) return false;
   if (c.season && !c.season.includes(s.world.season)) return false;
   if (c.cityEvent && s.world.cityEvent !== c.cityEvent) return false;
-  if (c.typhoon !== undefined && (s.world.cityEvent === 'typhoon') !== c.typhoon) return false;
+  if (c.typhoon !== undefined && (s.world.cityEvent === 'heatwave' || s.world.cityEvent === 'typhoon') !== c.typhoon) return false;
   if (c.rel) {
     const from = r(c.from);
     const to = r(c.to);

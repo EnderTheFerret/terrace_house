@@ -10,7 +10,7 @@ import type { Store } from '../db';
 export const PRIORITY = { playerPortrait: 100, portrait: 60, currentScene: 50, freeze: 45, location: 30, prefetch: 10 } as const;
 
 export function cacheKey(workflowHash: string, r: ImageRequest): string {
-  return createHash('sha256').update(`${workflowHash}\n${r.prompt}\n${r.negative}\n${r.seed}\n${r.width}x${r.height}${r.reference ? `\n${r.reference}` : ''}`).digest('hex');
+  return createHash('sha256').update(`${workflowHash}\n${r.prompt}\n${r.negative}\n${r.seed}\n${r.width}x${r.height}${r.reference ? `\n${r.reference}` : ''}${r.reference2 ? `\n${r.reference2}` : ''}`).digest('hex');
 }
 
 export interface ImageStatus {
@@ -92,7 +92,7 @@ export class ImageQueue {
     if (pre) return { key: req.subjectKey, status: 'ready', url: pre, placeholder: false };
     const key = cacheKey(this.workflowHash, req);
     const st = this.state.get(key);
-    if (st && (st.status === 'ready' || st.status === 'running')) return st;
+    if (st && (st.status === 'running' || (st.status === 'ready' && (!st.placeholder || this.backend.name === 'mock')))) return st;
     const row = this.store.imageGet(key);
     // cached real images are reused; cached placeholders are retried when the real backend is up
     if (row && existsSync(resolve(this.cacheDir, row.path)) && (!row.placeholder || this.backend.name === 'mock')) {

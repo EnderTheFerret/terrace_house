@@ -1,0 +1,44 @@
+{
+  "prompt_id": "badb399c-e7d5-4daa-96f7-1b83c5c9078d",
+  "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+      [
+        "execution_start",
+        {
+          "prompt_id": "badb399c-e7d5-4daa-96f7-1b83c5c9078d",
+          "timestamp": 1790934486891
+        }
+      ],
+      [
+        "execution_cached",
+        {
+          "nodes": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "9"
+          ],
+          "prompt_id": "badb399c-e7d5-4daa-96f7-1b83c5c9078d",
+          "timestamp": 1790934486933
+        }
+      ],
+      [
+        "execution_success",
+        {
+          "prompt_id": "badb399c-e7d5-4daa-96f7-1b83c5c9078d",
+          "timestamp": 1790934606422
+        }
+      ]
+    ]
+  },
+  "image": {
+    "filename": "shun_00001_.png",
+    "subfolder": "shared_roof_sprite_tests",
+    "type": "output"
+  }
+}

@@ -1,12 +1,16 @@
 // City graph: shortest paths, opening hours, reachability under time + money + car constraints (Section 7).
 import type { CityNode } from '../contentSchema';
-import type { Slot } from '../model';
+import type { GameState, Slot } from '../model';
 import { content } from '../content';
 import { SLOT_MINUTES, SLOT_START } from './core';
 
 export const ACTIVITY_MINUTES = 60;
-export const TRAIN_FARE = 220;
-export const CAR_FUEL = 400;
+export const TRAIN_FARE = 8;
+export const CAR_FUEL = 14;
+
+/** A player may share the car already booked for their accepted meeting. */
+export const carPlanNode = (s: GameState) => s.invitations.find((p) => p.status === 'accepted' && p.episode === s.world.episode && p.slot === s.world.slot && [p.from, p.to].includes(s.playerId) && [p.from, p.to].includes(s.world.carUsedBy ?? ''))?.node ?? null;
+export const canUseCar = (s: GameState, destination: string) => s.world.carUsedBy === null || s.world.carUsedBy === s.playerId || carPlanNode(s) === destination;
 
 export function node(id: string): CityNode {
   const n = content().city.nodes.find((x) => x.id === id);
@@ -37,10 +41,10 @@ export function shortestTimes(from: string, useCar: boolean): Record<string, num
 }
 
 /** Is the node open for any part of the slot window [start, start+3h)? Supports hours past midnight (to > 24). */
-export function isOpen(n: CityNode, slot: Slot): boolean {
-  const start = SLOT_START[slot];
+export function isOpen(n: CityNode, slot: Slot, minutes = 0, weekday = 3): boolean {
+  const start = SLOT_START[slot] + minutes / 60;
   const end = start + SLOT_MINUTES / 60;
-  const [o, c] = n.open;
+  const [o, c] = n.openDays?.[String(weekday)] ?? n.open;
   const overlaps = (a: number, b: number) => start < b && end > a;
   return overlaps(o, c) || overlaps(o - 24, c - 24);
 }
@@ -57,10 +61,9 @@ export interface Reach {
 }
 
 /**
- * For each destination: travel time (one way) + activity must fit the slot budget (return trip is the next slot's
- * problem, as in the show's edit); money must cover entry + fare. Car halves walking edges and unlocks car-only edges.
+ * Outward journey + activity + return journey must fit the remaining block. Money covers entry + fare.
  */
-export function reachability(from: string, slot: Slot, money: number, carAvailable: boolean): Reach[] {
+export function reachability(from: string, slot: Slot, money: number, carAvailable: boolean, elapsed = 0, weekday = 3, forceCar = false): Reach[] {
   const walk = shortestTimes(from, false);
   const drive = carAvailable ? shortestTimes(from, true) : null;
   return content()
@@ -68,14 +71,18 @@ export function reachability(from: string, slot: Slot, money: number, carAvailab
     .map((n) => {
       const wm = walk[n.id];
       const dm = drive ? drive[n.id] : Infinity;
-      const needsCar = !Number.isFinite(wm) || wm + ACTIVITY_MINUTES > SLOT_MINUTES;
+      const left = Math.max(0, SLOT_MINUTES - elapsed);
+      const needsCar = forceCar || !Number.isFinite(wm) || wm * 2 + ACTIVITY_MINUTES > left;
       const minutes = needsCar ? dm : wm;
       const fare = needsCar ? CAR_FUEL : minutes > 20 ? TRAIN_FARE : 0;
       const cost = n.cost + fare;
-      const open = isOpen(n, slot);
+      const arrival = SLOT_START[slot] + (elapsed + minutes) / 60;
+      const [o, c] = n.openDays?.[String(weekday)] ?? n.open;
+      const fits = (a: number, b: number) => arrival >= a && arrival + ACTIVITY_MINUTES / 60 <= b;
+      const open = fits(o, c) || fits(o - 24, c - 24);
       let reason: string | undefined;
       if (!Number.isFinite(minutes)) reason = carAvailable ? 'no route' : 'needs the car';
-      else if (minutes + ACTIVITY_MINUTES > SLOT_MINUTES) reason = 'too far for this slot';
+      else if (minutes * 2 + ACTIVITY_MINUTES > left) reason = 'too far for this slot';
       else if (!open) reason = 'closed now';
       else if (cost > money) reason = 'not enough money';
       return { node: n.id, name: n.name, minutes, cost, open, reachable: !reason, needsCar, reason };
@@ -83,12 +90,12 @@ export function reachability(from: string, slot: Slot, money: number, carAvailab
 }
 
 export const workNodes = () => content().city.nodes.filter((n) => n.activities.includes('work'));
-export const WAGE: Record<string, number> = { konbini: 3000, cafe: 3200, grill: 3800, records: 3000, livehouse: 3500 };
+export const WAGE: Record<string, number> = { konbini: 100, cafe: 110, grill: 130, records: 100, livehouse: 120 };
 
 /** A contract pays more than a drop-in shift; two missed shifts and you're let go. */
 export const CONTRACT_BONUS = 1.25;
 export const MISSES_BEFORE_FIRED = 2;
 export type PlayerJob = { nodeId: string; slot: Slot; weekdays: number[]; wage: number };
 /** Three fixed weekdays from the signing day, spread across the week (episodes advance the weekday by one). */
-export const contractDays = (weekday: number) => [weekday, (weekday + 2) % 7, (weekday + 4) % 7].sort((a, b) => a - b);
+export const contractDays = (weekday: number) => [...new Set([weekday % 5, (weekday + 2) % 5, (weekday + 4) % 5])].sort((a, b) => a - b);
 export const shiftToday = (job: PlayerJob | null, weekday: number, slot: string) => !!job && job.slot === slot && job.weekdays.includes(weekday);

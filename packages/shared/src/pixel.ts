@@ -29,11 +29,11 @@ export function shade(hex: string, f: number): string {
 
 export function palette(a: Appearance) {
   const hairKey = Object.keys(HAIR).find((k) => a.hairColor.toLowerCase().startsWith(k)) ?? a.hairColor.toLowerCase();
-  const hair = HAIR[hairKey] ?? PASTEL[hashSeed(a.hairColor) % PASTEL.length];
+  const hair = a.palette?.hair ?? HAIR[hairKey] ?? PASTEL[hashSeed(a.hairColor) % PASTEL.length];
   const accent = /teal/.test(a.hairColor) ? '#3fb8b0' : null;
-  const skin = SKIN[a.skinTone.toLowerCase()] ?? SKIN.light;
+  const skin = a.palette?.skin ?? SKIN[a.skinTone.toLowerCase()] ?? SKIN.light;
   const eye = EYES[a.eyeColor.toLowerCase()] ?? '#4a3020';
-  const outfit = KEYWORD_COLORS.find(([re]) => re.test(a.outfit.toLowerCase()))?.[1] ?? PASTEL[hashSeed(a.outfit) % PASTEL.length];
+  const outfit = a.palette?.outfit ?? KEYWORD_COLORS.find(([re]) => re.test(a.outfit.toLowerCase()))?.[1] ?? PASTEL[hashSeed(a.outfit) % PASTEL.length];
   const pants = /skirt|dress/.test(a.outfit) ? shade(outfit, 0.85) : /short/.test(a.outfit) ? '#4f7fb0' : '#3d4a66';
   return { hair, accent, skin, eye, outfit, pants, line: '#2a2030' };
 }
@@ -174,7 +174,7 @@ export type Dir = 'down' | 'up' | 'left' | 'right';
  * 16×20 top-down chibi sprite frame. frame ∈ {0,1,2} (1 = idle, 0/2 = steps).
  * Light comes from the top-left: every fill gets a darker right/bottom edge, hair gets a highlight.
  */
-export function spritePixels(a: Appearance, dir: Dir, frame: number): Pixels {
+function spriteBase(a: Appearance, dir: Dir, frame: number): Pixels {
   const pal = palette(a);
   const p = grid(16, 20);
   const style = hairStyle(a.hairStyle);
@@ -338,6 +338,106 @@ export function spritePixels(a: Appearance, dir: Dir, frame: number): Pixels {
     set(p, 3, 7, '#d8dce4');
     set(p, 12, 7, '#d8dce4');
   }
+  return p;
+}
+
+/** Detailed 32×40 frames for every Appearance, including future arrivals and custom players. */
+export function spritePixels(a: Appearance, dir: Dir, frame: number): Pixels {
+  const pal = palette(a);
+  const base = spriteBase(a, dir, frame);
+  const p = grid(32, 40);
+  for (let y = 0; y < 20; y++) for (let x = 0; x < 16; x++) {
+    const color = base[y][x];
+    if (color) rect(p, x * 2, 2 + Math.floor(y * 1.8), 2, Math.ceil((y + 1) * 1.8) - Math.floor(y * 1.8), color);
+  }
+  const highlight = shade(pal.hair, 1.55);
+  const shadow = shade(pal.hair, 0.72);
+  const outfit = a.outfit.toLowerCase();
+  const acc = a.accessory.toLowerCase();
+  // Fine hair clusters follow the silhouette rather than a flat enlarged fill.
+  for (let y = 3; y < 23; y++) for (let x = 4; x < 28; x++) {
+    if (p[y][x] !== pal.hair) continue;
+    if ((x + y * 2) % 11 === 0 && p[y + 1]?.[x] === pal.hair) {
+      set(p, x, y, x < 17 ? highlight : shadow);
+      set(p, x, y + 1, x < 17 ? shade(pal.hair, 1.25) : shadow);
+    }
+  }
+  const face = dir === 'down';
+  const side = dir === 'left' || dir === 'right';
+  const flip = (x: number) => dir === 'left' ? 31 - x : x;
+  if (face || side) {
+    for (const ex of face ? [10, 20] : [flip(20)]) {
+      rect(p, ex, 13, 2, 4, pal.line);
+      set(p, ex, 14, pal.eye);
+      set(p, ex, 13, '#fffaf3');
+    }
+    if (face) {
+      set(p, 15, 17, shade(pal.skin, 0.85));
+      rect(p, 14, 19, 3, 1, '#a45f68');
+      set(p, 9, 18, shade(pal.skin, 0.88));
+      set(p, 22, 18, shade(pal.skin, 0.88));
+    }
+  }
+  const trim = shade(pal.outfit, 0.68);
+  const light = shade(pal.outfit, 1.18);
+  if (face) {
+    rect(p, 10, 22, 3, 1, light);
+    rect(p, 19, 23, 2, 1, light);
+    if (/jacket|cardigan|coat|blazer|hoodie|shirt/.test(outfit)) {
+      for (const x of [12, 19]) {
+        rect(p, x, 23, 1, 7, trim);
+        rect(p, x + 1, 24, 1, 5, light);
+      }
+      for (const y of [24, 27, 30]) set(p, 18, y, '#e2cf9f');
+      for (const x of [9, 21]) {
+        rect(p, x, 25, 3, 1, trim);
+        rect(p, x, 26, 1, 2, light);
+      }
+    }
+    if (/apron/.test(outfit)) {
+      rect(p, 11, 27, 10, 1, '#c4ad84');
+      rect(p, 14, 28, 5, 3, '#e9dcc0');
+      rect(p, 14, 28, 5, 1, '#b8a17d');
+    }
+    if (/graphic|band/.test(outfit)) {
+      rect(p, 14, 25, 4, 3, '#f0d8b1');
+      set(p, 16, 26, trim);
+    }
+    if (/hoodie/.test(outfit)) for (const x of [14, 17]) rect(p, x, 23, 1, 3, '#f4f0e6');
+    if (/necklace|shell/.test(acc)) {
+      for (const x of [12, 14, 17, 19]) set(p, x, 22 + (x > 12 && x < 19 ? 1 : 0), '#f4efe0');
+      rect(p, 15, 24, 2, 1, '#e1d3ad');
+    }
+    if (/towel/.test(acc)) {
+      rect(p, 21, 22, 3, 7, '#f4f0e6');
+      rect(p, 22, 26, 2, 1, '#a3b8ca');
+    }
+    if (/glasses/.test(acc)) {
+      for (const x of [8, 18]) {
+        rect(p, x, 12, 6, 1, '#625963');
+        rect(p, x, 16, 6, 1, '#625963');
+        rect(p, x, 13, 1, 3, '#625963');
+        rect(p, x + 5, 13, 1, 3, '#625963');
+      }
+      rect(p, 14, 13, 4, 1, '#625963');
+    }
+  } else if (dir === 'up') {
+    rect(p, 11, 24, 10, 1, trim);
+    rect(p, 12, 25, 8, 1, light);
+    if (/apron/.test(outfit)) {
+      rect(p, 10, 28, 12, 1, '#d7c29b');
+      rect(p, 15, 28, 2, 3, '#d7c29b');
+    }
+  } else {
+    rect(p, flip(17), 23, 1, 5, light);
+    rect(p, flip(17), 28, 2, 1, trim);
+  }
+  // Shoe caps, cuffs and knuckles retain detail during walking.
+  for (let y = 27; y < 38; y++) for (let x = 5; x < 27; x++) {
+    if (p[y][x] === '#3a3036' && p[y - 1]?.[x] !== '#3a3036') set(p, x, y, '#71636b');
+    if (p[y][x] === pal.skin && p[y + 1]?.[x] !== pal.skin) set(p, x, y, shade(pal.skin, 0.8));
+  }
+  if (pal.accent) for (const x of [6, 7, 24, 25]) for (let y = 16; y < 21; y++) if (p[y][x] === pal.hair) set(p, x, y, pal.accent);
   return outline(p, pal.line);
 }
 
@@ -427,6 +527,42 @@ export function locationPixels(key: string, timeOfDay: 'morning' | 'day' | 'even
   const ground = /beach|sea|harbor|lighthouse|riverside/.test(key) ? '#5fa3c7' : /park|shrine|onsen|observatory/.test(key) ? '#7fb36a' : '#9a9098';
   rect(p, 0, 40, w, 24, ground);
   for (let i = 0; i < 40; i++) set(p, rng.int(0, w), rng.int(41, h), shade(ground, 1.15));
+  // Local procedural art also works while the image service is offline.
+  const indoor = /^(living|kitchen|bathroom|smallBathroom|bedroom[MW]|entrance|stairs(Up)?)$/.test(key);
+  if (indoor) {
+    rect(p, 0, 0, 96, 40, '#e6d4bc'); rect(p, 0, 40, 96, 24, '#b68d70');
+    for (let y = 42; y < 64; y += 6) rect(p, 0, y, 96, 1, '#9d765c');
+    rect(p, 8, 8, 22, 24, '#f1ede3'); rect(p, 10, 10, 18, 20, top);
+    rect(p, 18, 10, 1, 20, '#f1ede3'); rect(p, 10, 20, 18, 1, '#f1ede3');
+    rect(p, 77, 29, 4, 19, '#956b48'); rect(p, 71, 26, 16, 5, '#6d9a69');
+    if (key === 'kitchen') {
+      rect(p, 36, 26, 34, 18, '#efe8d5'); rect(p, 36, 25, 34, 2, '#62616b');
+      rect(p, 39, 29, 8, 5, '#8aaeb3'); rect(p, 51, 29, 7, 5, '#bb6860'); rect(p, 60, 29, 7, 5, '#6f8bac');
+      rect(p, 6, 35, 17, 21, '#a9bbc2'); rect(p, 7, 38, 14, 1, '#627680');
+      rect(p, 30, 49, 35, 5, '#d3a777'); rect(p, 32, 54, 3, 10, '#8c694d'); rect(p, 60, 54, 3, 10, '#8c694d');
+    } else if (key.startsWith('bedroom')) {
+      rect(p, 32, 39, 41, 18, '#d3adbe'); rect(p, 32, 39, 41, 4, '#fff1df'); rect(p, 35, 43, 10, 5, '#fff5e6');
+      rect(p, 55, 12, 24, 15, '#7e9a98'); rect(p, 57, 14, 20, 11, '#e5c585');
+    } else if (/Bathroom|bathroom/.test(key)) {
+      rect(p, 35, 20, 28, 33, '#c2dfe1'); rect(p, 39, 23, 20, 26, '#9ab8c8'); rect(p, 68, 40, 18, 6, '#f2eee6');
+    } else {
+      rect(p, 22, 44, 47, 16, '#c18577'); rect(p, 20, 40, 51, 6, '#dc9a87'); rect(p, 37, 53, 26, 5, '#dfbd8b');
+      rect(p, 47, 17, 18, 12, '#567487'); rect(p, 48, 18, 16, 10, '#b2cdca');
+    }
+  } else if (key === 'house') {
+    rect(p, 25, 13, 47, 41, '#f0e6d1'); rect(p, 23, 12, 51, 3, '#c8bda7');
+    rect(p, 43, 37, 10, 17, '#8e7463');
+    for (const bx of [29, 55]) { rect(p, bx, 19, 13, 11, '#8faeb8'); rect(p, bx - 2, 30, 17, 2, '#a68e74'); rect(p, bx - 2, 32, 17, 2, '#6f9a7d'); }
+    rect(p, 10, 48, 16, 2, '#a78058'); rect(p, 13, 50, 2, 7, '#a78058'); rect(p, 21, 50, 2, 7, '#a78058');
+  } else if (/backyard|balcony/.test(key)) {
+    rect(p, 0, 44, 96, 20, '#ac9275'); rect(p, 32, 48, 32, 4, '#b88352'); rect(p, 37, 52, 3, 12, '#805c40'); rect(p, 57, 52, 3, 12, '#805c40');
+    for (let bx = 5; bx < 96; bx += 11) { rect(p, bx, 19 + bx % 3, 2, 2, '#f9de99'); }
+  } else if (/market|konbini|grill|cafe/.test(key)) {
+    for (let bx = 8; bx < 96; bx += 24) { rect(p, bx, 35, 20, 5, bx % 3 ? '#c2776a' : '#ceaf71'); rect(p, bx + 2, 40, 16, 7, '#866752'); }
+  }
+  if (!indoor) for (const bx of [3, 83]) {
+    rect(p, bx + 4, 28, 2, 25, '#9b805a'); rect(p, bx, 25, 12, 3, '#68916a'); rect(p, bx + 2, 22, 8, 3, '#68916a');
+  }
   if (weather === 'rain' || weather === 'typhoon') for (let i = 0; i < 120; i++) set(p, rng.int(0, w), rng.int(0, h), '#dfe7f2');
   if (weather === 'snow') for (let i = 0; i < 80; i++) set(p, rng.int(0, w), rng.int(0, h), '#ffffff');
   return p;

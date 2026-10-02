@@ -1,0 +1,122 @@
+[
+  {
+    "id": "ren",
+    "name": "Ron Azulay",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/ren-32x40.png",
+    "gameSizeSheet": "sheets/ren-16x20.png",
+    "raw": "raw/ren.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 28-year-old adult man, short messy black hair, dark brown eyes, lean build, light tan skin, wearing white cook t-shirt and canvas apron, kitchen towel over shoulder. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame."
+  },
+  {
+    "id": "kaito",
+    "name": "Kai Levi",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/kaito-32x40.png",
+    "gameSizeSheet": "sheets/kaito-16x20.png",
+    "raw": "raw/kaito.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 24-year-old adult man, wavy shoulder-length sun-bleached brown hair, brown eyes, athletic build, tan skin, wearing oversized graphic tee and board shorts, shell necklace. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame."
+  },
+  {
+    "id": "shun",
+    "name": "Shai Ben-David",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/shun-32x40.png",
+    "gameSizeSheet": "sheets/shun-16x20.png",
+    "raw": "raw/shun.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 31-year-old adult man, neat side part dark brown hair, brown eyes, tall and slim build, fair skin, wearing navy knit sweater over collared shirt, thin round glasses. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame."
+  },
+  {
+    "id": "mio",
+    "name": "Maya Cohen",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/mio-32x40.png",
+    "gameSizeSheet": "sheets/mio-16x20.png",
+    "raw": "raw/mio.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 25-year-old adult woman, long with soft bangs chestnut brown hair, hazel eyes, petite build, fair skin, wearing pastel cardigan over a long skirt, small hair clip. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame."
+  },
+  {
+    "id": "sora",
+    "name": "Shira Mizrahi",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/sora-32x40.png",
+    "gameSizeSheet": "sheets/sora-16x20.png",
+    "raw": "raw/sora.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 26-year-old adult woman, asymmetric bob black with teal tips hair, dark brown eyes, slim build, light skin, wearing vintage band tee, denim jacket, cargo pants, silver ear cuffs. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame."
+  },
+  {
+    "id": "player",
+    "name": "Noa Barak",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/player-32x40.png",
+    "gameSizeSheet": "sheets/player-16x20.png",
+    "raw": "raw/player.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 24-year-old adult woman, shoulder-length bob dark brown hair, brown eyes, average build, light skin, wearing oversized cardigan and jeans. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame."
+  },
+  {
+    "id": "test-tamar",
+    "name": "Tamar / newcomer test",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/test-tamar-32x40.png",
+    "gameSizeSheet": "sheets/test-tamar-16x20.png",
+    "raw": "raw/test-tamar.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 24-year-old adult woman, long wavy dark brown hair, brown eyes, slim build, brown skin, wearing olive utility jacket over cream shirt and rust trousers, gold hoop earrings. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame."
+  },
+  {
+    "id": "test-eli",
+    "name": "Eli / custom player test",
+    "directions": [
+      "down",
+      "up",
+      "left",
+      "right"
+    ],
+    "sheet": "sheets/test-eli-32x40.png",
+    "gameSizeSheet": "sheets/test-eli-16x20.png",
+    "raw": "raw/test-eli.png",
+    "rightProfile": "mirrored left, matching procedural renderer",
+    "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 24-year-old adult woman, short messy black hair, brown eyes, lean build, tan skin, wearing burgundy overshirt and charcoal trousers, thin round glasses. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame."
+  }
+]

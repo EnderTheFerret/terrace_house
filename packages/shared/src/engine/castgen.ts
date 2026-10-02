@@ -144,6 +144,7 @@ export function baseCharacter(
     traits: p.traits,
     tastes: p.routine.tastes,
     appearance: e.appearance,
+    appearanceText: '',
     appearanceTags: [],
     portraitSeed: e.portraitSeed,
     voiceNotes: e.voiceNotes,
@@ -160,6 +161,7 @@ export function baseCharacter(
     contractEp: e.contractEp,
     archetypeId: opts.archetypeId,
     lowMoodStreak: 0,
+    activityUntil: 0,
   };
   c.appearanceTags = compileAppearanceTags(c);
   return c;
@@ -222,6 +224,9 @@ export function fromArchetype(s: Pick<GameState, 'counters'> | null, rng: Rng, a
   const occupation = rng.pick(a.occupations);
   const name = `${first} ${fam}`;
   const persona: Persona = {
+    kashrut: a.kashrut,
+    diet: a.diet,
+    keepsShabbat: a.keepsShabbat,
     traits,
     attachment: a.attachment,
     conflictStyle: a.conflictStyle,
@@ -240,12 +245,12 @@ export function fromArchetype(s: Pick<GameState, 'counters'> | null, rng: Rng, a
     tells: a.tells,
     speech: speechFromArchetype(a, rng),
     routine: {
-      jobSlots: jobOf(occupation) ? jobSchedule(rng, jobOf(occupation)!) : [{ slot: rng.pick(['slot1', 'slot2'] as const), weekdays: rng.shuffle([1, 2, 3, 4, 5]).slice(0, 3).sort() }],
-      habits: [{ slot: 'evening', action: 'hobby', room: rng.pick(['living', 'rooftop']) }, { slot: 'morning', action: rng.pick(['exercise', 'cook', 'eat']), room: 'kitchen' }],
+      jobSlots: jobOf(occupation) ? jobSchedule(rng, jobOf(occupation)!) : [{ slot: rng.pick(['slot1', 'slot2'] as const), weekdays: rng.shuffle([0, 1, 2, 3, 4]).slice(0, 3).sort() }],
+      habits: [{ slot: 'evening', action: 'hobby', room: rng.pick(['living', 'backyard']) }, { slot: 'morning', action: rng.pick(['exercise', 'cook', 'eat']), room: 'kitchen' }, { slot: 'lateNight', action: a.traits[2] < .4 ? 'sleep' : 'retreat', room: gender === 'man' ? 'balconyM' : 'balconyW' }],
       hobbies: a.hobbies.slice(0, 3),
       tastes: a.tastes.map((t) => clamp(t + rng.normal(0, 0.1), -1, 1)),
     },
-    backstory: `${first} grew up in ${rng.pick(content().hometowns)} and works as a ${occupation}. A ${a.label} by temperament, they moved into the house looking for a change.`,
+    backstory: `${first} grew up in ${rng.pick(content().hometowns)} and works as a ${occupation}. A ${a.label} by temperament, they moved to the Tel Aviv house looking for a change.${a.kashrut !== 'none' ? ' Keeping a familiar kosher kitchen is one way they stay connected to family.' : ''}${a.keepsShabbat ? ' They put the phone away on Shabbat and cook Friday dinner before sundown.' : ''}`,
     homesickness: clamp(0.2 + N * 0.4 + rng.normal(0, 0.1), 0, 1),
     gossipiness: a.gossipiness,
   };
@@ -381,6 +386,10 @@ export interface PlayerSetup {
   hobbies: string[];
   appearance: Appearance;
   portraitSeed?: number;
+  appearanceText?: string;
+  kashrut?: Persona['kashrut'];
+  diet?: Persona['diet'];
+  keepsShabbat?: boolean;
 }
 
 export function playerFromSetup(p: PlayerSetup, id = 'player'): Character {
@@ -392,6 +401,9 @@ export function playerFromSetup(p: PlayerSetup, id = 'player'): Character {
   const values = ['honesty', 'fun', 'loyalty', 'harmony', 'freedom'] as Persona['values'];
   if (eff.value && !values.includes(eff.value)) values.unshift(eff.value);
   const persona: Persona = {
+    kashrut: p.kashrut ?? 'none',
+    diet: p.diet ?? 'omnivore',
+    keepsShabbat: p.keepsShabbat ?? false,
     traits,
     attachment: eff.attachment ?? (N > 0.65 ? 'anxious' : E < 0.3 ? 'avoidant' : 'secure'),
     conflictStyle: eff.conflictStyle ?? (A > 0.7 ? 'mediate' : E > 0.7 ? 'deflect-with-humor' : O > 0.7 ? 'confront' : 'avoid'),
@@ -429,7 +441,7 @@ export function playerFromSetup(p: PlayerSetup, id = 'player'): Character {
     homesickness: clamp(0.3 + (eff.homesickness ?? 0), 0, 1),
     gossipiness: 0,
   };
-  return baseCharacter(
+  const character = baseCharacter(
     id,
     {
       name: p.name,
@@ -446,14 +458,16 @@ export function playerFromSetup(p: PlayerSetup, id = 'player'): Character {
     },
     { isPlayer: true, quirks: p.quirks },
   );
+  character.appearanceText = p.appearanceText ?? '';
+  return character;
 }
 
 export const DEFAULT_PLAYER: PlayerSetup = {
-  name: 'Yui Tanaka',
+  name: 'Noa Barak',
   age: 24,
   gender: 'woman',
   interestedIn: ['man'],
-  hometown: 'Nara',
+  hometown: 'Haifa',
   occupation: 'graphic designer',
   traits: [0.6, 0.55, 0.55, 0.65, 0.45],
   quirks: ['foodie', 'night-owl', 'music-lover'],

@@ -9,6 +9,7 @@ import { content } from '../content';
 import { addLog, addMemory, addRel, cloneState, firstName, traitsOf } from './core';
 import { consume } from './house';
 import { publicAct } from './social';
+import { isShabbat } from './agents';
 
 export const recipeById = (id: string): Recipe => {
   const r = content().recipes.find((x) => x.id === id);
@@ -254,7 +255,27 @@ export interface Reception {
   r: number;
   affinity: number;
   mood: number;
-  verdict: 'loved it' | 'liked it' | 'polite' | 'struggled';
+  verdict: 'loved it' | 'liked it' | 'polite' | 'struggled' | 'politely declined';
+}
+
+export function canEat(c: Character, recipe: Recipe, utensil: Recipe['category'] = recipe.category): boolean {
+  const ingredients = Object.keys(recipe.ingredients);
+  const meat = recipe.category === 'meat' || ingredients.some((x) => /chicken|beef|pork|lamb|salmon|fish|shrimp|shellfish/.test(x));
+  const dairy = recipe.category === 'dairy' || ingredients.some((x) => /milk|butter|cheese|cream|yogurt/.test(x));
+  if (c.persona.diet === 'vegan' && (meat || dairy || ingredients.includes('egg') || recipe.diet !== 'vegan')) return false;
+  if (c.persona.diet === 'vegetarian' && (meat || recipe.diet === 'omnivore')) return false;
+  if (c.persona.kashrut === 'none') return true;
+  if (ingredients.some((x) => /pork|bacon|shrimp|shellfish/.test(x)) || (meat && dairy)) return false;
+  return c.persona.kashrut !== 'strict' || (recipe.kosher && !(recipe.category === 'dairy' && utensil === 'meat') && !(recipe.category === 'meat' && utensil === 'dairy'));
+}
+
+export function npcRecipe(c: Character, s: GameState, rng: Rng): Recipe | undefined {
+  const recipes = content().recipes.filter((r) => canEat(c,r) &&
+    Object.entries(r.ingredients).every(([id,count]) => (s.house.fridge[id] ?? 0) >= count) &&
+    (c.persona.kashrut !== 'strict' || (
+      Object.keys(r.ingredients).every((id) => s.house.kitchen.kosherShelf.includes(id)) &&
+      (r.category !== 'meat' || s.house.kitchen.meatPanClean) && (r.category !== 'dairy' || s.house.kitchen.dairyPanClean))));
+  return recipes.length ? rng.pick(recipes) : undefined;
 }
 
 export function verdictOf(r: number): Reception['verdict'] {
@@ -264,16 +285,32 @@ export function verdictOf(r: number): Reception['verdict'] {
 /** Pure: apply a dish (quality from the minigame) to housemates who ate it. */
 export function applyCooking(
   s0: GameState,
-  o: { recipeId: string; quality: number; cook: string; partner?: string; servedTo: string[] },
+  o: { recipeId: string; quality: number; cook: string; partner?: string; servedTo: string[]; utensil?: Recipe['category'] },
 ): { state: GameState; receptions: Reception[]; improvised: boolean } {
   const s = cloneState(s0);
   const recipe = recipeById(o.recipeId);
+  if (isShabbat(s,s.characters[o.cook])) throw new Error('This housemate does not cook on Shabbat. Share food prepared before sundown.');
+  const utensil = o.utensil ?? recipe.category;
+  const clean = utensil === 'meat' ? s.house.kitchen.meatPanClean : utensil === 'dairy' ? s.house.kitchen.dairyPanClean : true;
+  const markedIngredients = Object.keys(recipe.ingredients).every((id) => s.house.kitchen.kosherShelf.includes(id));
+  if ((utensil === 'meat' && recipe.category === 'dairy') || (utensil === 'dairy' && recipe.category === 'meat')) {
+    s.world.flags.kosherPanViolation = true;
+    if (utensil === 'meat') s.house.kitchen.meatPanClean = false;
+    else s.house.kitchen.dairyPanClean = false;
+  }
   const improvised = !consume(s, recipe.ingredients);
   const q = clamp(o.quality * (improvised ? 0.6 : 1), 0, 1);
   const receptions: Reception[] = [];
   for (const id of o.servedTo.slice(0, recipe.serves)) {
     const c = s.characters[id];
     if (!c || c.status !== 'inHouse' || id === o.cook) continue;
+    if (!canEat(c,recipe,utensil) || (c.persona.kashrut === 'strict' && (!clean || !markedIngredients || improvised))) {
+      addRel(s,id,o.cook,'trust',-2);
+      addMemory(s,id,`${firstName(s,o.cook)} served ${recipe.name} without checking my kitchen or diet needs. I politely declined.`,[id,o.cook],.35);
+      receptions.push({charId:id,r:0,affinity:0,mood:0,verdict:'politely declined'});
+      continue;
+    }
+    if (c.persona.kashrut !== 'none' || c.persona.diet !== 'omnivore') addRel(s,id,o.cook,'trust',2);
     const r = reception(q, recipe.taste, c.tastes);
     const d = receptionDeltas(r);
     addRel(s, id, o.cook, 'affinity', d.affinity);
@@ -291,7 +328,7 @@ export function applyCooking(
   }
   if (receptions.length >= 2) publicAct(s, o.cook, 3 * q);
   s.house.dishes = clamp(s.house.dishes + 6 + receptions.length * 3, 0, 100);
-  s.house.groceryBudget -= improvised ? 0 : 400;
+  s.house.groceryBudget -= improvised ? 0 : 14;
   addLog(s, { kind: 'domestic', text: `${firstName(s, o.cook)} cooked ${recipe.name}${improvised ? ' (improvised with what was left)' : ''}.`, participants: [o.cook, ...receptions.map((r) => r.charId)], salience: 0.3 });
   return { state: s, receptions, improvised };
 }

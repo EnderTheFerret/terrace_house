@@ -1,7 +1,7 @@
 # Shared Roof
 
 A slow, top-down pixel-art life-sim inspired by quiet share-house reality TV. You move into a seaside house with five
-strangers, cook, go out in the city, fall for someone (or don't), and leave the house alone, as a couple, or after a
+strangers in Tel Aviv, cook, go out in the city, fall for someone (or don't), and leave the house alone, as a couple, or after a
 confession that went wrong. A studio panel of five commentators watches everything and makes predictions.
 
 - **Local-first.** `npm run dev:mock` runs the whole game with no external services: dialogue, commentary and images
@@ -12,7 +12,7 @@ confession that went wrong. A studio panel of five commentators watches everythi
   fall in love, fight and leave whether or not you're in the room.
 - All characters are fictional adults (20+). Content rating PG-13.
 
-![title](apps/web/public/assets/title.png)
+See [the feature list and latest additions](features.md), [the implementation audit](IMPLEMENTATION.md) and [dialogue model research](docs/ROLEPLAY.md).
 
 ## Quick start (mock mode, no services)
 
@@ -52,7 +52,8 @@ Open http://localhost:5173. That's it.
    | `OLLAMA_URL` / `OLLAMA_MODEL` | `http://127.0.0.1:11434` / `gemma3:12b` | text model |
    | `COMFY_URL` / `COMFY_WORKFLOW` / `COMFY_MAPPING` | `http://127.0.0.1:8188` / `./workflows/…` | image backend |
    | `IMAGE_STYLE_PREFIX` | pixel art … | prepended to every image prompt |
-   | `SEASON_LENGTH` | `24` | episodes per season |
+   | `SEASON_LENGTH` | `0` | open-ended; positive values set a fixed season |
+   | `OLLAMA_MODEL_LINES` | same as `OLLAMA_MODEL` | optional separate speaking/reply model |
    | `LLM_CALLS_PER_SLOT` | `6` | hard cap of LLM calls per time slot; the rest uses templates |
    | `SEED` | random | fixed seed for reproducible seasons |
    | `PORT` | `8787` | API port (the web dev server proxies to it) |
@@ -77,11 +78,11 @@ leaving ComfyUI idle makes dialogue near-instant.
 
 ## How to play
 
-- **House** — walk with arrow keys / WASD, press **E** next to someone to talk or next to the stove, sofa, rooftop
-  bench, fridge or front door. Everything is also in the action list on the right.
-- **Slots** — every episode is morning → three daytime slots → evening. Each choice uses one slot. The world advances
-  either way; a "while you were out" digest tells you what you heard (witnessed / told / rumor).
-- **City** — during the day, go out: dates, wandering, part-time shifts, karaoke. Far spots need the shared car.
+- **House** — walk with arrow keys / WASD, press **E** at people or hotspots. Take the stairs to the bedrooms and private balconies; the backyard is shared. Buttons cover the same actions.
+- **Time** — morning → three daytime blocks → evening → late night. Short actions and conversations use minutes; NPC activities change during a block. Skip a block or sleep until morning when ready.
+- **Plans** — use the phone to make/accept invitations, share photos/stories, or read messages. Learn routines, buy gifts, make coffee, keep promises and pursue career goals. Friendship and staying single are valid outcomes.
+- **Season** — open-ended by default. After episode 3, wrap the season to announce the next full episode as the finale, or choose a fixed length in the creator.
+- **City** — go out for dates, wandering, gifts, part-time shifts and karaoke. Round-trip travel must fit the minutes left, and weekday openings matter. Far spots need the shared car.
 - **Scenes** — dialogue streams in; at your moment, pick an intent (be honest, flirt, joke, support…). Your character
   says it in their own voice. You can join, eavesdrop on, or ignore conversations you walk into.
 - **Cooking** — chop to the beat, boil, keep the pan in the band, season by taste, plate like the photo. Who you feed,
@@ -94,8 +95,8 @@ leaving ComfyUI idle makes dialogue near-instant.
 | command | what it does |
 |---|---|
 | `npm run dev:mock` / `npm run dev` | server + web in mock / real mode |
-| `npm test` | all tests (includes the 200-seed season simulation, ~3 min) |
-| `npm run test:e2e` | browser end-to-end tests (Playwright on the system Edge; builds the web app, mock-mode server on a throwaway data dir; 5 tests, ~15 s) |
+| `npm test` | all tests, including 200 idle-player seasons and 30 active-player seasons; several minutes |
+| `npm run test:e2e` | 7 browser flows in system Edge against a throwaway mock-mode save directory |
 | `npm run typecheck` / `npm run lint` | TypeScript (strict) and ESLint |
 | `npm run build` | typecheck + production web build (`npm start` serves it with the API on `PORT`) |
 | `npm run smoke` | real-service smoke test |
@@ -131,6 +132,9 @@ See [DECISIONS.md](DECISIONS.md) for design choices and [PROGRESS.md](PROGRESS.m
 
 ## Known limitations
 
+- The Tel Aviv pass includes 79 new ComfyUI images plus five retained panel avatars; [artwork verification](docs/ARTWORK.md) records coverage and visual corrections. The portrait palette sampler uses central image regions rather than segmentation.
+- Holiday dates and Friday/Saturday 18:00 Shabbat boundaries are game approximations. NPC state updates when game minutes advance, rather than from a real-time server timer.
+- Gemma and Stheno each completed 20 seeded comparison scenes. Stheno was faster but followed the format less reliably and invented player speech; Gemma remains the default. [docs/ROLEPLAY.md](docs/ROLEPLAY.md) records the raw review, licensing, single-reply probes and qualified ComfyUI memory evidence.
 - Dialogue in real mode is only as good (and fast) as the local model; with the default budget of 6 calls per slot,
   NPC-only scenes beyond the first are template-written.
 - Images: the default workflow targets Qwen-Image; other models need a workflow export and a `mapping.json` edit.

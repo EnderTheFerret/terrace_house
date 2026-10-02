@@ -1,0 +1,245 @@
+[
+  {
+    "id": "ren",
+    "name": "Ron Azulay",
+    "request": {
+      "kind": "sprite",
+      "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 28-year-old adult man, short messy black hair, dark brown eyes, lean build, light tan skin, wearing white cook t-shirt and canvas apron, kitchen towel over shoulder. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame.",
+      "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, realistic, photograph, 3d, oversized portrait, blur, text, watermark, cropped head, cropped feet, extra people, scenery, drop shadow",
+      "seed": 1101,
+      "width": 1024,
+      "height": 384,
+      "subjectKey": "sprite:chibi-v2:portrait:ren:1101:266",
+      "meta": {
+        "appearance": {
+          "hairStyle": "short messy",
+          "hairColor": "black",
+          "eyeColor": "dark brown",
+          "build": "lean",
+          "outfit": "white cook t-shirt and canvas apron",
+          "accessory": "kitchen towel over shoulder",
+          "skinTone": "light tan"
+        },
+        "gender": "man"
+      },
+      "reference": "C:\\Projects\\terrace_house\\workflows\\sprite-style.jpg",
+      "reference2": "C:\\Projects\\terrace_house\\workflows\\sprite-layout.png"
+    }
+  },
+  {
+    "id": "kaito",
+    "name": "Kai Levi",
+    "request": {
+      "kind": "sprite",
+      "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 24-year-old adult man, wavy shoulder-length sun-bleached brown hair, brown eyes, athletic build, tan skin, wearing oversized graphic tee and board shorts, shell necklace. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame.",
+      "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, realistic, photograph, 3d, oversized portrait, blur, text, watermark, cropped head, cropped feet, extra people, scenery, drop shadow",
+      "seed": 1202,
+      "width": 1024,
+      "height": 384,
+      "subjectKey": "sprite:chibi-v2:portrait:kaito:1202:55750",
+      "meta": {
+        "appearance": {
+          "hairStyle": "wavy shoulder-length",
+          "hairColor": "sun-bleached brown",
+          "eyeColor": "brown",
+          "build": "athletic",
+          "outfit": "oversized graphic tee and board shorts",
+          "accessory": "shell necklace",
+          "skinTone": "tan"
+        },
+        "gender": "man"
+      },
+      "reference": "C:\\Projects\\terrace_house\\workflows\\sprite-style.jpg",
+      "reference2": "C:\\Projects\\terrace_house\\workflows\\sprite-layout.png"
+    }
+  },
+  {
+    "id": "shun",
+    "name": "Shai Ben-David",
+    "request": {
+      "kind": "sprite",
+      "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 31-year-old adult man, neat side part dark brown hair, brown eyes, tall and slim build, fair skin, wearing navy knit sweater over collared shirt, thin round glasses. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame.",
+      "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, realistic, photograph, 3d, oversized portrait, blur, text, watermark, cropped head, cropped feet, extra people, scenery, drop shadow",
+      "seed": 1303,
+      "width": 1024,
+      "height": 384,
+      "subjectKey": "sprite:chibi-v2:portrait:shun:1303:65538",
+      "meta": {
+        "appearance": {
+          "hairStyle": "neat side part",
+          "hairColor": "dark brown",
+          "eyeColor": "brown",
+          "build": "tall and slim",
+          "outfit": "navy knit sweater over collared shirt",
+          "accessory": "thin round glasses",
+          "skinTone": "fair"
+        },
+        "gender": "man"
+      },
+      "reference": "C:\\Projects\\terrace_house\\workflows\\sprite-style.jpg",
+      "reference2": "C:\\Projects\\terrace_house\\workflows\\sprite-layout.png"
+    }
+  },
+  {
+    "id": "mio",
+    "name": "Maya Cohen",
+    "request": {
+      "kind": "sprite",
+      "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 25-year-old adult woman, long with soft bangs chestnut brown hair, hazel eyes, petite build, fair skin, wearing pastel cardigan over a long skirt, small hair clip. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame.",
+      "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, realistic, photograph, 3d, oversized portrait, blur, text, watermark, cropped head, cropped feet, extra people, scenery, drop shadow",
+      "seed": 1404,
+      "width": 1024,
+      "height": 384,
+      "subjectKey": "sprite:chibi-v2:portrait:mio:1404:77676",
+      "meta": {
+        "appearance": {
+          "hairStyle": "long with soft bangs",
+          "hairColor": "chestnut brown",
+          "eyeColor": "hazel",
+          "build": "petite",
+          "outfit": "pastel cardigan over a long skirt",
+          "accessory": "small hair clip",
+          "skinTone": "fair"
+        },
+        "gender": "woman"
+      },
+      "reference": "C:\\Projects\\terrace_house\\workflows\\sprite-style.jpg",
+      "reference2": "C:\\Projects\\terrace_house\\workflows\\sprite-layout.png"
+    }
+  },
+  {
+    "id": "sora",
+    "name": "Shira Mizrahi",
+    "request": {
+      "kind": "sprite",
+      "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 26-year-old adult woman, asymmetric bob black with teal tips hair, dark brown eyes, slim build, light skin, wearing vintage band tee, denim jacket, cargo pants, silver ear cuffs. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame.",
+      "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, realistic, photograph, 3d, oversized portrait, blur, text, watermark, cropped head, cropped feet, extra people, scenery, drop shadow",
+      "seed": 1505,
+      "width": 1024,
+      "height": 384,
+      "subjectKey": "sprite:chibi-v2:portrait:sora:1505:39140",
+      "meta": {
+        "appearance": {
+          "hairStyle": "asymmetric bob",
+          "hairColor": "black with teal tips",
+          "eyeColor": "dark brown",
+          "build": "slim",
+          "outfit": "vintage band tee, denim jacket, cargo pants",
+          "accessory": "silver ear cuffs",
+          "skinTone": "light"
+        },
+        "gender": "woman"
+      },
+      "reference": "C:\\Projects\\terrace_house\\workflows\\sprite-style.jpg",
+      "reference2": "C:\\Projects\\terrace_house\\workflows\\sprite-layout.png"
+    }
+  },
+  {
+    "id": "player",
+    "name": "Noa Barak",
+    "request": {
+      "kind": "sprite",
+      "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 24-year-old adult woman, shoulder-length bob dark brown hair, brown eyes, average build, light skin, wearing oversized cardigan and jeans. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame.",
+      "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, realistic, photograph, 3d, oversized portrait, blur, text, watermark, cropped head, cropped feet, extra people, scenery, drop shadow",
+      "seed": 85508,
+      "width": 1024,
+      "height": 384,
+      "subjectKey": "sprite:chibi-v2:portrait:player:85508:52924",
+      "meta": {
+        "appearance": {
+          "hairStyle": "shoulder-length bob",
+          "hairColor": "dark brown",
+          "eyeColor": "brown",
+          "build": "average",
+          "outfit": "oversized cardigan and jeans",
+          "accessory": "none",
+          "skinTone": "light"
+        },
+        "gender": "woman"
+      },
+      "reference": "C:\\Projects\\terrace_house\\workflows\\sprite-style.jpg",
+      "reference2": "C:\\Projects\\terrace_house\\workflows\\sprite-layout.png"
+    }
+  },
+  {
+    "id": "test-tamar",
+    "name": "Tamar / newcomer test",
+    "request": {
+      "kind": "sprite",
+      "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 24-year-old adult woman, long wavy dark brown hair, brown eyes, slim build, brown skin, wearing olive utility jacket over cream shirt and rust trousers, gold hoop earrings. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame.",
+      "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, realistic, photograph, 3d, oversized portrait, blur, text, watermark, cropped head, cropped feet, extra people, scenery, drop shadow",
+      "seed": 2306,
+      "width": 1024,
+      "height": 384,
+      "subjectKey": "sprite:chibi-v2:portrait:test-tamar:2306:69361",
+      "meta": {
+        "appearance": {
+          "hairStyle": "long wavy",
+          "hairColor": "dark brown",
+          "eyeColor": "brown",
+          "build": "slim",
+          "outfit": "olive utility jacket over cream shirt and rust trousers",
+          "accessory": "gold hoop earrings",
+          "skinTone": "brown"
+        },
+        "gender": "woman"
+      },
+      "reference": "C:\\Projects\\terrace_house\\workflows\\sprite-style.jpg",
+      "reference2": "C:\\Projects\\terrace_house\\workflows\\sprite-layout.png"
+    }
+  },
+  {
+    "id": "test-eli",
+    "name": "Eli / custom player test",
+    "request": {
+      "kind": "sprite",
+      "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 24-year-old adult woman, short messy black hair, brown eyes, lean build, tan skin, wearing burgundy overshirt and charcoal trousers, thin round glasses. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame.",
+      "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, realistic, photograph, 3d, oversized portrait, blur, text, watermark, cropped head, cropped feet, extra people, scenery, drop shadow",
+      "seed": 2307,
+      "width": 1024,
+      "height": 384,
+      "subjectKey": "sprite:chibi-v2:portrait:test-eli:2307:21772",
+      "meta": {
+        "appearance": {
+          "hairStyle": "short messy",
+          "hairColor": "black",
+          "eyeColor": "brown",
+          "build": "lean",
+          "outfit": "burgundy overshirt and charcoal trousers",
+          "accessory": "thin round glasses",
+          "skinTone": "tan"
+        },
+        "gender": "woman"
+      },
+      "reference": "C:\\Projects\\terrace_house\\workflows\\sprite-style.jpg",
+      "reference2": "C:\\Projects\\terrace_house\\workflows\\sprite-layout.png"
+    }
+  },
+  {
+    "id": "test-dana",
+    "name": "Dana / replacement player test",
+    "request": {
+      "kind": "sprite",
+      "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 24-year-old adult woman, short cropped silver-dyed hair, grey eyes, petite build, fair skin, wearing lilac hoodie and black shorts, silver ear cuffs. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame.",
+      "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, realistic, photograph, 3d, oversized portrait, blur, text, watermark, cropped head, cropped feet, extra people, scenery, drop shadow",
+      "seed": 2308,
+      "width": 1024,
+      "height": 384,
+      "subjectKey": "sprite:chibi-v2:portrait:test-dana:2308:5972",
+      "meta": {
+        "appearance": {
+          "hairStyle": "short cropped",
+          "hairColor": "silver-dyed",
+          "eyeColor": "grey",
+          "build": "petite",
+          "outfit": "lilac hoodie and black shorts",
+          "accessory": "silver ear cuffs",
+          "skinTone": "fair"
+        },
+        "gender": "woman"
+      },
+      "reference": "C:\\Projects\\terrace_house\\workflows\\sprite-style.jpg",
+      "reference2": "C:\\Projects\\terrace_house\\workflows\\sprite-layout.png"
+    }
+  }
+]

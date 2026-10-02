@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { locationSvg } from '@shared-roof/shared';
 import { useGame } from '../store';
 import { Btn, HealthBadge } from '../components/ui';
 import { unlockAudio } from '../audio';
@@ -9,11 +10,11 @@ export function Title() {
   useEffect(() => {
     const img = new Image();
     img.onerror = () => setArt(false);
-    img.src = '/assets/title.png';
+    img.src = '/assets/tel-aviv-title.png';
   }, []);
   return (
     <div className="relative flex h-full flex-col items-center justify-center overflow-hidden" onClick={unlockAudio}>
-      {art && <img src="/assets/title.png" alt="" className="pixelated absolute inset-0 h-full w-full object-cover opacity-90" />}
+      <img src={art ? '/assets/tel-aviv-title.png' : `data:image/svg+xml,${encodeURIComponent(locationSvg('house', 'evening', 'sunny'))}`} alt="" className="pixelated absolute inset-0 h-full w-full object-cover opacity-90" />
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[rgb(253_246_236/0.25)] to-[rgb(253_246_236/0.9)]" />
       <div className="relative z-10 flex flex-col items-center gap-6">
         <div className="px-panel px-8 py-5 text-center">

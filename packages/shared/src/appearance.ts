@@ -54,7 +54,7 @@ export interface CompiledPrompt {
  * Always includes an adult-age tag; always strips minors-coded terms; negative includes safety terms.
  */
 export function compileAppearancePrompt(
-  c: Pick<Character, 'age' | 'gender' | 'appearance'>,
+  c: Pick<Character, 'age' | 'gender' | 'appearance'> & { appearanceText?: string },
   shotType: ShotType,
   opts: { stylePrefix?: string; scene?: string; expression?: string } = {},
 ): CompiledPrompt {
@@ -62,6 +62,7 @@ export function compileAppearancePrompt(
     sanitizePromptText(opts.stylePrefix ?? DEFAULT_STYLE_PREFIX),
     'adult, age 20+',
     ...compileAppearanceTags(c),
+    c.appearanceText ? sanitizePromptText(c.appearanceText) : '',
     opts.expression ? sanitizePromptText(opts.expression) : 'calm natural expression',
     SHOT_TAGS[shotType],
   ];

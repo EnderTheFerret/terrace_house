@@ -11,16 +11,19 @@ import type { ImageBackend, LlmClient } from '@shared-roof/shared';
 
 const store = new Store(openDb());
 let llm: LlmClient;
+let linesLlm: LlmClient;
 let image: ImageBackend;
 let workflowHash = 'mock';
 if (config.mode === 'mock') {
   llm = new MockLlm();
+  linesLlm = llm;
   image = new MockImageBackend(config.cacheDir);
 } else {
-  llm = new OllamaClient(config.ollamaUrl, config.ollamaModel, config.llmTimeoutMs);
+  llm = new OllamaClient(config.ollamaUrl, config.ollamaModel, config.llmTimeoutMs, fetch, config.ollamaKeepAlive);
+  linesLlm = config.ollamaModelLines === config.ollamaModel ? llm : new OllamaClient(config.ollamaUrl, config.ollamaModelLines, config.llmTimeoutMs, fetch, config.ollamaKeepAlive);
   try {
     const ref = config.comfyRefWorkflow === 'off' ? undefined : { workflowPath: resolve(ROOT, config.comfyRefWorkflow), mappingPath: config.comfyRefMapping };
-    const comfy = new ComfyBackend(config.comfyUrl, config.comfyWorkflow, config.comfyMapping, config.cacheDir, config.imageTimeoutMs, fetch, ref);
+    const comfy = new ComfyBackend(config.comfyUrl, config.comfyWorkflow, config.comfyMapping, config.cacheDir, config.imageTimeoutMs, fetch, ref, { workflowPath: resolve(ROOT, 'workflows/sprite_edit.api.json'), mappingPath: resolve(ROOT, 'workflows/sprite_mapping.json') });
     image = comfy;
     workflowHash = comfy.workflowHash;
   } catch (e) {
@@ -29,7 +32,7 @@ if (config.mode === 'mock') {
   }
 }
 
-const { app, health } = await buildApp({ llm, image, store, workflowHash, serveWeb: true });
+const { app, health } = await buildApp({ llm, linesLlm, image, store, workflowHash, serveWeb: true });
 const h = await health();
 console.log(`[shared roof] mode=${config.mode} llm=${h.llm} (${h.model}) image=${h.image} (${h.imageBackend})`);
 if (config.mode === 'real' && h.llm === 'ok') {

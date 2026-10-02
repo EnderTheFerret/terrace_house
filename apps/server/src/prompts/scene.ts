@@ -79,6 +79,7 @@ export function linesPrompt(
   const beatLines = beats.map((b, i) => {
     const who = s.characters[b.speaker] ? firstName(s, b.speaker) : b.speaker;
     const intent = intents[i] ? ` PLAYER INTENT "${intents[i]}": ${INTENT_GUIDE[intents[i]!]} Say it in ${who}'s own voice, reacting to the previous line.` : '';
+    if (replyTo && i === 0) return `1. ${b.speaker} (${who}) — answer the player's exact words: ${JSON.stringify(replyTo)}. This response overrides the scripted topic and beat. Acknowledge refusals without bargaining, proposing the refused activity again, or speaking for the player.`;
     return `${i + 1}. ${b.speaker} (${who}) — ${b.beatType}, ${b.emotion}, topic "${b.topic}", depth ${b.depth}${b.subtext ? `, subtext: ${b.subtext}` : ''}.${intent}`;
   });
   const sofar = transcript.slice(-6).map((l) => `${l.speaker}: ${l.text}`).join('\n');
@@ -143,6 +144,7 @@ export function parseLines(raw: string, beats: Beat[]): (string | null)[] {
     if (!m) continue;
     const text = m[2].replace(/^["“]|["”]$/g, '').trim();
     if (!text) continue;
+    if (m[1] !== beats[bi].speaker) continue;
     out[bi++] = text;
   }
   return out;

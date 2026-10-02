@@ -23,7 +23,7 @@ export function dateOf(day: number): { month: number; day: number } {
 }
 
 export const weekdayOf = (day: number) => (START_WEEKDAY + day) % 7;
-export const isWeekend = (weekday: number) => weekday === 0 || weekday === 6;
+export const isWeekend = (weekday: number) => weekday === 5 || weekday === 6;
 export const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -34,17 +34,17 @@ export function seasonOf(month: number): Season {
   return 'winter';
 }
 
-/** City event active on a given day (typhoon handled by typhoonDay). */
+// ponytail: holidays use fixed seasonal windows; convert Hebrew dates when the game calendar gains a year.
 export function cityEventFor(day: number, typhoonDay: number): string | null {
-  if (day === typhoonDay) return 'typhoon';
+  if (day === typhoonDay) return 'heatwave';
   const { month, day: dom } = dateOf(day);
-  const ev = content().calendar.events.find((e) => e.id !== 'typhoon' && e.month === month && dom >= e.dayFrom && dom <= e.dayTo);
-  return ev?.id ?? null;
+  const ev = content().calendar.events.find((e) => e.id !== 'heatwave' && e.month === month && dom >= e.dayFrom && dom <= e.dayTo);
+  return ev?.id ?? (weekdayOf(day) === 5 ? 'friday-dinner' : null);
 }
 
-/** Pick the typhoon day: the in-season day (of an episode) that falls in the typhoon month. */
+/** Pick one sharav day in the planned season. The legacy name keeps old saves and replay compatible. */
 export function chooseTyphoonDay(rng: Rng, seasonLength: number): number {
-  const ty = content().calendar.events.find((e) => e.id === 'typhoon')!;
+  const ty = content().calendar.events.find((e) => e.id === 'heatwave')!;
   const candidates: number[] = [];
   for (let ep = 1; ep <= seasonLength; ep++) {
     const day = dayForEpisode(ep);
@@ -56,9 +56,9 @@ export function chooseTyphoonDay(rng: Rng, seasonLength: number): number {
 
 const WEATHER_P: Record<Season, [Weather, number][]> = {
   spring: [['sunny', 0.5], ['cloudy', 0.3], ['rain', 0.2]],
-  summer: [['sunny', 0.6], ['cloudy', 0.15], ['rain', 0.25]],
+  summer: [['sunny', 0.79], ['cloudy', 0.15], ['heatwave', 0.06]],
   autumn: [['sunny', 0.45], ['cloudy', 0.35], ['rain', 0.2]],
-  winter: [['sunny', 0.45], ['cloudy', 0.35], ['rain', 0.1], ['snow', 0.1]],
+  winter: [['sunny', 0.2], ['cloudy', 0.35], ['rain', 0.45]],
 };
 
 /** Set date-derived world fields at the start of an episode. */
@@ -69,7 +69,7 @@ export function applyCalendar(s: GameState, rng: Rng) {
   s.world.weekday = weekdayOf(day);
   s.world.season = seasonOf(month);
   s.world.cityEvent = cityEventFor(day, s.world.typhoonDay);
-  if (s.world.cityEvent === 'typhoon') s.world.weather = 'typhoon';
+  if (s.world.cityEvent === 'heatwave') s.world.weather = 'heatwave';
   else {
     const opts = WEATHER_P[s.world.season];
     s.world.weather = rng.weighted(
@@ -77,7 +77,10 @@ export function applyCalendar(s: GameState, rng: Rng) {
       opts.map((o) => o[1]),
     );
   }
+  if (s.world.weather === 'heatwave') s.world.cityEvent = 'heatwave';
 }
+
+export const chooseHeatwaveDay = chooseTyphoonDay;
 
 export function dateLabel(day: number) {
   const d = dateOf(day);

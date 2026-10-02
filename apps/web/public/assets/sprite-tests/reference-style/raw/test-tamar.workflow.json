@@ -1,0 +1,266 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "qwen_image_edit_2511_fp8mixed.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "Load Qwen-Image-Edit 2511"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Load Text Encoder"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "4": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "lora_name": "Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors",
+      "strength_model": 1
+    },
+    "_meta": {
+      "title": "Lightning LoRA (8 steps)"
+    }
+  },
+  "5": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "model": [
+        "4",
+        0
+      ],
+      "shift": 3.1
+    },
+    "_meta": {
+      "title": "Model Sampling"
+    }
+  },
+  "6": {
+    "class_type": "CFGNorm",
+    "inputs": {
+      "model": [
+        "5",
+        0
+      ],
+      "strength": 1
+    },
+    "_meta": {
+      "title": "CFG Norm"
+    }
+  },
+  "7": {
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "prompt": "Image 1 is ONLY a pixel art STYLE guide, not its characters or costumes. Image 2 is ONLY the exact four-view pose/layout guide, not its hair or outfit. Preserve Image 2 direction order and compact large-head proportions while applying Image 1 detailed pixel rendering. Create a new adult character: 24-year-old adult woman, long wavy dark brown hair, brown eyes, slim build, brown skin, wearing olive utility jacket over cream shirt and rust trousers, gold hoop earrings. Draw exactly FOUR full-body idle views of this SAME person in one horizontal row: front, back, LEFT profile nose pointing left, RIGHT profile nose pointing right. Equal-width quarters, centered, equal height, same foot baseline. Match the reference's detailed handheld-era RPG pixel sprites: compact chibi proportions, only TWO heads tall, big textured hair silhouette occupying half the height, small face, short body and short legs, crisp one-pixel dark contour, angular highlights and shadows, 4-tone hair clusters, layered clothing, collar seams, buttons, folds, cuffs, hands and shoe soles, readable individual accessories. Contemporary everyday clothing from the character description. Entire heads and feet visible with generous white margins. Pure white studio background; no text, no captions, no scenery, no shadow, no grid lines, no gradients. Design for a true 32 by 40 pixel frame.",
+      "vae": [
+        "3",
+        0
+      ],
+      "image1": [
+        "13",
+        0
+      ],
+      "image2": [
+        "18",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Positive (with reference)"
+    }
+  },
+  "8": {
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "prompt": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, realistic, photograph, 3d, oversized portrait, blur, text, watermark, cropped head, cropped feet, extra people, scenery, drop shadow",
+      "vae": [
+        "3",
+        0
+      ],
+      "image1": [
+        "13",
+        0
+      ],
+      "image2": [
+        "18",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Negative"
+    }
+  },
+  "9": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 384,
+      "batch_size": 1
+    },
+    "_meta": {
+      "title": "Latent size"
+    }
+  },
+  "10": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "6",
+        0
+      ],
+      "positive": [
+        "14",
+        0
+      ],
+      "negative": [
+        "15",
+        0
+      ],
+      "latent_image": [
+        "9",
+        0
+      ],
+      "seed": 2306,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "11": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "10",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "12": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "roof_sprite_688da380cbecf445.png"
+    },
+    "_meta": {
+      "title": "Reference portrait (patched per request)"
+    }
+  },
+  "13": {
+    "class_type": "ImageScaleToTotalPixels",
+    "inputs": {
+      "image": [
+        "12",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "resolution_steps": 8
+    },
+    "_meta": {
+      "title": "Scale reference"
+    }
+  },
+  "14": {
+    "class_type": "FluxKontextMultiReferenceLatentMethod",
+    "inputs": {
+      "conditioning": [
+        "7",
+        0
+      ],
+      "reference_latents_method": "index_timestep_zero"
+    },
+    "_meta": {
+      "title": "Reference method (positive)"
+    }
+  },
+  "15": {
+    "class_type": "FluxKontextMultiReferenceLatentMethod",
+    "inputs": {
+      "conditioning": [
+        "8",
+        0
+      ],
+      "reference_latents_method": "index_timestep_zero"
+    },
+    "_meta": {
+      "title": "Reference method (negative)"
+    }
+  },
+  "16": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "11",
+        0
+      ],
+      "filename_prefix": "shared_roof_sprite_tests/test-tamar"
+    },
+    "_meta": {
+      "title": "Save"
+    }
+  },
+  "17": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "roof_sprite_0d0f4eb0332d417d.png"
+    },
+    "_meta": {
+      "title": "Four-view layout guide"
+    }
+  },
+  "18": {
+    "class_type": "ImageScaleToTotalPixels",
+    "inputs": {
+      "image": [
+        "17",
+        0
+      ],
+      "upscale_method": "nearest-exact",
+      "megapixels": 0.5,
+      "resolution_steps": 8
+    },
+    "_meta": {
+      "title": "Scale four-view guide"
+    }
+  }
+}

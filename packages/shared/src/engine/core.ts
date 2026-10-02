@@ -78,9 +78,16 @@ export function placeName(loc: string): string {
   return loc;
 }
 
-export const SLOT_START: Record<Slot, number> = { morning: 7, slot1: 10, slot2: 13, slot3: 16, evening: 19 };
+export const SLOT_START: Record<Slot, number> = { morning: 7, slot1: 10, slot2: 13, slot3: 16, evening: 20, lateNight: 23 };
 export const SLOT_MINUTES = 180;
-export const isDaySlot = (slot: Slot) => slot === 'slot1' || slot === 'slot2' || slot === 'slot3';
+/** In-game minutes one spoken line takes: talking lasts as long as the conversation. Calibration knob. */
+export const MINUTES_PER_LINE = 3;
+/** Clock time in the current block, e.g. "11:20". */
+export const clockLabel = (slot: Slot, minutes: number) => {
+  const t = SLOT_START[slot] * 60 + minutes;
+  return `${Math.floor(t / 60) % 24}:${String(t % 60).padStart(2, '0')}`;
+};
+export const isDaySlot = (slot: Slot) => slot !== 'morning';
 
 export function nextId(s: GameState, prefix: string): string {
   s.counters[prefix] = (s.counters[prefix] ?? 0) + 1;

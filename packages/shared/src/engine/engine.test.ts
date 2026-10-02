@@ -43,7 +43,7 @@ describe('content', () => {
   it('loads with ≥25 non-system events and all required templates', () => {
     const c = content();
     expect(c.events.filter((e) => !e.system && !e.arcOnly).length).toBeGreaterThanOrEqual(25);
-    for (const id of ['arrival-intro', 'chore-rota-conflict', 'late-night-kitchen', 'rooftop-talk', 'shared-car-date', 'job-mishap', 'group-dinner', 'jealousy-after-date', 'confession-scenic', 'farewell-door', 'cook-for-someone', 'silent-breakfast', 'birthday', 'rainy-day', 'group-outing', 'chat-exchange'])
+    for (const id of ['arrival-intro', 'chore-rota-conflict', 'late-night-kitchen', 'backyard-talk', 'shared-car-date', 'job-mishap', 'group-dinner', 'jealousy-after-date', 'confession-scenic', 'farewell-door', 'cook-for-someone', 'silent-breakfast', 'birthday', 'rainy-day', 'group-outing', 'chat-exchange'])
       expect(c.eventById.has(id), id).toBe(true);
     expect(c.events.filter((e) => e.domestic).length).toBeGreaterThanOrEqual(10);
     expect(c.archetypes.length).toBeGreaterThanOrEqual(12);
@@ -57,15 +57,15 @@ describe('content', () => {
 });
 
 describe('calendar', () => {
-  it('a 24-episode season hits every city event incl. the typhoon', () => {
-    const typhoon = chooseTyphoonDay(mulberry32(3), 24);
+  it('a year of consecutive episode days hits the local calendar, including a sharav heatwave', () => {
+    const typhoon = chooseTyphoonDay(mulberry32(3), 365);
     expect(typhoon).toBeGreaterThan(0);
     const seen = new Set<string>();
-    for (let ep = 1; ep <= 24; ep++) {
+    for (let ep = 1; ep <= 365; ep++) {
       const e = cityEventFor(dayForEpisode(ep), typhoon);
       if (e) seen.add(e);
     }
-    for (const id of ['hanami', 'beach-day', 'fireworks', 'matsuri', 'hatsumode', 'typhoon']) expect(seen.has(id), id).toBe(true);
+    for (const id of ['purim', 'independence', 'shavuot', 'pride', 'beach-day', 'rosh-hashanah', 'sukkot', 'hanukkah', 'heatwave']) expect(seen.has(id), id).toBe(true);
     expect(dateOf(0)).toEqual({ month: 4, day: 1 });
   });
 });
@@ -123,7 +123,7 @@ describe('director scoring', () => {
     expect(d).toBeGreaterThan(10);
   });
   it('variety penalizes recently used types', () => {
-    const t = eventTemplate('rooftop-talk');
+    const t = eventTemplate('backyard-talk');
     const s2 = cloneState(s);
     expect(varietyPenalty(s2, t)).toBe(0);
     s2.history.push({ templateId: t.id, type: t.type, tags: t.tags, episode: 1, tick: 0 });

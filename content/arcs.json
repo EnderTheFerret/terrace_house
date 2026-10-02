@@ -1,54 +1,913 @@
 {
   "arcs": [
-    { "id": "arc-ren", "charId": "ren", "title": "the restaurant", "beats": [
-      { "id": "ren-1", "act": 1, "event": "arc-ren-dish", "pre": [{ "episodeMin": 2 }] },
-      { "id": "ren-2", "act": 2, "event": "arc-ren-sister", "pre": [{ "episodeMin": 6 }, { "flag": "ren_dish" }] },
-      { "id": "ren-3", "act": 3, "event": "arc-ren-decision", "pre": [{ "episodeMin": 11 }] }
-    ] },
-    { "id": "arc-kaito", "charId": "kaito", "title": "the numbers", "beats": [
-      { "id": "kaito-1", "act": 1, "event": "arc-kaito-filming", "pre": [{ "episodeMin": 2 }] },
-      { "id": "kaito-2", "act": 2, "event": "arc-kaito-exposed", "pre": [{ "episodeMin": 7 }] },
-      { "id": "kaito-3", "act": 3, "event": "arc-kaito-real", "pre": [{ "episodeMin": 11 }, { "flag": "kaito_exposed" }] }
-    ] },
-    { "id": "arc-shun", "charId": "shun", "title": "out of time", "beats": [
-      { "id": "shun-1", "act": 1, "event": "arc-shun-fear", "pre": [{ "episodeMin": 3 }] },
-      { "id": "shun-2", "act": 2, "event": "arc-shun-mother", "pre": [{ "episodeMin": 8 }] },
-      { "id": "shun-3", "act": 3, "event": "arc-shun-decision", "pre": [{ "episodeMin": 13 }] }
-    ] },
-    { "id": "arc-mio", "charId": "mio", "title": "the ex", "beats": [
-      { "id": "mio-1", "act": 1, "event": "arc-mio-texts", "pre": [{ "episodeMin": 2 }] },
-      { "id": "mio-2", "act": 2, "event": "arc-mio-ex", "pre": [{ "episodeMin": 6 }, { "weekend": true }] },
-      { "id": "mio-3", "act": 3, "event": "arc-mio-choice", "pre": [{ "episodeMin": 10 }, { "flag": "mio_ex_seen" }] }
-    ] },
-    { "id": "arc-sora", "charId": "sora", "title": "the album", "beats": [
-      { "id": "sora-1", "act": 1, "event": "arc-sora-block", "pre": [{ "episodeMin": 2 }] },
-      { "id": "sora-2", "act": 2, "event": "arc-sora-honest", "pre": [{ "episodeMin": 6 }, { "rel": "trust", "from": "self", "to": "b", "min": 35 }] },
-      { "id": "sora-3", "act": 3, "event": "arc-sora-breakthrough", "pre": [{ "episodeMin": 10 }, { "flag": "sora_honest" }] }
-    ] },
-    { "id": "tpl-secret", "template": "tpl-secret", "title": "the secret", "beats": [
-      { "id": "s-1", "act": 1, "event": "tpl-secret-hint", "pre": [{ "episodeMin": 1 }] },
-      { "id": "s-2", "act": 2, "event": "tpl-secret-exposed", "pre": [{ "episodeMin": 4 }] },
-      { "id": "s-3", "act": 3, "event": "tpl-secret-after", "pre": [{ "episodeMin": 7 }] }
-    ] },
-    { "id": "tpl-crossroads", "template": "tpl-crossroads", "title": "the crossroads", "beats": [
-      { "id": "c-1", "act": 1, "event": "tpl-cross-doubt", "pre": [{ "episodeMin": 1 }] },
-      { "id": "c-2", "act": 2, "event": "tpl-cross-pressure", "pre": [{ "episodeMin": 4 }] },
-      { "id": "c-3", "act": 3, "event": "tpl-cross-decision", "pre": [{ "episodeMin": 8 }] }
-    ] },
-    { "id": "tpl-ex-returns", "template": "tpl-ex-returns", "title": "the ex returns", "beats": [
-      { "id": "e-1", "act": 1, "event": "tpl-ex-texts", "pre": [{ "episodeMin": 1 }] },
-      { "id": "e-2", "act": 2, "event": "tpl-ex-appears", "pre": [{ "episodeMin": 4 }] },
-      { "id": "e-3", "act": 3, "event": "tpl-ex-choice", "pre": [{ "episodeMin": 7 }] }
-    ] },
-    { "id": "tpl-breakthrough", "template": "tpl-breakthrough", "title": "the breakthrough", "beats": [
-      { "id": "b-1", "act": 1, "event": "tpl-break-block", "pre": [{ "episodeMin": 1 }] },
-      { "id": "b-2", "act": 2, "event": "tpl-break-honest", "pre": [{ "episodeMin": 4 }] },
-      { "id": "b-3", "act": 3, "event": "tpl-break-through", "pre": [{ "episodeMin": 7 }] }
-    ] },
-    { "id": "tpl-homesick", "template": "tpl-homesick", "title": "home", "beats": [
-      { "id": "h-1", "act": 1, "event": "tpl-home-call", "pre": [{ "episodeMin": 1 }] },
-      { "id": "h-2", "act": 2, "event": "tpl-home-visit", "pre": [{ "episodeMin": 4 }] },
-      { "id": "h-3", "act": 3, "event": "tpl-home-decision", "pre": [{ "episodeMin": 8 }] }
-    ] }
+    {
+      "id": "arc-ren",
+      "charId": "ren",
+      "title": "the restaurant",
+      "beats": [
+        {
+          "id": "ren-1",
+          "act": 1,
+          "event": "arc-ren-dish",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "ren-2",
+          "act": 2,
+          "event": "arc-ren-sister",
+          "pre": [
+            {
+              "episodeMin": 6
+            },
+            {
+              "flag": "ren_dish"
+            }
+          ]
+        },
+        {
+          "id": "ren-3",
+          "act": 3,
+          "event": "arc-ren-decision",
+          "pre": [
+            {
+              "episodeMin": 11
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arc-kaito",
+      "charId": "kaito",
+      "title": "the numbers",
+      "beats": [
+        {
+          "id": "kaito-1",
+          "act": 1,
+          "event": "arc-kaito-filming",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "kaito-2",
+          "act": 2,
+          "event": "arc-kaito-exposed",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        },
+        {
+          "id": "kaito-3",
+          "act": 3,
+          "event": "arc-kaito-real",
+          "pre": [
+            {
+              "episodeMin": 11
+            },
+            {
+              "flag": "kaito_exposed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arc-shun",
+      "charId": "shun",
+      "title": "out of time",
+      "beats": [
+        {
+          "id": "shun-1",
+          "act": 1,
+          "event": "arc-shun-fear",
+          "pre": [
+            {
+              "episodeMin": 3
+            }
+          ]
+        },
+        {
+          "id": "shun-2",
+          "act": 2,
+          "event": "arc-shun-mother",
+          "pre": [
+            {
+              "episodeMin": 8
+            }
+          ]
+        },
+        {
+          "id": "shun-3",
+          "act": 3,
+          "event": "arc-shun-decision",
+          "pre": [
+            {
+              "episodeMin": 13
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arc-mio",
+      "charId": "mio",
+      "title": "the ex",
+      "beats": [
+        {
+          "id": "mio-1",
+          "act": 1,
+          "event": "arc-mio-texts",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "mio-2",
+          "act": 2,
+          "event": "arc-mio-ex",
+          "pre": [
+            {
+              "episodeMin": 6
+            },
+            {
+              "weekend": true
+            }
+          ]
+        },
+        {
+          "id": "mio-3",
+          "act": 3,
+          "event": "arc-mio-choice",
+          "pre": [
+            {
+              "episodeMin": 10
+            },
+            {
+              "flag": "mio_ex_seen"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arc-sora",
+      "charId": "sora",
+      "title": "the album",
+      "beats": [
+        {
+          "id": "sora-1",
+          "act": 1,
+          "event": "arc-sora-block",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "sora-2",
+          "act": 2,
+          "event": "arc-sora-honest",
+          "pre": [
+            {
+              "episodeMin": 6
+            },
+            {
+              "rel": "trust",
+              "from": "self",
+              "to": "b",
+              "min": 35
+            }
+          ]
+        },
+        {
+          "id": "sora-3",
+          "act": 3,
+          "event": "arc-sora-breakthrough",
+          "pre": [
+            {
+              "episodeMin": 10
+            },
+            {
+              "flag": "sora_honest"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tpl-secret",
+      "template": "tpl-secret",
+      "title": "the secret",
+      "beats": [
+        {
+          "id": "s-1",
+          "act": 1,
+          "event": "tpl-secret-hint",
+          "pre": [
+            {
+              "episodeMin": 1
+            }
+          ]
+        },
+        {
+          "id": "s-2",
+          "act": 2,
+          "event": "tpl-secret-exposed",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "s-3",
+          "act": 3,
+          "event": "tpl-secret-after",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tpl-crossroads",
+      "template": "tpl-crossroads",
+      "title": "the crossroads",
+      "beats": [
+        {
+          "id": "c-1",
+          "act": 1,
+          "event": "tpl-cross-doubt",
+          "pre": [
+            {
+              "episodeMin": 1
+            }
+          ]
+        },
+        {
+          "id": "c-2",
+          "act": 2,
+          "event": "tpl-cross-pressure",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "c-3",
+          "act": 3,
+          "event": "tpl-cross-decision",
+          "pre": [
+            {
+              "episodeMin": 8
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tpl-ex-returns",
+      "template": "tpl-ex-returns",
+      "title": "the ex returns",
+      "beats": [
+        {
+          "id": "e-1",
+          "act": 1,
+          "event": "tpl-ex-texts",
+          "pre": [
+            {
+              "episodeMin": 1
+            }
+          ]
+        },
+        {
+          "id": "e-2",
+          "act": 2,
+          "event": "tpl-ex-appears",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "e-3",
+          "act": 3,
+          "event": "tpl-ex-choice",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tpl-breakthrough",
+      "template": "tpl-breakthrough",
+      "title": "the breakthrough",
+      "beats": [
+        {
+          "id": "b-1",
+          "act": 1,
+          "event": "tpl-break-block",
+          "pre": [
+            {
+              "episodeMin": 1
+            }
+          ]
+        },
+        {
+          "id": "b-2",
+          "act": 2,
+          "event": "tpl-break-honest",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "b-3",
+          "act": 3,
+          "event": "tpl-break-through",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tpl-homesick",
+      "template": "tpl-homesick",
+      "title": "home",
+      "beats": [
+        {
+          "id": "h-1",
+          "act": 1,
+          "event": "tpl-home-call",
+          "pre": [
+            {
+              "episodeMin": 1
+            }
+          ]
+        },
+        {
+          "id": "h-2",
+          "act": 2,
+          "event": "tpl-home-visit",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "h-3",
+          "act": 3,
+          "event": "tpl-home-decision",
+          "pre": [
+            {
+              "episodeMin": 8
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "job-food-critic",
+      "category": "food",
+      "title": "critic",
+      "beats": [
+        {
+          "id": "job-food-critic-1",
+          "act": 1,
+          "event": "job-food-critic-1",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "job-food-critic-2",
+          "act": 2,
+          "event": "job-food-critic-2",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "job-food-critic-3",
+          "act": 3,
+          "event": "job-food-critic-3",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "job-food-burnout",
+      "category": "food",
+      "title": "burnout",
+      "beats": [
+        {
+          "id": "job-food-burnout-1",
+          "act": 1,
+          "event": "job-food-burnout-1",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "job-food-burnout-2",
+          "act": 2,
+          "event": "job-food-burnout-2",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "job-food-burnout-3",
+          "act": 3,
+          "event": "job-food-burnout-3",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "job-health-night-shift",
+      "category": "health",
+      "title": "night shift",
+      "beats": [
+        {
+          "id": "job-health-night-shift-1",
+          "act": 1,
+          "event": "job-health-night-shift-1",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "job-health-night-shift-2",
+          "act": 2,
+          "event": "job-health-night-shift-2",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "job-health-night-shift-3",
+          "act": 3,
+          "event": "job-health-night-shift-3",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "job-health-mentor",
+      "category": "health",
+      "title": "mentor",
+      "beats": [
+        {
+          "id": "job-health-mentor-1",
+          "act": 1,
+          "event": "job-health-mentor-1",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "job-health-mentor-2",
+          "act": 2,
+          "event": "job-health-mentor-2",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "job-health-mentor-3",
+          "act": 3,
+          "event": "job-health-mentor-3",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "job-creative-viral",
+      "category": "creative",
+      "title": "viral",
+      "beats": [
+        {
+          "id": "job-creative-viral-1",
+          "act": 1,
+          "event": "job-creative-viral-1",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "job-creative-viral-2",
+          "act": 2,
+          "event": "job-creative-viral-2",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "job-creative-viral-3",
+          "act": 3,
+          "event": "job-creative-viral-3",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "job-creative-audition",
+      "category": "creative",
+      "title": "audition",
+      "beats": [
+        {
+          "id": "job-creative-audition-1",
+          "act": 1,
+          "event": "job-creative-audition-1",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "job-creative-audition-2",
+          "act": 2,
+          "event": "job-creative-audition-2",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "job-creative-audition-3",
+          "act": 3,
+          "event": "job-creative-audition-3",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "job-trades-commission",
+      "category": "trades",
+      "title": "commission",
+      "beats": [
+        {
+          "id": "job-trades-commission-1",
+          "act": 1,
+          "event": "job-trades-commission-1",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "job-trades-commission-2",
+          "act": 2,
+          "event": "job-trades-commission-2",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "job-trades-commission-3",
+          "act": 3,
+          "event": "job-trades-commission-3",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "job-trades-family",
+      "category": "trades",
+      "title": "family",
+      "beats": [
+        {
+          "id": "job-trades-family-1",
+          "act": 1,
+          "event": "job-trades-family-1",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "job-trades-family-2",
+          "act": 2,
+          "event": "job-trades-family-2",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "job-trades-family-3",
+          "act": 3,
+          "event": "job-trades-family-3",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "job-office-promotion",
+      "category": "office",
+      "title": "promotion",
+      "beats": [
+        {
+          "id": "job-office-promotion-1",
+          "act": 1,
+          "event": "job-office-promotion-1",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "job-office-promotion-2",
+          "act": 2,
+          "event": "job-office-promotion-2",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "job-office-promotion-3",
+          "act": 3,
+          "event": "job-office-promotion-3",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "job-office-layoffs",
+      "category": "office",
+      "title": "layoffs",
+      "beats": [
+        {
+          "id": "job-office-layoffs-1",
+          "act": 1,
+          "event": "job-office-layoffs-1",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "job-office-layoffs-2",
+          "act": 2,
+          "event": "job-office-layoffs-2",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "job-office-layoffs-3",
+          "act": 3,
+          "event": "job-office-layoffs-3",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "job-student-finals",
+      "category": "student",
+      "title": "finals",
+      "beats": [
+        {
+          "id": "job-student-finals-1",
+          "act": 1,
+          "event": "job-student-finals-1",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "job-student-finals-2",
+          "act": 2,
+          "event": "job-student-finals-2",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "job-student-finals-3",
+          "act": 3,
+          "event": "job-student-finals-3",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "job-student-exchange",
+      "category": "student",
+      "title": "exchange",
+      "beats": [
+        {
+          "id": "job-student-exchange-1",
+          "act": 1,
+          "event": "job-student-exchange-1",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "job-student-exchange-2",
+          "act": 2,
+          "event": "job-student-exchange-2",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "job-student-exchange-3",
+          "act": 3,
+          "event": "job-student-exchange-3",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "job-service-regular",
+      "category": "service",
+      "title": "regular",
+      "beats": [
+        {
+          "id": "job-service-regular-1",
+          "act": 1,
+          "event": "job-service-regular-1",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "job-service-regular-2",
+          "act": 2,
+          "event": "job-service-regular-2",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "job-service-regular-3",
+          "act": 3,
+          "event": "job-service-regular-3",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "job-service-closing",
+      "category": "service",
+      "title": "closing",
+      "beats": [
+        {
+          "id": "job-service-closing-1",
+          "act": 1,
+          "event": "job-service-closing-1",
+          "pre": [
+            {
+              "episodeMin": 2
+            }
+          ]
+        },
+        {
+          "id": "job-service-closing-2",
+          "act": 2,
+          "event": "job-service-closing-2",
+          "pre": [
+            {
+              "episodeMin": 4
+            }
+          ]
+        },
+        {
+          "id": "job-service-closing-3",
+          "act": 3,
+          "event": "job-service-closing-3",
+          "pre": [
+            {
+              "episodeMin": 7
+            }
+          ]
+        }
+      ]
+    }
   ]
 }

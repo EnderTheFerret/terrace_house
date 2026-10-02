@@ -1,0 +1,22 @@
+# Local evaluation only. Attribution and upstream terms:
+# https://huggingface.co/Sao10K/L3-8B-Stheno-v3.2
+# https://huggingface.co/mradermacher/L3-8B-Stheno-v3.2-GGUF
+FROM hf.co/mradermacher/L3-8B-Stheno-v3.2-GGUF:Q4_K_M
+TEMPLATE """<|begin_of_text|>{{ if .System }}<|start_header_id|>system<|end_header_id|>
+
+{{ .System }}<|eot_id|>{{ end }}{{ if .Prompt }}<|start_header_id|>user<|end_header_id|>
+
+{{ .Prompt }}<|eot_id|>{{ end }}<|start_header_id|>assistant<|end_header_id|>
+
+{{ .Response }}<|eot_id|>"""
+PARAMETER stop "<|eot_id|>"
+PARAMETER stop "<|end_of_text|>"
+PARAMETER stop "<|start_header_id|>"
+PARAMETER temperature 1.12
+PARAMETER min_p 0.075
+PARAMETER top_k 50
+PARAMETER repeat_penalty 1.1
+LICENSE """Sao10K/L3-8B-Stheno-v3.2: CC-BY-NC-4.0, https://creativecommons.org/licenses/by-nc/4.0/
+Original model and author's hosting note: https://huggingface.co/Sao10K/L3-8B-Stheno-v3.2
+GGUF quantization by mradermacher: https://huggingface.co/mradermacher/L3-8B-Stheno-v3.2-GGUF
+Local evaluation copy; no permission for commercial hosting is asserted."""

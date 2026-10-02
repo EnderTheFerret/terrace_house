@@ -1,259 +1,2215 @@
 {
   "events": [
     {
-      "id": "arrival-intro", "type": "arrival", "title": "a new face at the door", "tags": ["arrival", "awkward", "intro"],
-      "slots": ["morning", "evening"], "location": "entrance",
-      "roles": { "a": {}, "b": {} }, "pre": [{ "newArrival": "a" }], "weight": 30,
-      "drama": { "affinity": [["b", "a", 4], ["a", "b", 3]], "romance": [["b", "a", 2]], "trust": [["a", "b", 3]] },
-      "beats": ["open", "smalltalk", "probe", "choice", "joke", "close"], "intents": ["support", "joke", "flirt", "listen"],
+      "id": "arrival-intro",
+      "type": "arrival",
+      "title": "a new face at the door",
+      "tags": [
+        "arrival",
+        "awkward",
+        "intro"
+      ],
+      "slots": [
+        "morning",
+        "evening"
+      ],
+      "location": "entrance",
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "pre": [
+        {
+          "newArrival": "a"
+        }
+      ],
+      "weight": 30,
+      "drama": {
+        "affinity": [
+          [
+            "b",
+            "a",
+            4
+          ],
+          [
+            "a",
+            "b",
+            3
+          ]
+        ],
+        "romance": [
+          [
+            "b",
+            "a",
+            2
+          ]
+        ],
+        "trust": [
+          [
+            "a",
+            "b",
+            3
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "probe",
+        "choice",
+        "joke",
+        "close"
+      ],
+      "intents": [
+        "support",
+        "joke",
+        "flirt",
+        "listen"
+      ],
       "premise": "The doorbell rings. {a} stands at the entrance with one suitcase and a nervous smile; {b} answers.",
-      "freeze": true, "effects": [{ "flag": "introduced_{a}", "value": true }]
+      "freeze": true,
+      "effects": [
+        {
+          "flag": "introduced_{a}",
+          "value": true
+        }
+      ]
     },
     {
-      "id": "welcome-party", "type": "welcome-party", "title": "welcome party", "tags": ["group", "dinner", "celebration", "intro"],
-      "slots": ["evening"], "location": "kitchen",
-      "roles": { "a": {}, "b": {}, "c": {} }, "pre": [{ "flag": "new_{a}" }, { "flag": "introduced_{a}" }, { "notFlag": "welcomed_{a}" }], "weight": 8,
-      "drama": { "affinity": [["a", "b", 4], ["a", "c", 4], ["b", "a", 3], ["c", "a", 3]], "romance": [["b", "a", 2]], "mood": [["a", 0.15]] },
-      "beats": ["open", "smalltalk", "probe", "joke", "choice", "tease", "close"], "intents": ["joke", "support", "flirt", "honest"],
+      "id": "welcome-party",
+      "type": "welcome-party",
+      "title": "welcome party",
+      "tags": [
+        "group",
+        "dinner",
+        "celebration",
+        "intro"
+      ],
+      "slots": [
+        "evening"
+      ],
+      "location": "kitchen",
+      "roles": {
+        "a": {},
+        "b": {},
+        "c": {}
+      },
+      "pre": [
+        {
+          "flag": "new_{a}"
+        },
+        {
+          "flag": "introduced_{a}"
+        },
+        {
+          "notFlag": "welcomed_{a}"
+        }
+      ],
+      "weight": 8,
+      "drama": {
+        "affinity": [
+          [
+            "a",
+            "b",
+            4
+          ],
+          [
+            "a",
+            "c",
+            4
+          ],
+          [
+            "b",
+            "a",
+            3
+          ],
+          [
+            "c",
+            "a",
+            3
+          ]
+        ],
+        "romance": [
+          [
+            "b",
+            "a",
+            2
+          ]
+        ],
+        "mood": [
+          [
+            "a",
+            0.15
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "probe",
+        "joke",
+        "choice",
+        "tease",
+        "close"
+      ],
+      "intents": [
+        "joke",
+        "support",
+        "flirt",
+        "honest"
+      ],
       "premise": "Hot pot for the newcomer. {b} asks {a} the question everyone asks: 'so what do you want to get out of this house?' {c} pours.",
-      "effects": [{ "flag": "welcomed_{a}", "value": true }, { "house": { "dishes": 20 } }]
+      "effects": [
+        {
+          "flag": "welcomed_{a}",
+          "value": true
+        },
+        {
+          "house": {
+            "dishes": 20
+          }
+        }
+      ]
     },
     {
-      "id": "chore-rota-conflict", "type": "chore-conflict", "title": "the chore rota", "tags": ["conflict", "domestic", "house-meeting"],
-      "slots": ["morning", "evening"], "location": "kitchen",
-      "roles": { "a": {}, "b": {} }, "pre": [{ "choreSkipper": "b" }], "weight": 2.2,
-      "drama": { "tension": [["a", "b", 10], ["b", "a", 6]], "affinity": [["a", "b", -5]], "trust": [["a", "b", -3]] },
-      "beats": ["open", "probe", "deflect", "choice", "conflict", "silence", "close"], "intents": ["confront", "support", "joke", "apologize"],
+      "id": "chore-rota-conflict",
+      "type": "chore-conflict",
+      "title": "the chore rota",
+      "tags": [
+        "conflict",
+        "domestic",
+        "house-meeting"
+      ],
+      "slots": [
+        "morning",
+        "evening"
+      ],
+      "location": "kitchen",
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "pre": [
+        {
+          "choreSkipper": "b"
+        }
+      ],
+      "weight": 2.2,
+      "drama": {
+        "tension": [
+          [
+            "a",
+            "b",
+            10
+          ],
+          [
+            "b",
+            "a",
+            6
+          ]
+        ],
+        "affinity": [
+          [
+            "a",
+            "b",
+            -5
+          ]
+        ],
+        "trust": [
+          [
+            "a",
+            "b",
+            -3
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "probe",
+        "deflect",
+        "choice",
+        "conflict",
+        "silence",
+        "close"
+      ],
+      "intents": [
+        "confront",
+        "support",
+        "joke",
+        "apologize"
+      ],
       "premise": "The whiteboard says it was {b}'s week for trash. The bags by the door say otherwise. {a} brings it up.",
-      "effects": [{ "reputation": { "role": "b", "delta": -4 } }]
+      "effects": [
+        {
+          "reputation": {
+            "role": "b",
+            "delta": -4
+          }
+        }
+      ]
     },
     {
-      "id": "late-night-kitchen", "type": "late-night-talk", "title": "late-night kitchen talk", "tags": ["intimate", "quiet", "deep"],
-      "slots": ["evening"], "location": "kitchen",
-      "roles": { "a": {}, "b": {} }, "pre": [{ "rel": "affinity", "from": "a", "to": "b", "min": 0 }], "weight": 1.6,
-      "drama": { "affinity": [["a", "b", 6], ["b", "a", 5]], "romance": [["a", "b", 4], ["b", "a", 3]], "trust": [["a", "b", 6], ["b", "a", 6]] },
-      "beats": ["open", "smalltalk", "silence", "probe", "choice", "reveal", "comfort", "close"], "intents": ["honest", "support", "flirt", "deflect"],
-      "premise": "Past midnight. {a} is making instant ramen when {b} shuffles in, also unable to sleep.",
-      "effects": [{ "reference": { "kind": "inside-joke", "text": "the 1 a.m. ramen club" } }]
+      "id": "late-night-kitchen",
+      "type": "late-night-talk",
+      "title": "late-night kitchen talk",
+      "tags": [
+        "intimate",
+        "quiet",
+        "deep"
+      ],
+      "slots": [
+        "evening"
+      ],
+      "location": "kitchen",
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "pre": [
+        {
+          "rel": "affinity",
+          "from": "a",
+          "to": "b",
+          "min": 0
+        }
+      ],
+      "weight": 1.6,
+      "drama": {
+        "affinity": [
+          [
+            "a",
+            "b",
+            6
+          ],
+          [
+            "b",
+            "a",
+            5
+          ]
+        ],
+        "romance": [
+          [
+            "a",
+            "b",
+            4
+          ],
+          [
+            "b",
+            "a",
+            3
+          ]
+        ],
+        "trust": [
+          [
+            "a",
+            "b",
+            6
+          ],
+          [
+            "b",
+            "a",
+            6
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "silence",
+        "probe",
+        "choice",
+        "reveal",
+        "comfort",
+        "close"
+      ],
+      "intents": [
+        "honest",
+        "support",
+        "flirt",
+        "deflect"
+      ],
+      "premise": "Past midnight. {a} is warming pita when {b} shuffles in, also unable to sleep.",
+      "effects": [
+        {
+          "reference": {
+            "kind": "inside-joke",
+            "text": "the 1 a.m. pita club"
+          }
+        }
+      ]
     },
     {
-      "id": "rooftop-talk", "type": "rooftop-talk", "title": "rooftop conversation", "tags": ["intimate", "deep", "romance"],
-      "slots": ["slot3", "evening"], "location": "rooftop",
-      "roles": { "a": {}, "b": { "gender": "attractedTo:a" } }, "pre": [{ "weather": ["sunny", "cloudy"] }, { "rel": "affinity", "from": "a", "to": "b", "min": 10 }], "weight": 1.5,
-      "drama": { "romance": [["a", "b", 7], ["b", "a", 5]], "trust": [["a", "b", 5], ["b", "a", 5]], "affinity": [["b", "a", 4]] },
-      "beats": ["open", "smalltalk", "probe", "choice", "reveal", "flirt", "silence", "close"], "intents": ["honest", "flirt", "support", "deflect"],
-      "premise": "The rooftop at dusk. {a} is leaning on the railing when {b} comes up with two cans of something cold.",
+      "id": "backyard-talk",
+      "type": "backyard-talk",
+      "title": "backyard conversation",
+      "tags": [
+        "intimate",
+        "deep",
+        "romance"
+      ],
+      "slots": [
+        "slot3",
+        "evening"
+      ],
+      "location": "backyard",
+      "roles": {
+        "a": {},
+        "b": {
+          "gender": "attractedTo:a"
+        }
+      },
+      "pre": [
+        {
+          "weather": [
+            "sunny",
+            "cloudy"
+          ]
+        },
+        {
+          "rel": "affinity",
+          "from": "a",
+          "to": "b",
+          "min": 10
+        }
+      ],
+      "weight": 1.5,
+      "drama": {
+        "romance": [
+          [
+            "a",
+            "b",
+            7
+          ],
+          [
+            "b",
+            "a",
+            5
+          ]
+        ],
+        "trust": [
+          [
+            "a",
+            "b",
+            5
+          ],
+          [
+            "b",
+            "a",
+            5
+          ]
+        ],
+        "affinity": [
+          [
+            "b",
+            "a",
+            4
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "probe",
+        "choice",
+        "reveal",
+        "flirt",
+        "silence",
+        "close"
+      ],
+      "intents": [
+        "honest",
+        "flirt",
+        "support",
+        "deflect"
+      ],
+      "premise": "The backyard at dusk. {a} is leaning on the railing when {b} comes up with two cans of something cold.",
       "freeze": true
     },
     {
-      "id": "shared-car-date", "type": "car-date", "title": "a drive in the shared car", "tags": ["date", "romance", "car"],
-      "slots": ["slot1", "slot2", "slot3"], "location": "player-node", "activity": ["date"], "requiresCar": true,
-      "roles": { "a": {}, "b": { "gender": "attractedTo:a" } }, "pre": [{ "carFree": true }], "weight": 2.2,
-      "drama": { "romance": [["a", "b", 9], ["b", "a", 7]], "affinity": [["a", "b", 5], ["b", "a", 5]], "trust": [["b", "a", 4]] },
-      "beats": ["open", "smalltalk", "joke", "probe", "choice", "flirt", "silence", "close"], "intents": ["flirt", "honest", "joke", "listen"],
+      "id": "shared-car-date",
+      "type": "car-date",
+      "title": "a drive in the shared car",
+      "tags": [
+        "date",
+        "romance",
+        "car"
+      ],
+      "slots": [
+        "slot1",
+        "slot2",
+        "slot3"
+      ],
+      "location": "player-node",
+      "activity": [
+        "date"
+      ],
+      "requiresCar": true,
+      "roles": {
+        "a": {},
+        "b": {
+          "gender": "attractedTo:a"
+        }
+      },
+      "pre": [
+        {
+          "carFree": true
+        }
+      ],
+      "weight": 2.2,
+      "drama": {
+        "romance": [
+          [
+            "a",
+            "b",
+            9
+          ],
+          [
+            "b",
+            "a",
+            7
+          ]
+        ],
+        "affinity": [
+          [
+            "a",
+            "b",
+            5
+          ],
+          [
+            "b",
+            "a",
+            5
+          ]
+        ],
+        "trust": [
+          [
+            "b",
+            "a",
+            4
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "joke",
+        "probe",
+        "choice",
+        "flirt",
+        "silence",
+        "close"
+      ],
+      "intents": [
+        "flirt",
+        "honest",
+        "joke",
+        "listen"
+      ],
       "premise": "{a} borrows the house car and asks {b} to come along to {place}. The radio only gets one station.",
-      "freeze": true, "effects": [{ "date": ["a", "b"] }]
+      "freeze": true,
+      "effects": [
+        {
+          "date": [
+            "a",
+            "b"
+          ]
+        }
+      ]
     },
     {
-      "id": "job-mishap", "type": "job-mishap", "title": "part-time job mishap", "tags": ["work", "comedy", "awkward"],
-      "slots": ["slot1", "slot2", "slot3"], "location": "player-node", "activity": ["work"],
-      "roles": { "a": { "player": true } }, "pre": [{ "chance": 0.45 }], "weight": 1.5,
-      "drama": { "mood": [["a", -0.1]] },
-      "beats": ["open", "smalltalk", "interrupt", "choice", "joke", "close"], "intents": ["apologize", "joke", "honest"],
+      "id": "job-mishap",
+      "type": "job-mishap",
+      "title": "part-time job mishap",
+      "tags": [
+        "work",
+        "comedy",
+        "awkward"
+      ],
+      "slots": [
+        "slot1",
+        "slot2",
+        "slot3"
+      ],
+      "location": "player-node",
+      "activity": [
+        "work"
+      ],
+      "roles": {
+        "a": {
+          "player": true
+        }
+      },
+      "pre": [
+        {
+          "chance": 0.45
+        }
+      ],
+      "weight": 1.5,
+      "drama": {
+        "mood": [
+          [
+            "a",
+            -0.1
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "interrupt",
+        "choice",
+        "joke",
+        "close"
+      ],
+      "intents": [
+        "apologize",
+        "joke",
+        "honest"
+      ],
       "premise": "Mid-shift at {place}, {a} spills an entire tray in front of the one customer they wanted to impress.",
-      "effects": [{ "money": -500 }]
+      "effects": [
+        {
+          "money": -17
+        }
+      ]
     },
     {
-      "id": "work-shift", "type": "work-shift", "title": "a regular shift", "tags": ["work", "quiet"],
-      "slots": ["slot1", "slot2", "slot3"], "location": "player-node", "activity": ["work"],
-      "roles": { "a": { "player": true } }, "pre": [], "weight": 1,
-      "drama": { "mood": [["a", 0.05]] },
-      "beats": ["open", "smalltalk", "choice", "close"], "intents": ["honest", "joke", "listen"],
+      "id": "work-shift",
+      "type": "work-shift",
+      "title": "a regular shift",
+      "tags": [
+        "work",
+        "quiet"
+      ],
+      "slots": [
+        "slot1",
+        "slot2",
+        "slot3"
+      ],
+      "location": "player-node",
+      "activity": [
+        "work"
+      ],
+      "roles": {
+        "a": {
+          "player": true
+        }
+      },
+      "pre": [],
+      "weight": 1,
+      "drama": {
+        "mood": [
+          [
+            "a",
+            0.05
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "choice",
+        "close"
+      ],
+      "intents": [
+        "honest",
+        "joke",
+        "listen"
+      ],
       "premise": "A regular shift at {place}. The boss is watching; the regulars are chatty.",
-      "effects": [{ "money": 3500 }]
+      "effects": [
+        {
+          "money": 0
+        }
+      ]
     },
     {
-      "id": "group-dinner", "type": "group-dinner", "title": "group dinner", "tags": ["group", "cooking", "dinner"],
-      "slots": ["evening"], "location": "kitchen",
-      "roles": { "a": {}, "b": {}, "c": {} }, "pre": [], "weight": 1.6,
-      "drama": { "affinity": [["b", "a", 4], ["c", "a", 4], ["b", "c", 2]], "tension": [["b", "c", -3]], "mood": [["a", 0.1], ["b", 0.1], ["c", 0.1]] },
-      "beats": ["open", "smalltalk", "joke", "probe", "choice", "tease", "close"], "intents": ["joke", "support", "honest", "tease"],
+      "id": "group-dinner",
+      "type": "group-dinner",
+      "title": "group dinner",
+      "tags": [
+        "group",
+        "cooking",
+        "dinner"
+      ],
+      "slots": [
+        "evening"
+      ],
+      "location": "kitchen",
+      "roles": {
+        "a": {},
+        "b": {},
+        "c": {}
+      },
+      "pre": [],
+      "weight": 1.6,
+      "drama": {
+        "affinity": [
+          [
+            "b",
+            "a",
+            4
+          ],
+          [
+            "c",
+            "a",
+            4
+          ],
+          [
+            "b",
+            "c",
+            2
+          ]
+        ],
+        "tension": [
+          [
+            "b",
+            "c",
+            -3
+          ]
+        ],
+        "mood": [
+          [
+            "a",
+            0.1
+          ],
+          [
+            "b",
+            0.1
+          ],
+          [
+            "c",
+            0.1
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "joke",
+        "probe",
+        "choice",
+        "tease",
+        "close"
+      ],
+      "intents": [
+        "joke",
+        "support",
+        "honest",
+        "tease"
+      ],
       "premise": "{a} made dinner for everyone. The table fills up; {b} and {c} end up sitting next to each other.",
-      "effects": [{ "house": { "dishes": 25 } }, { "reputation": { "role": "a", "delta": 3 } }]
+      "effects": [
+        {
+          "house": {
+            "dishes": 25
+          }
+        },
+        {
+          "reputation": {
+            "role": "a",
+            "delta": 3
+          }
+        }
+      ]
     },
     {
-      "id": "jealousy-after-date", "type": "jealousy", "title": "jealousy after a date", "tags": ["jealousy", "romance", "conflict"],
-      "slots": ["slot3", "evening"], "location": "living",
-      "roles": { "a": {}, "b": {}, "c": {} }, "pre": [{ "lastDate": ["a", "b"] }, { "rel": "romance", "from": "c", "to": "b", "min": 35 }], "weight": 3.2,
-      "drama": { "tension": [["c", "a", 14], ["a", "c", 6]], "romance": [["c", "b", 3]], "affinity": [["c", "a", -8]], "mood": [["c", -0.2]] },
-      "beats": ["open", "probe", "deflect", "tease", "choice", "conflict", "silence", "close"], "intents": ["honest", "deflect", "support", "confront"],
+      "id": "jealousy-after-date",
+      "type": "jealousy",
+      "title": "jealousy after a date",
+      "tags": [
+        "jealousy",
+        "romance",
+        "conflict"
+      ],
+      "slots": [
+        "slot3",
+        "evening"
+      ],
+      "location": "living",
+      "roles": {
+        "a": {},
+        "b": {},
+        "c": {}
+      },
+      "pre": [
+        {
+          "lastDate": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "rel": "romance",
+          "from": "c",
+          "to": "b",
+          "min": 35
+        }
+      ],
+      "weight": 3.2,
+      "drama": {
+        "tension": [
+          [
+            "c",
+            "a",
+            14
+          ],
+          [
+            "a",
+            "c",
+            6
+          ]
+        ],
+        "romance": [
+          [
+            "c",
+            "b",
+            3
+          ]
+        ],
+        "affinity": [
+          [
+            "c",
+            "a",
+            -8
+          ]
+        ],
+        "mood": [
+          [
+            "c",
+            -0.2
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "probe",
+        "deflect",
+        "tease",
+        "choice",
+        "conflict",
+        "silence",
+        "close"
+      ],
+      "intents": [
+        "honest",
+        "deflect",
+        "support",
+        "confront"
+      ],
       "premise": "{a} and {b} come home laughing from their date. {c} is on the sofa, very interested in a magazine.",
-      "peak": true, "freeze": true
+      "peak": true,
+      "freeze": true
     },
     {
-      "id": "confession-scenic", "type": "confession", "title": "confession at the scenic spot", "tags": ["confession", "romance", "peak"],
-      "slots": ["slot2", "slot3"], "location": "type:scenic-spot", "activity": ["date"],
-      "roles": { "a": {}, "b": { "gender": "attractedTo:a" } }, "pre": [{ "rel": "romance", "from": "a", "to": "b", "min": 55 }, { "episodeMin": 4 }], "weight": 4,
-      "drama": { "romance": [["a", "b", 6], ["b", "a", 6]], "tension": [["a", "b", 4]] },
-      "beats": ["open", "smalltalk", "silence", "confess", "choice", "accept", "close"], "intents": ["confess", "honest", "decline", "deflect"],
+      "id": "confession-scenic",
+      "type": "confession",
+      "title": "confession at the scenic spot",
+      "tags": [
+        "confession",
+        "romance",
+        "peak"
+      ],
+      "slots": [
+        "slot2",
+        "slot3"
+      ],
+      "location": "type:scenic-spot",
+      "activity": [
+        "date"
+      ],
+      "roles": {
+        "a": {},
+        "b": {
+          "gender": "attractedTo:a"
+        }
+      },
+      "pre": [
+        {
+          "rel": "romance",
+          "from": "a",
+          "to": "b",
+          "min": 55
+        },
+        {
+          "episodeMin": 4
+        }
+      ],
+      "weight": 4,
+      "drama": {
+        "romance": [
+          [
+            "a",
+            "b",
+            6
+          ],
+          [
+            "b",
+            "a",
+            6
+          ]
+        ],
+        "tension": [
+          [
+            "a",
+            "b",
+            4
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "silence",
+        "confess",
+        "choice",
+        "accept",
+        "close"
+      ],
+      "intents": [
+        "confess",
+        "honest",
+        "decline",
+        "deflect"
+      ],
       "premise": "{a} asked {b} to drive out to {place}. The wind is loud. {a} has been rehearsing one sentence all day.",
-      "peak": true, "freeze": true, "effects": [{ "confession": ["a", "b"] }]
+      "peak": true,
+      "freeze": true,
+      "effects": [
+        {
+          "confession": [
+            "a",
+            "b"
+          ]
+        }
+      ]
     },
     {
-      "id": "farewell-door", "type": "farewell", "title": "farewell at the door", "tags": ["departure", "farewell", "peak"],
-      "slots": ["morning", "evening"], "location": "entrance",
-      "roles": { "a": {}, "b": {} }, "pre": [{ "leaving": "a" }], "weight": 40,
-      "drama": { "affinity": [["b", "a", 5]], "mood": [["b", -0.15]] },
-      "beats": ["open", "smalltalk", "silence", "reveal", "choice", "comfort", "close"], "intents": ["honest", "support", "joke", "confess"],
+      "id": "farewell-door",
+      "type": "farewell",
+      "title": "farewell at the door",
+      "tags": [
+        "departure",
+        "farewell",
+        "peak"
+      ],
+      "slots": [
+        "morning",
+        "evening"
+      ],
+      "location": "entrance",
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "pre": [
+        {
+          "leaving": "a"
+        }
+      ],
+      "weight": 40,
+      "drama": {
+        "affinity": [
+          [
+            "b",
+            "a",
+            5
+          ]
+        ],
+        "mood": [
+          [
+            "b",
+            -0.15
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "silence",
+        "reveal",
+        "choice",
+        "comfort",
+        "close"
+      ],
+      "intents": [
+        "honest",
+        "support",
+        "joke",
+        "confess"
+      ],
       "premise": "{a}'s suitcase is by the door. The rest of the house lines up in the genkan; {b} is the last to say goodbye.",
-      "peak": true, "freeze": true
+      "peak": true,
+      "freeze": true
     },
     {
-      "id": "cook-for-someone", "type": "cook-for", "title": "cooking for someone", "tags": ["cooking", "romance", "care"],
-      "slots": ["morning", "slot3", "evening"], "location": "kitchen",
-      "roles": { "a": {}, "b": {} }, "pre": [{ "house": "fridgeTotal", "min": 4 }], "weight": 1.5,
-      "drama": { "affinity": [["b", "a", 7]], "romance": [["b", "a", 3], ["a", "b", 2]], "trust": [["b", "a", 3]] },
-      "beats": ["open", "smalltalk", "choice", "tease", "comfort", "close"], "intents": ["support", "flirt", "joke", "honest"],
+      "id": "cook-for-someone",
+      "type": "cook-for",
+      "title": "cooking for someone",
+      "tags": [
+        "cooking",
+        "romance",
+        "care"
+      ],
+      "slots": [
+        "morning",
+        "slot3",
+        "evening"
+      ],
+      "location": "kitchen",
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "pre": [
+        {
+          "house": "fridgeTotal",
+          "min": 4
+        }
+      ],
+      "weight": 1.5,
+      "drama": {
+        "affinity": [
+          [
+            "b",
+            "a",
+            7
+          ]
+        ],
+        "romance": [
+          [
+            "b",
+            "a",
+            3
+          ],
+          [
+            "a",
+            "b",
+            2
+          ]
+        ],
+        "trust": [
+          [
+            "b",
+            "a",
+            3
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "choice",
+        "tease",
+        "comfort",
+        "close"
+      ],
+      "intents": [
+        "support",
+        "flirt",
+        "joke",
+        "honest"
+      ],
       "premise": "{a} quietly makes a second plate and slides it across the counter to {b}.",
-      "effects": [{ "fridge": { "egg": -1, "rice": -1 } }, { "house": { "dishes": 8 } }]
+      "effects": [
+        {
+          "fridge": {
+            "egg": -1,
+            "rice": -1
+          }
+        },
+        {
+          "house": {
+            "dishes": 8
+          }
+        }
+      ]
     },
     {
-      "id": "silent-breakfast", "type": "silent-breakfast", "title": "silent awkward breakfast", "tags": ["awkward", "quiet", "conflict"],
-      "slots": ["morning"], "location": "kitchen",
-      "roles": { "a": {}, "b": {} }, "pre": [{ "rel": "tension", "from": "a", "to": "b", "min": 25 }], "weight": 2,
-      "drama": { "tension": [["a", "b", -2], ["b", "a", 2]], "mood": [["a", -0.05], ["b", -0.05]] },
-      "beats": ["open", "silence", "smalltalk", "silence", "choice", "close"], "intents": ["apologize", "joke", "listen", "confront"],
+      "id": "silent-breakfast",
+      "type": "silent-breakfast",
+      "title": "silent awkward breakfast",
+      "tags": [
+        "awkward",
+        "quiet",
+        "conflict"
+      ],
+      "slots": [
+        "morning"
+      ],
+      "location": "kitchen",
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "pre": [
+        {
+          "rel": "tension",
+          "from": "a",
+          "to": "b",
+          "min": 25
+        }
+      ],
+      "weight": 2,
+      "drama": {
+        "tension": [
+          [
+            "a",
+            "b",
+            -2
+          ],
+          [
+            "b",
+            "a",
+            2
+          ]
+        ],
+        "mood": [
+          [
+            "a",
+            -0.05
+          ],
+          [
+            "b",
+            -0.05
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "silence",
+        "smalltalk",
+        "silence",
+        "choice",
+        "close"
+      ],
+      "intents": [
+        "apologize",
+        "joke",
+        "listen",
+        "confront"
+      ],
       "premise": "Toast, coffee, and nothing. {a} and {b} eat breakfast three seats apart, both pretending to read their phones."
     },
     {
-      "id": "birthday", "type": "birthday", "title": "a birthday", "tags": ["celebration", "group", "care"],
-      "slots": ["evening"], "location": "living",
-      "roles": { "a": {}, "b": {} }, "pre": [{ "birthday": "a" }], "weight": 25,
-      "drama": { "affinity": [["a", "b", 8]], "mood": [["a", 0.3]] },
-      "beats": ["open", "smalltalk", "reveal", "choice", "comfort", "joke", "close"], "intents": ["support", "joke", "flirt", "honest"],
+      "id": "birthday",
+      "type": "birthday",
+      "title": "a birthday",
+      "tags": [
+        "celebration",
+        "group",
+        "care"
+      ],
+      "slots": [
+        "evening"
+      ],
+      "location": "living",
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "pre": [
+        {
+          "birthday": "a"
+        }
+      ],
+      "weight": 25,
+      "drama": {
+        "affinity": [
+          [
+            "a",
+            "b",
+            8
+          ]
+        ],
+        "mood": [
+          [
+            "a",
+            0.3
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "reveal",
+        "choice",
+        "comfort",
+        "joke",
+        "close"
+      ],
+      "intents": [
+        "support",
+        "joke",
+        "flirt",
+        "honest"
+      ],
       "premise": "It's {a}'s birthday. {b} turns off the lights and walks in with a slightly crooked cake.",
-      "freeze": true, "effects": [{ "reference": { "kind": "running-gag", "text": "the crooked birthday cake" } }]
+      "freeze": true,
+      "effects": [
+        {
+          "reference": {
+            "kind": "running-gag",
+            "text": "the crooked birthday cake"
+          }
+        }
+      ]
     },
     {
-      "id": "rainy-day", "type": "rainy-day", "title": "rainy day indoors", "tags": ["quiet", "group", "cozy"],
-      "slots": ["slot1", "slot2", "slot3"], "location": "living",
-      "roles": { "a": {}, "b": {} }, "pre": [{ "weather": ["rain"] }], "weight": 2.5,
-      "drama": { "affinity": [["a", "b", 5], ["b", "a", 5]], "romance": [["a", "b", 2]] },
-      "beats": ["open", "smalltalk", "joke", "probe", "choice", "close"], "intents": ["joke", "honest", "flirt", "listen"],
+      "id": "rainy-day",
+      "type": "rainy-day",
+      "title": "rainy day indoors",
+      "tags": [
+        "quiet",
+        "group",
+        "cozy"
+      ],
+      "slots": [
+        "slot1",
+        "slot2",
+        "slot3"
+      ],
+      "location": "living",
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "pre": [
+        {
+          "weather": [
+            "rain"
+          ]
+        }
+      ],
+      "weight": 2.5,
+      "drama": {
+        "affinity": [
+          [
+            "a",
+            "b",
+            5
+          ],
+          [
+            "b",
+            "a",
+            5
+          ]
+        ],
+        "romance": [
+          [
+            "a",
+            "b",
+            2
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "joke",
+        "probe",
+        "choice",
+        "close"
+      ],
+      "intents": [
+        "joke",
+        "honest",
+        "flirt",
+        "listen"
+      ],
       "premise": "Rain all day. {a} and {b} build an elaborate blanket fort to watch a terrible movie.",
-      "effects": [{ "reference": { "kind": "inside-joke", "text": "the terrible rainy-day movie" } }]
+      "effects": [
+        {
+          "reference": {
+            "kind": "inside-joke",
+            "text": "the terrible rainy-day movie"
+          }
+        }
+      ]
     },
     {
-      "id": "group-outing", "type": "group-outing", "title": "group outing", "tags": ["group", "outing", "fun"],
-      "slots": ["slot1", "slot2", "slot3"], "location": "player-node", "activity": ["invite", "karaoke"],
-      "roles": { "a": {}, "b": {}, "c": {} }, "pre": [], "weight": 1.4,
-      "drama": { "affinity": [["a", "b", 4], ["b", "c", 3], ["c", "a", 3]], "romance": [["b", "a", 2]], "mood": [["a", 0.15], ["b", 0.15], ["c", 0.15]] },
-      "beats": ["open", "joke", "tease", "smalltalk", "choice", "joke", "close"], "intents": ["joke", "flirt", "support", "tease"],
+      "id": "group-outing",
+      "type": "group-outing",
+      "title": "group outing",
+      "tags": [
+        "group",
+        "outing",
+        "fun"
+      ],
+      "slots": [
+        "slot1",
+        "slot2",
+        "slot3"
+      ],
+      "location": "player-node",
+      "activity": [
+        "invite",
+        "karaoke"
+      ],
+      "roles": {
+        "a": {},
+        "b": {},
+        "c": {}
+      },
+      "pre": [],
+      "weight": 1.4,
+      "drama": {
+        "affinity": [
+          [
+            "a",
+            "b",
+            4
+          ],
+          [
+            "b",
+            "c",
+            3
+          ],
+          [
+            "c",
+            "a",
+            3
+          ]
+        ],
+        "romance": [
+          [
+            "b",
+            "a",
+            2
+          ]
+        ],
+        "mood": [
+          [
+            "a",
+            0.15
+          ],
+          [
+            "b",
+            0.15
+          ],
+          [
+            "c",
+            0.15
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "joke",
+        "tease",
+        "smalltalk",
+        "choice",
+        "joke",
+        "close"
+      ],
+      "intents": [
+        "joke",
+        "flirt",
+        "support",
+        "tease"
+      ],
       "premise": "{a} drags {b} and {c} out to {place}. Someone suggests a game; it gets competitive.",
-      "effects": [{ "money": -1200 }, { "reference": { "kind": "running-gag", "text": "the {place} rematch" } }]
+      "effects": [
+        {
+          "money": -40
+        },
+        {
+          "reference": {
+            "kind": "running-gag",
+            "text": "the {place} rematch"
+          }
+        }
+      ]
     },
     {
-      "id": "chat-exchange", "type": "chat", "title": "private messages", "tags": ["chat", "phone", "romance"],
-      "slots": ["slot1", "slot2", "slot3", "evening"], "location": "phone", "chat": true,
-      "roles": { "a": {}, "b": {} }, "pre": [{ "rel": "affinity", "from": "a", "to": "b", "min": 5 }], "weight": 1.2,
-      "drama": { "affinity": [["a", "b", 3], ["b", "a", 3]], "romance": [["a", "b", 3]] },
-      "beats": ["open", "smalltalk", "tease", "choice", "flirt", "close"], "intents": ["flirt", "joke", "honest", "deflect"],
+      "id": "chat-exchange",
+      "type": "chat",
+      "title": "private messages",
+      "tags": [
+        "chat",
+        "phone",
+        "romance"
+      ],
+      "slots": [
+        "slot1",
+        "slot2",
+        "slot3",
+        "evening"
+      ],
+      "location": "phone",
+      "chat": true,
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "pre": [
+        {
+          "rel": "affinity",
+          "from": "a",
+          "to": "b",
+          "min": 5
+        }
+      ],
+      "weight": 1.2,
+      "drama": {
+        "affinity": [
+          [
+            "a",
+            "b",
+            3
+          ],
+          [
+            "b",
+            "a",
+            3
+          ]
+        ],
+        "romance": [
+          [
+            "a",
+            "b",
+            3
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "tease",
+        "choice",
+        "flirt",
+        "close"
+      ],
+      "intents": [
+        "flirt",
+        "joke",
+        "honest",
+        "deflect"
+      ],
       "premise": "{a} sends {b} a message: a photo of the sunset from the train, and nothing else."
     },
     {
-      "id": "cafe-date", "type": "date", "title": "a date in town", "tags": ["date", "romance"],
-      "slots": ["slot1", "slot2", "slot3"], "location": "player-node", "activity": ["date", "eat"],
-      "roles": { "a": {}, "b": { "gender": "attractedTo:a" } }, "pre": [], "weight": 1.8,
-      "drama": { "romance": [["a", "b", 7], ["b", "a", 6]], "affinity": [["a", "b", 4], ["b", "a", 4]], "trust": [["a", "b", 3], ["b", "a", 3]] },
-      "beats": ["open", "smalltalk", "probe", "choice", "flirt", "reveal", "close"], "intents": ["flirt", "honest", "joke", "listen"],
+      "id": "cafe-date",
+      "type": "date",
+      "title": "a date in town",
+      "tags": [
+        "date",
+        "romance"
+      ],
+      "slots": [
+        "slot1",
+        "slot2",
+        "slot3"
+      ],
+      "location": "player-node",
+      "activity": [
+        "date",
+        "eat"
+      ],
+      "roles": {
+        "a": {},
+        "b": {
+          "gender": "attractedTo:a"
+        }
+      },
+      "pre": [],
+      "weight": 1.8,
+      "drama": {
+        "romance": [
+          [
+            "a",
+            "b",
+            7
+          ],
+          [
+            "b",
+            "a",
+            6
+          ]
+        ],
+        "affinity": [
+          [
+            "a",
+            "b",
+            4
+          ],
+          [
+            "b",
+            "a",
+            4
+          ]
+        ],
+        "trust": [
+          [
+            "a",
+            "b",
+            3
+          ],
+          [
+            "b",
+            "a",
+            3
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "probe",
+        "choice",
+        "flirt",
+        "reveal",
+        "close"
+      ],
+      "intents": [
+        "flirt",
+        "honest",
+        "joke",
+        "listen"
+      ],
       "premise": "{a} and {b} at {place}, just the two of them. It's the first time it's obviously a date.",
-      "effects": [{ "date": ["a", "b"] }, { "money": -900 }]
+      "effects": [
+        {
+          "date": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "money": -30
+        }
+      ]
     },
     {
-      "id": "solo-wander", "type": "solo", "title": "solo wander", "tags": ["solo", "quiet", "reflection"],
-      "slots": ["slot1", "slot2", "slot3"], "location": "player-node", "activity": ["wander", "shop", "eat"],
-      "roles": { "a": { "player": true } }, "pre": [], "weight": 1,
-      "drama": { "mood": [["a", 0.1]] },
-      "beats": ["open", "smalltalk", "reveal", "choice", "close"], "intents": ["honest", "joke", "listen"],
+      "id": "solo-wander",
+      "type": "solo",
+      "title": "solo wander",
+      "tags": [
+        "solo",
+        "quiet",
+        "reflection"
+      ],
+      "slots": [
+        "slot1",
+        "slot2",
+        "slot3"
+      ],
+      "location": "player-node",
+      "activity": [
+        "wander",
+        "shop",
+        "eat"
+      ],
+      "roles": {
+        "a": {
+          "player": true
+        }
+      },
+      "pre": [],
+      "weight": 1,
+      "drama": {
+        "mood": [
+          [
+            "a",
+            0.1
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "reveal",
+        "choice",
+        "close"
+      ],
+      "intents": [
+        "honest",
+        "joke",
+        "listen"
+      ],
       "premise": "{a} wanders around {place} alone, for once. A local regular strikes up a conversation."
     },
     {
-      "id": "karaoke-night", "type": "karaoke", "title": "karaoke duet", "tags": ["fun", "romance", "music"],
-      "slots": ["slot2", "slot3"], "location": "player-node", "activity": ["karaoke", "date"],
-      "roles": { "a": {}, "b": {} }, "pre": [], "weight": 1.5,
-      "drama": { "affinity": [["a", "b", 6], ["b", "a", 6]], "romance": [["b", "a", 4]], "mood": [["a", 0.2], ["b", 0.2]] },
-      "beats": ["open", "joke", "tease", "choice", "flirt", "joke", "close"], "intents": ["joke", "flirt", "tease", "support"],
+      "id": "karaoke-night",
+      "type": "karaoke",
+      "title": "karaoke duet",
+      "tags": [
+        "fun",
+        "romance",
+        "music"
+      ],
+      "slots": [
+        "slot2",
+        "slot3"
+      ],
+      "location": "player-node",
+      "activity": [
+        "karaoke",
+        "date"
+      ],
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "pre": [],
+      "weight": 1.5,
+      "drama": {
+        "affinity": [
+          [
+            "a",
+            "b",
+            6
+          ],
+          [
+            "b",
+            "a",
+            6
+          ]
+        ],
+        "romance": [
+          [
+            "b",
+            "a",
+            4
+          ]
+        ],
+        "mood": [
+          [
+            "a",
+            0.2
+          ],
+          [
+            "b",
+            0.2
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "joke",
+        "tease",
+        "choice",
+        "flirt",
+        "joke",
+        "close"
+      ],
+      "intents": [
+        "joke",
+        "flirt",
+        "tease",
+        "support"
+      ],
       "premise": "A tiny neon booth. {a} picks a love-song duet as a joke; {b} takes it very seriously.",
-      "effects": [{ "money": -1800 }, { "reference": { "kind": "running-gag", "text": "the karaoke duet" } }]
+      "effects": [
+        {
+          "money": -60
+        },
+        {
+          "reference": {
+            "kind": "running-gag",
+            "text": "the karaoke duet"
+          }
+        }
+      ]
     },
     {
-      "id": "gossip-session", "type": "gossip", "title": "gossip on the sofa", "tags": ["gossip", "secrets"],
-      "slots": ["slot3", "evening"], "location": "living",
-      "roles": { "a": {}, "b": {}, "c": { "notPlayer": true } }, "pre": [{ "knowsAbout": ["a", "c"] }, { "rel": "trust", "from": "a", "to": "b", "min": 35 }], "weight": 2,
-      "drama": { "trust": [["a", "b", 3], ["c", "a", -6]], "tension": [["c", "a", 5]], "affinity": [["a", "b", 3]] },
-      "beats": ["open", "smalltalk", "probe", "reveal", "choice", "tease", "close"], "intents": ["listen", "deflect", "honest", "tease"],
+      "id": "gossip-session",
+      "type": "gossip",
+      "title": "gossip on the sofa",
+      "tags": [
+        "gossip",
+        "secrets"
+      ],
+      "slots": [
+        "slot3",
+        "evening"
+      ],
+      "location": "living",
+      "roles": {
+        "a": {},
+        "b": {},
+        "c": {
+          "notPlayer": true
+        }
+      },
+      "pre": [
+        {
+          "knowsAbout": [
+            "a",
+            "c"
+          ]
+        },
+        {
+          "rel": "trust",
+          "from": "a",
+          "to": "b",
+          "min": 35
+        }
+      ],
+      "weight": 2,
+      "drama": {
+        "trust": [
+          [
+            "a",
+            "b",
+            3
+          ],
+          [
+            "c",
+            "a",
+            -6
+          ]
+        ],
+        "tension": [
+          [
+            "c",
+            "a",
+            5
+          ]
+        ],
+        "affinity": [
+          [
+            "a",
+            "b",
+            3
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "probe",
+        "reveal",
+        "choice",
+        "tease",
+        "close"
+      ],
+      "intents": [
+        "listen",
+        "deflect",
+        "honest",
+        "tease"
+      ],
       "premise": "{c} is out. {a} lowers their voice on the sofa: 'Okay, did you hear about {c}...'"
     },
     {
-      "id": "apology", "type": "apology", "title": "an apology", "tags": ["apology", "conflict", "repair"],
-      "slots": ["slot3", "evening", "morning"], "location": "living",
-      "roles": { "a": {}, "b": {} }, "pre": [{ "rel": "tension", "from": "b", "to": "a", "min": 30 }], "weight": 1.8,
-      "drama": { "tension": [["b", "a", -12], ["a", "b", -8]], "trust": [["b", "a", 5]], "affinity": [["b", "a", 5]] },
-      "beats": ["open", "silence", "apologize", "choice", "reveal", "comfort", "close"], "intents": ["apologize", "honest", "joke", "confront"],
+      "id": "apology",
+      "type": "apology",
+      "title": "an apology",
+      "tags": [
+        "apology",
+        "conflict",
+        "repair"
+      ],
+      "slots": [
+        "slot3",
+        "evening",
+        "morning"
+      ],
+      "location": "living",
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "pre": [
+        {
+          "rel": "tension",
+          "from": "b",
+          "to": "a",
+          "min": 30
+        }
+      ],
+      "weight": 1.8,
+      "drama": {
+        "tension": [
+          [
+            "b",
+            "a",
+            -12
+          ],
+          [
+            "a",
+            "b",
+            -8
+          ]
+        ],
+        "trust": [
+          [
+            "b",
+            "a",
+            5
+          ]
+        ],
+        "affinity": [
+          [
+            "b",
+            "a",
+            5
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "silence",
+        "apologize",
+        "choice",
+        "reveal",
+        "comfort",
+        "close"
+      ],
+      "intents": [
+        "apologize",
+        "honest",
+        "joke",
+        "confront"
+      ],
       "premise": "{a} knocks on the open living-room door. 'Got a minute? About the other day.' {b} doesn't look up right away.",
-      "effects": [{ "apology": ["a", "b"] }]
+      "effects": [
+        {
+          "apology": [
+            "a",
+            "b"
+          ]
+        }
+      ]
     },
     {
-      "id": "argument-blowup", "type": "argument", "title": "the blow-up", "tags": ["conflict", "peak", "argument"],
-      "slots": ["slot3", "evening"], "location": "living",
-      "roles": { "a": {}, "b": {} }, "pre": [{ "rel": "tension", "from": "a", "to": "b", "min": 55 }], "weight": 3,
-      "drama": { "tension": [["a", "b", 12], ["b", "a", 12]], "trust": [["a", "b", -8], ["b", "a", -8]], "affinity": [["a", "b", -6], ["b", "a", -6]], "mood": [["a", -0.2], ["b", -0.2]] },
-      "beats": ["open", "conflict", "interrupt", "conflict", "choice", "silence", "close"], "intents": ["confront", "apologize", "deflect", "honest"],
+      "id": "argument-blowup",
+      "type": "argument",
+      "title": "the blow-up",
+      "tags": [
+        "conflict",
+        "peak",
+        "argument"
+      ],
+      "slots": [
+        "slot3",
+        "evening"
+      ],
+      "location": "living",
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "pre": [
+        {
+          "rel": "tension",
+          "from": "a",
+          "to": "b",
+          "min": 55
+        }
+      ],
+      "weight": 3,
+      "drama": {
+        "tension": [
+          [
+            "a",
+            "b",
+            12
+          ],
+          [
+            "b",
+            "a",
+            12
+          ]
+        ],
+        "trust": [
+          [
+            "a",
+            "b",
+            -8
+          ],
+          [
+            "b",
+            "a",
+            -8
+          ]
+        ],
+        "affinity": [
+          [
+            "a",
+            "b",
+            -6
+          ],
+          [
+            "b",
+            "a",
+            -6
+          ]
+        ],
+        "mood": [
+          [
+            "a",
+            -0.2
+          ],
+          [
+            "b",
+            -0.2
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "conflict",
+        "interrupt",
+        "conflict",
+        "choice",
+        "silence",
+        "close"
+      ],
+      "intents": [
+        "confront",
+        "apologize",
+        "deflect",
+        "honest"
+      ],
       "premise": "It starts with a sock on the sofa. Within a minute {a} and {b} are saying things they've been saving for weeks.",
-      "peak": true, "freeze": true, "effects": [{ "reputation": { "role": "a", "delta": -3 } }, { "fact": { "subject": "a", "about": "b", "kind": "conflict", "content": "{a} and {b} had a loud fight in the living room.", "sensitivity": 0.5 } }]
+      "peak": true,
+      "freeze": true,
+      "effects": [
+        {
+          "reputation": {
+            "role": "a",
+            "delta": -3
+          }
+        },
+        {
+          "fact": {
+            "subject": "a",
+            "about": "b",
+            "kind": "conflict",
+            "content": "{a} and {b} had a loud fight in the living room.",
+            "sensitivity": 0.5
+          }
+        }
+      ]
     },
     {
-      "id": "morning-run", "type": "morning-run", "title": "morning run together", "tags": ["fitness", "light", "bonding"],
-      "slots": ["morning"], "location": "entrance",
-      "roles": { "a": {}, "b": {} }, "pre": [{ "weather": ["sunny", "cloudy"] }], "weight": 1,
-      "drama": { "affinity": [["a", "b", 4], ["b", "a", 4]], "mood": [["a", 0.1], ["b", 0.1]] },
-      "beats": ["open", "joke", "smalltalk", "choice", "close"], "intents": ["joke", "support", "tease"],
+      "id": "morning-run",
+      "type": "morning-run",
+      "title": "morning run together",
+      "tags": [
+        "fitness",
+        "light",
+        "bonding"
+      ],
+      "slots": [
+        "morning"
+      ],
+      "location": "entrance",
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "pre": [
+        {
+          "weather": [
+            "sunny",
+            "cloudy"
+          ]
+        }
+      ],
+      "weight": 1,
+      "drama": {
+        "affinity": [
+          [
+            "a",
+            "b",
+            4
+          ],
+          [
+            "b",
+            "a",
+            4
+          ]
+        ],
+        "mood": [
+          [
+            "a",
+            0.1
+          ],
+          [
+            "b",
+            0.1
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "joke",
+        "smalltalk",
+        "choice",
+        "close"
+      ],
+      "intents": [
+        "joke",
+        "support",
+        "tease"
+      ],
       "premise": "6 a.m. {a} is tying their shoes at the door when {b} appears, also in running gear, also surprised."
     },
     {
-      "id": "movie-night", "type": "movie-night", "title": "movie night", "tags": ["cozy", "romance", "group"],
-      "slots": ["evening"], "location": "living",
-      "roles": { "a": {}, "b": { "gender": "attractedTo:a" } }, "pre": [{ "rel": "romance", "from": "a", "to": "b", "min": 20 }], "weight": 1.3,
-      "drama": { "romance": [["a", "b", 5], ["b", "a", 4]], "affinity": [["a", "b", 3]] },
-      "beats": ["open", "smalltalk", "silence", "flirt", "choice", "close"], "intents": ["flirt", "joke", "listen", "honest"],
+      "id": "movie-night",
+      "type": "movie-night",
+      "title": "movie night",
+      "tags": [
+        "cozy",
+        "romance",
+        "group"
+      ],
+      "slots": [
+        "evening"
+      ],
+      "location": "living",
+      "roles": {
+        "a": {},
+        "b": {
+          "gender": "attractedTo:a"
+        }
+      },
+      "pre": [
+        {
+          "rel": "romance",
+          "from": "a",
+          "to": "b",
+          "min": 20
+        }
+      ],
+      "weight": 1.3,
+      "drama": {
+        "romance": [
+          [
+            "a",
+            "b",
+            5
+          ],
+          [
+            "b",
+            "a",
+            4
+          ]
+        ],
+        "affinity": [
+          [
+            "a",
+            "b",
+            3
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "silence",
+        "flirt",
+        "choice",
+        "close"
+      ],
+      "intents": [
+        "flirt",
+        "joke",
+        "listen",
+        "honest"
+      ],
       "premise": "Everyone else drifts off to bed halfway through the film. {a} and {b} are left on the sofa, one blanket between them."
     },
     {
-      "id": "homesick-call", "type": "family-call", "title": "a call from home", "tags": ["family", "homesick", "quiet"],
-      "slots": ["evening"], "location": "rooftop",
-      "roles": { "a": { "notPlayer": true }, "b": {} }, "pre": [{ "homesick": "a" }], "weight": 1.8,
-      "drama": { "trust": [["a", "b", 6]], "affinity": [["a", "b", 4]], "mood": [["a", -0.1]] },
-      "beats": ["open", "silence", "reveal", "choice", "comfort", "close"], "intents": ["support", "listen", "joke", "honest"],
-      "premise": "{a} hangs up a call from home and stays on the rooftop a while. {b} comes up to bring in the laundry and finds them there.",
-      "effects": [{ "homesick": { "role": "a", "delta": -0.1 } }]
+      "id": "homesick-call",
+      "type": "family-call",
+      "title": "a call from home",
+      "tags": [
+        "family",
+        "homesick",
+        "quiet"
+      ],
+      "slots": [
+        "evening"
+      ],
+      "location": "backyard",
+      "roles": {
+        "a": {
+          "notPlayer": true
+        },
+        "b": {}
+      },
+      "pre": [
+        {
+          "homesick": "a"
+        }
+      ],
+      "weight": 1.8,
+      "drama": {
+        "trust": [
+          [
+            "a",
+            "b",
+            6
+          ]
+        ],
+        "affinity": [
+          [
+            "a",
+            "b",
+            4
+          ]
+        ],
+        "mood": [
+          [
+            "a",
+            -0.1
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "silence",
+        "reveal",
+        "choice",
+        "comfort",
+        "close"
+      ],
+      "intents": [
+        "support",
+        "listen",
+        "joke",
+        "honest"
+      ],
+      "premise": "{a} hangs up a call from home and stays on the backyard a while. {b} comes up to bring in the laundry and finds them there.",
+      "effects": [
+        {
+          "homesick": {
+            "role": "a",
+            "delta": -0.1
+          }
+        }
+      ]
     },
     {
-      "id": "former-housemate", "type": "visit", "title": "a former housemate visits", "tags": ["visit", "nostalgia", "outsider"],
-      "slots": ["evening"], "location": "living",
-      "roles": { "a": {}, "b": {}, "x": { "outsider": "natsume" } }, "pre": [{ "episodeMin": 6 }, { "notFlag": "natsume_visited" }, { "chance": 0.35 }], "weight": 2,
-      "drama": { "affinity": [["a", "b", 3]], "mood": [["a", 0.1], ["b", 0.1]] },
-      "beats": ["open", "smalltalk", "reveal", "tease", "choice", "close"], "intents": ["listen", "joke", "honest"],
-      "premise": "Natsume, who lived here two seasons ago, drops by with sake and stories. {a} and {b} get the tour of what used to be.",
-      "effects": [{ "flag": "natsume_visited", "value": true }]
+      "id": "former-housemate",
+      "type": "visit",
+      "title": "a former housemate visits",
+      "tags": [
+        "visit",
+        "nostalgia",
+        "outsider"
+      ],
+      "slots": [
+        "evening"
+      ],
+      "location": "living",
+      "roles": {
+        "a": {},
+        "b": {},
+        "x": {
+          "outsider": "natsume"
+        }
+      },
+      "pre": [
+        {
+          "episodeMin": 6
+        },
+        {
+          "notFlag": "natsume_visited"
+        },
+        {
+          "chance": 0.35
+        }
+      ],
+      "weight": 2,
+      "drama": {
+        "affinity": [
+          [
+            "a",
+            "b",
+            3
+          ]
+        ],
+        "mood": [
+          [
+            "a",
+            0.1
+          ],
+          [
+            "b",
+            0.1
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "reveal",
+        "tease",
+        "choice",
+        "close"
+      ],
+      "intents": [
+        "listen",
+        "joke",
+        "honest"
+      ],
+      "premise": "Neta, who lived here two seasons ago, drops by with wine and stories. {a} and {b} get the tour of what used to be.",
+      "effects": [
+        {
+          "flag": "natsume_visited",
+          "value": true
+        }
+      ]
     },
     {
-      "id": "neighbor-complaint", "type": "neighbor", "title": "the neighbor knocks", "tags": ["outsider", "comedy", "domestic"],
-      "slots": ["evening"], "location": "entrance",
-      "roles": { "a": {}, "x": { "outsider": "yoshioka" } }, "pre": [{ "house": "noise", "min": 55 }], "weight": 2,
-      "drama": { "mood": [["a", -0.05]] },
-      "beats": ["open", "conflict", "choice", "apologize", "close"], "intents": ["apologize", "joke", "confront"],
+      "id": "neighbor-complaint",
+      "type": "neighbor",
+      "title": "the neighbor knocks",
+      "tags": [
+        "outsider",
+        "comedy",
+        "domestic"
+      ],
+      "slots": [
+        "evening"
+      ],
+      "location": "entrance",
+      "roles": {
+        "a": {},
+        "x": {
+          "outsider": "yoshioka"
+        }
+      },
+      "pre": [
+        {
+          "house": "noise",
+          "min": 55
+        }
+      ],
+      "weight": 2,
+      "drama": {
+        "mood": [
+          [
+            "a",
+            -0.05
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "conflict",
+        "choice",
+        "apologize",
+        "close"
+      ],
+      "intents": [
+        "apologize",
+        "joke",
+        "confront"
+      ],
       "premise": "Mr. Yoshioka from next door is at the entrance in his pajamas. {a} is the unlucky one who opened the door.",
-      "effects": [{ "house": { "noise": -30 } }]
+      "effects": [
+        {
+          "house": {
+            "noise": -30
+          }
+        }
+      ]
     }
   ]
 }

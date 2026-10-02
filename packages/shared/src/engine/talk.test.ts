@@ -3,10 +3,10 @@ import { INTENTS, type Intent } from '../model';
 import { mulberry32 } from '../rng';
 import { mockReply } from '../gen/mock';
 import { classifyIntent, recordChat, recordPlayerWords } from './talk';
-import { createGame, finishSlot, joinNewPlayer, planSlot } from './loop';
+import { blockOver, createGame, finishSlot, joinNewPlayer, passTime, planSlot } from './loop';
 import { DEFAULT_PLAYER } from './castgen';
 import { depart, markLeaving } from './leave';
-import { housemates } from './core';
+import { housemates, MINUTES_PER_LINE } from './core';
 
 const all = [...INTENTS] as Intent[];
 
@@ -41,6 +41,25 @@ describe('typed talk', () => {
     expect(s1.memory[s0.playerId].length).toBe(s0.memory[s0.playerId].length); // not your own memory
     const s2 = recordChat(s1, s0.playerId, 'mio', [{ speaker: s0.playerId, text: 'you home?' }, { speaker: 'mio', text: 'omw' }]);
     expect(s2.chats[[s0.playerId, 'mio'].sort().join('|')].map((m) => m.text)).toEqual(['you home?', 'omw']);
+  });
+});
+
+describe('time in a block', () => {
+  it('talk lasts as long as the conversation; short actions do not repeat the block needs decay', () => {
+    const s0 = createGame({ seed: 3 });
+    s0.world.slot = 'slot1';
+    const first = planSlot(s0, { type: 'talk', target: 'mio' }).state;
+    expect(blockOver(first)).toBe(false);
+    const talked = passTime(first, 8);
+    expect(talked.world.minutes).toBe(first.world.minutes + 8 * MINUTES_PER_LINE);
+    // a second action in the same block: NPCs keep what they were doing, needs don't decay again
+    const second = planSlot(talked, { type: 'house', activity: 'hangout' }).state;
+    expect(second.characters.ren.needs).toEqual(talked.characters.ren.needs);
+    expect(second.world.slot).toBe('slot1');
+    const out = planSlot(second, { type: 'goOut', node: 'konbini', activity: 'shop' }).state;
+    expect(blockOver(out)).toBe(true);
+    const next = finishSlot(out);
+    expect([next.world.slot, next.world.minutes]).toEqual(['slot2', 0]);
   });
 });
 

@@ -82,12 +82,14 @@ interface State {
   slotDigest: PlayerView['digest'];
   practiceRecipe: string | null;
   studioAfter: Screen;
+  phoneTab: string;
+  phoneRead: Record<string, number>;
   setScreen(s: Screen): void;
   goBack(): void;
   setSettings(p: Partial<Settings>): void;
   refreshHealth(): Promise<void>;
   boot(): Promise<void>;
-  newGame(body: { seed?: number; player?: PlayerSetup; randomizeCast?: boolean }): Promise<void>;
+  newGame(body: { seed?: number; player?: PlayerSetup; randomizeCast?: boolean; seasonLength?: number }): Promise<void>;
   loadSave(id: number): Promise<void>;
   act(a: PlayerAction): Promise<void>;
   nextScene(): Promise<void>;
@@ -119,6 +121,8 @@ export const useGame = create<State>((set, get) => ({
   slotDigest: [],
   practiceRecipe: null,
   studioAfter: 'house',
+  phoneTab: 'group',
+  phoneRead: {},
 
   setScreen: (screen) => set((st) => ({ screen, back: ['house', 'map'].includes(st.screen) ? st.screen : st.back })),
   goBack: () => set((st) => ({ screen: st.view ? st.back : 'title' })),
@@ -152,7 +156,7 @@ export const useGame = create<State>((set, get) => ({
     set({ busy: true, error: null });
     try {
       const g = await api.newGame(body);
-      set({ view: g.view, scenes: [], episodeCard: 'start', screen: 'episode', busy: false });
+      set({ view: g.view, scenes: [], episodeCard: 'start', screen: 'episode', busy: false, phoneTab: 'group', phoneRead: {} });
     } catch (e) {
       set({ error: (e as Error).message, busy: false });
     }

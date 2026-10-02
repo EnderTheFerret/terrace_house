@@ -9,6 +9,7 @@ export class OllamaClient implements LlmClient {
     private model: string,
     private timeoutMs: number,
     private fetchImpl: typeof fetch = fetch,
+    private keepAlive: string | number = '30m',
   ) {}
 
   private signal(req: LlmRequest) {
@@ -23,7 +24,7 @@ export class OllamaClient implements LlmClient {
       stream,
       think: false,
       format: req.schema,
-      keep_alive: '30m',
+      keep_alive: this.keepAlive,
       options: { temperature: req.temperature, num_predict: req.maxTokens ?? 512 },
     });
   }

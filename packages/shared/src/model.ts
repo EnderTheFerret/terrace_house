@@ -41,14 +41,14 @@ export type ConflictStyle = z.infer<typeof ConflictStyle>;
 export const Humor = z.enum(['dry', 'slapstick', 'self-deprecating', 'teasing', 'none']);
 export type Humor = z.infer<typeof Humor>;
 
-export const SLOTS = ['morning', 'slot1', 'slot2', 'slot3', 'evening'] as const;
+export const SLOTS = ['morning', 'slot1', 'slot2', 'slot3', 'evening', 'lateNight'] as const;
 export const Slot = z.enum(SLOTS);
 export type Slot = z.infer<typeof Slot>;
 
-export const ROOMS = ['living', 'kitchen', 'rooftop', 'bathroom', 'bedroomW', 'bedroomM', 'entrance'] as const;
+export const ROOMS = ['living', 'kitchen', 'backyard', 'smallBathroom', 'bathroom', 'bedroomW', 'bedroomM', 'balconyW', 'balconyM', 'entrance', 'stairs', 'stairsUp'] as const;
 export type Room = (typeof ROOMS)[number];
 
-export const WEATHERS = ['sunny', 'cloudy', 'rain', 'typhoon', 'snow'] as const;
+export const WEATHERS = ['sunny', 'cloudy', 'rain', 'heatwave', 'typhoon', 'snow'] as const;
 export const Weather = z.enum(WEATHERS);
 export type Weather = z.infer<typeof Weather>;
 export const SEASONS = ['spring', 'summer', 'autumn', 'winter'] as const;
@@ -93,6 +93,9 @@ export const Routine = z.object({
 export type Routine = z.infer<typeof Routine>;
 
 export const Persona = z.object({
+  kashrut: z.enum(['strict', 'style', 'none']).default('none'),
+  diet: z.enum(['omnivore', 'vegetarian', 'vegan']).default('omnivore'),
+  keepsShabbat: z.boolean().default(false),
   traits: TraitVec,
   attachment: Attachment,
   conflictStyle: ConflictStyle,
@@ -111,6 +114,7 @@ export const Persona = z.object({
 export type Persona = z.infer<typeof Persona>;
 
 export const Appearance = z.object({
+  palette: z.object({ hair: z.string().regex(/^#[0-9a-f]{6}$/i), skin: z.string().regex(/^#[0-9a-f]{6}$/i), outfit: z.string().regex(/^#[0-9a-f]{6}$/i) }).optional(),
   hairStyle: z.string(),
   hairColor: z.string(),
   eyeColor: z.string(),
@@ -134,6 +138,7 @@ export const Character = z.object({
   traits: TraitVec,
   tastes: TasteVec,
   appearance: Appearance,
+  appearanceText: z.string().max(600).default(''),
   appearanceTags: z.array(z.string()),
   portraitSeed: z.number().int(),
   voiceNotes: z.string().max(200),
@@ -153,6 +158,9 @@ export const Character = z.object({
   archetypeId: z.string().optional(),
   lowMoodStreak: z.number().int().default(0),
   lastAction: z.string().optional(),
+  activityUntil: z.number().default(0),
+  actionTarget: z.string().optional(),
+  actionNode: z.string().optional(),
   partnerId: z.string().optional(),
 });
 export type Character = z.infer<typeof Character>;
@@ -222,6 +230,7 @@ export const ChatMsg = z.object({
 export type ChatMsg = z.infer<typeof ChatMsg>;
 
 export const HouseState = z.object({
+  kitchen: z.object({ meatPanClean: z.boolean().default(true), dairyPanClean: z.boolean().default(true), kosherShelf: z.array(z.string()).default([]) }).default({ meatPanClean: true, dairyPanClean: true, kosherShelf: [] }),
   fridge: z.record(z.string(), z.number().int().min(0)),
   dishes: z.number().min(0).max(100),
   laundry: z.number().min(0).max(100),
@@ -245,8 +254,11 @@ export const World = z.object({
   day: z.number().int(),
   episode: z.number().int().min(1),
   slot: Slot,
+  /** minutes of the current block the player has used; the block ends at SLOT_MINUTES */
+  minutes: z.number().int().default(0),
   tick: z.number().int(),
   weather: Weather,
+  forecast: Weather.default('sunny'),
   weekday: z.number().int().min(0).max(6),
   season: z.enum(SEASONS),
   cityEvent: z.string().nullable(),
@@ -394,6 +406,19 @@ export type ArcState = z.infer<typeof ArcState>;
 export const Couple = z.object({ a: z.string(), b: z.string(), since: z.number().int(), status: z.enum(['dating', 'left-together', 'broken']) });
 export type Couple = z.infer<typeof Couple>;
 
+export const Invitation = z.object({
+  id: z.string(), from: z.string(), to: z.string(), episode: z.number().int(), slot: Slot, node: z.string(),
+  status: z.enum(['pending', 'accepted', 'kept', 'broken', 'declined']),
+});
+export type Invitation = z.infer<typeof Invitation>;
+export const FeedPost = z.object({
+  id: z.string(), from: z.string(), text: z.string().max(200), with: z.string().optional(),
+  kind: z.enum(['photo', 'story']).default('photo'), location: z.string().default('living'),
+  people: z.array(z.object({ appearance: Appearance, gender: z.string(), seed: z.number().int() })).default([]),
+  likes: z.array(z.string()), episode: z.number().int(), slot: Slot,
+});
+export type FeedPost = z.infer<typeof FeedPost>;
+
 export const GameState = z.object({
   schemaVersion: z.number().int(),
   gameId: z.string(),
@@ -429,17 +454,25 @@ export const GameState = z.object({
   previously: z.string().default(''),
   /** the player's character graduated; the game waits for the player's next housemate to move in */
   awaitingPlayer: z.boolean().default(false),
+  finaleEpisode: z.number().int().nullable().default(null),
+  invitations: z.array(Invitation).default([]),
+  approaches: z.array(z.object({ id: z.string(), from: z.string(), text: z.string() })).default([]),
+  feed: z.array(FeedPost).default([]),
+  inventory: z.array(z.string()).default([]),
+  observedRoutines: z.record(z.string(), z.array(z.string())).default({}),
+  timeline: z.array(z.object({ episode: z.number().int(), slot: Slot, clock: z.string(), text: z.string() })).default([]),
 });
 export type GameState = z.infer<typeof GameState>;
 
 // ---------- player actions ----------
 export const PlayerAction = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('house'), activity: z.enum(['hangout', 'cook', 'tidy', 'rest', 'rooftop', 'hobby']), target: z.string().optional() }),
+  z.object({ type: z.literal('house'), activity: z.enum(['hangout', 'cook', 'tidy', 'rest', 'backyard', 'hobby']), target: z.string().optional() }),
   z.object({ type: z.literal('talk'), target: z.string() }),
   z.object({
     type: z.literal('goOut'),
     node: z.string(),
-    activity: z.enum(['date', 'wander', 'work', 'shop', 'karaoke', 'eat', 'invite']),
+    activity: z.enum(['date', 'wander', 'work', 'shop', 'karaoke', 'eat', 'invite', 'gift']),
+    item: z.string().max(60).optional(),
     invite: z.string().optional(),
     useCar: z.boolean().optional(),
     /** with activity 'work': sign a contract for this slot on fixed weekdays */
@@ -448,6 +481,17 @@ export const PlayerAction = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), target: z.string(), text: z.string().max(200).optional() }),
   z.object({ type: z.literal('idle') }),
   z.object({ type: z.literal('graduate'), with: z.string().optional() }),
+  z.object({ type: z.literal('endSeason') }),
+  z.object({ type: z.literal('skip') }),
+  z.object({ type: z.literal('sleep') }),
+  z.object({ type: z.literal('visit'), room: z.string(), invite: z.string().optional() }),
+  z.object({ type: z.literal('plan'), target: z.string(), node: z.string(), episode: z.number().int().min(1), slot: Slot }),
+  z.object({ type: z.literal('respondPlan'), id: z.string(), accept: z.boolean() }),
+  z.object({ type: z.literal('approach'), id: z.string(), accept: z.boolean() }),
+  z.object({ type: z.literal('gift'), target: z.string(), item: z.string().max(60) }),
+  z.object({ type: z.literal('favor'), target: z.string(), kind: z.enum(['coffee', 'note']) }),
+  z.object({ type: z.literal('post'), text: z.string().trim().min(1).max(200), kind: z.enum(['photo', 'story']).optional() }),
+  z.object({ type: z.literal('like'), id: z.string() }),
 ]);
 export type PlayerAction = z.infer<typeof PlayerAction>;
 
