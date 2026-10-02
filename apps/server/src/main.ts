@@ -41,5 +41,6 @@ if (config.mode === 'real' && h.llm === 'ok') {
 }
 if (config.mode === 'real' && h.llm === 'down') console.log(`[shared roof] Ollama not reachable at ${config.ollamaUrl} or model ${config.ollamaModel} missing — falling back to templates per call.`);
 if (config.mode === 'real' && h.image === 'down') console.log(`[shared roof] ComfyUI not reachable at ${config.comfyUrl} — images use placeholders ("images offline").`);
-await app.listen({ port: config.port, host: '127.0.0.1' });
-console.log(`[shared roof] api on http://127.0.0.1:${config.port}`);
+const host = process.env.HOST || '127.0.0.1'; // cloud hosts set HOST=0.0.0.0
+await app.listen({ port: config.port, host });
+console.log(`[shared roof] api on http://${host}:${config.port}`);

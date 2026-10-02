@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: terrace-house
+    runtime: node
+    plan: free # free disk is ephemeral: saves in ./data reset on redeploy/restart. Use a paid plan + disk to persist.
+    buildCommand: npm ci --include=dev && npm run build # server runs via tsx (a devDependency)
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: HOST
+        value: 0.0.0.0
+      - key: MODE
+        value: mock # no Ollama/ComfyUI in the cloud
