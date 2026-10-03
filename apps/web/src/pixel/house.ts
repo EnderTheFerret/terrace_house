@@ -1,7 +1,7 @@
 // Top-down pixel renderer for the share house (procedural tiles + furniture), driven by content/house.json.
 import { content, hashSeed, mulberry32, shade, type HouseContent } from '@shared-roof/shared';
 
-export const TILE = 16;
+export const TILE = 32;
 
 const house = (): HouseContent => content().house;
 
@@ -62,16 +62,17 @@ export function solidTiles(floor = 0): Set<string> {
 }
 
 // Look: warm, saturated handheld-RPG interiors — bold dark outlines, soft drop shadows, 3/4 wall faces.
+const FLOOR_TILE = 16;
 const tiles = (base: string, grout: string, size: number) => (c: CanvasRenderingContext2D, x: number, y: number) => {
-  px(c, base, x, y, TILE, TILE);
-  for (let j = 0; j < TILE; j += size) for (let i = 0; i < TILE; i += size) {
+  px(c, base, x, y, FLOOR_TILE, FLOOR_TILE);
+  for (let j = 0; j < FLOOR_TILE; j += size) for (let i = 0; i < FLOOR_TILE; i += size) {
     px(c, shade(base, 1.08), x + i + 1, y + j + 1, size - 3, 1); // glaze highlight
     px(c, grout, x + i + size - 1, y + j, 1, size);
     px(c, grout, x + i, y + j + size - 1, size, 1);
   }
 };
 const carpet = (base: string) => (c: CanvasRenderingContext2D, x: number, y: number) => {
-  px(c, base, x, y, TILE, TILE);
+  px(c, base, x, y, FLOOR_TILE, FLOOR_TILE);
   const dot = shade(base, 0.9);
   for (const [i, j] of [[3, 3], [11, 3], [7, 7], [3, 11], [11, 11]]) { px(c, dot, x + i - 1, y + j, 3, 1); px(c, dot, x + i, y + j - 1, 1, 3); }
   px(c, shade(base, 1.06), x + 7, y + 0, 2, 1);
@@ -79,10 +80,10 @@ const carpet = (base: string) => (c: CanvasRenderingContext2D, x: number, y: num
 const FLOOR: Record<string, (ctx: CanvasRenderingContext2D, x: number, y: number, r: () => number) => void> = {
   wood: (c, x, y, r) => {
     // golden planks, 4 px tall, staggered butt joints
-    px(c, '#e8b464', x, y, TILE, TILE);
-    for (let j = 0; j < TILE; j += 4) {
-      px(c, '#f6cf86', x, y + j, TILE, 1);
-      px(c, '#b8773a', x, y + j + 3, TILE, 1);
+    px(c, '#e8b464', x, y, FLOOR_TILE, FLOOR_TILE);
+    for (let j = 0; j < FLOOR_TILE; j += 4) {
+      px(c, '#f6cf86', x, y + j, FLOOR_TILE, 1);
+      px(c, '#b8773a', x, y + j + 3, FLOOR_TILE, 1);
       const joint = (hashSeed(`${x},${y + j}`) % 12) + 2;
       px(c, '#b8773a', x + joint, y + j, 1, 3);
       if (r() < 0.25) px(c, '#d49a4e', x + Math.floor(r() * 12), y + j + 1 + Math.floor(r() * 2), 3, 1);
@@ -90,38 +91,38 @@ const FLOOR: Record<string, (ctx: CanvasRenderingContext2D, x: number, y: number
   },
   oak: (c, x, y, r) => {
     // pale natural oak, long boards (Terrace House Tokyo)
-    px(c, '#e9cfa6', x, y, TILE, TILE);
-    for (let j = 0; j < TILE; j += 4) {
-      px(c, '#f3dfbd', x, y + j, TILE, 1);
-      px(c, '#c9a57a', x, y + j + 3, TILE, 1);
+    px(c, '#e9cfa6', x, y, FLOOR_TILE, FLOOR_TILE);
+    for (let j = 0; j < FLOOR_TILE; j += 4) {
+      px(c, '#f3dfbd', x, y + j, FLOOR_TILE, 1);
+      px(c, '#c9a57a', x, y + j + 3, FLOOR_TILE, 1);
       if (hashSeed(`${x},${y + j}`) % 3 === 0) px(c, '#c9a57a', x + (hashSeed(`${y + j},${x}`) % 14) + 1, y + j, 1, 3);
       if (r() < 0.3) px(c, '#dcbf94', x + Math.floor(r() * 10), y + j + 1, 5, 1); // grain
     }
   },
   'wood-dark': (c, x, y, r) => {
-    px(c, '#8a5a3a', x, y, TILE, TILE);
-    for (let j = 0; j < TILE; j += 4) {
-      px(c, '#a06c47', x, y + j, TILE, 1);
-      px(c, '#5e3a25', x, y + j + 3, TILE, 1);
-      px(c, '#5e3a25', x + (hashSeed(`${x},${y + j}`) % 12) + 2, y + j, 1, 3);
-      if (r() < 0.3) px(c, '#7a4c30', x + Math.floor(r() * 10), y + j + 1, 4, 1);
+    px(c, '#c89c75', x, y, FLOOR_TILE, FLOOR_TILE);
+    for (let j = 0; j < FLOOR_TILE; j += 4) {
+      px(c, '#d7b08a', x, y + j, FLOOR_TILE, 1);
+      px(c, '#af8260', x, y + j + 3, FLOOR_TILE, 1);
+      px(c, '#af8260', x + (hashSeed(`${x},${y + j}`) % 12) + 2, y + j, 1, 3);
+      if (r() < 0.3) px(c, '#c0926b', x + Math.floor(r() * 10), y + j + 1, 4, 1);
     }
   },
   'carpet-cream': carpet('#f3e8da'),
   pooldeck: (c, x, y, r) => {
     // pale stone pavers around the pool
-    px(c, '#cfc6b8', x, y, TILE, TILE);
+    px(c, '#cfc6b8', x, y, FLOOR_TILE, FLOOR_TILE);
     for (const [i, j] of [[0, 0], [8, 0], [0, 8], [8, 8]]) {
-      px(c, ['#ece6dc', '#e6dfd3', '#f1ebe2'][Math.floor(r() * 3)], x + i, y + j, 7, 7);
-      px(c, '#f8f4ee', x + i, y + j, 7, 1);
+      px(c, ['#e4ded3', '#e1dacd', '#e7e0d5'][Math.floor(r() * 3)], x + i, y + j, 7, 7);
+      px(c, '#ebe5db', x + i, y + j, 7, 1);
     }
   },
-  'tile-cream': tiles('#f4e5c4', '#c9ad7f', 8),
+  'tile-cream': tiles('#e9dfcf', '#d2c5b3', 16),
   'tile-blue': tiles('#cfe7f1', '#8fb5cb', 8),
   'carpet-rose': carpet('#eeb7bf'),
   'carpet-slate': carpet('#b4c2d8'),
   grass: (c, x, y, r) => {
-    px(c, '#7cbf5a', x, y, TILE, TILE);
+    px(c, '#7cbf5a', x, y, FLOOR_TILE, FLOOR_TILE);
     for (let k = 0; k < 5; k++) {
       const gx = x + Math.floor(r() * 14), gy = y + Math.floor(r() * 13);
       px(c, '#5e9f45', gx, gy + 1, 1, 2);
@@ -131,16 +132,16 @@ const FLOOR: Record<string, (ctx: CanvasRenderingContext2D, x: number, y: number
     if (r() < 0.08) { px(c, '#fff4f0', x + 6, y + 6, 2, 2); px(c, '#f6c24e', x + 6, y + 6, 1, 1); } // daisy
   },
   deck: (c, x, y) => {
-    px(c, '#c9925a', x, y, TILE, TILE);
-    for (let i = 0; i < TILE; i += 4) {
-      px(c, '#dfae74', x + i, y, 1, TILE);
-      px(c, '#8f5f34', x + i + 3, y, 1, TILE);
+    px(c, '#c9925a', x, y, FLOOR_TILE, FLOOR_TILE);
+    for (let i = 0; i < FLOOR_TILE; i += 4) {
+      px(c, '#dfae74', x + i, y, 1, FLOOR_TILE);
+      px(c, '#8f5f34', x + i + 3, y, 1, FLOOR_TILE);
       px(c, '#8f5f34', x + i + 1, y + ((i * 5) % 12) + 2, 1, 1); // nail
     }
   },
   stone: (c, x, y, r) => {
     // flagstones with mortar and lit top edges
-    px(c, '#a99a8c', x, y, TILE, TILE);
+    px(c, '#a99a8c', x, y, FLOOR_TILE, FLOOR_TILE);
     for (const [i, j, w, h] of [[0, 0, 9, 7], [9, 0, 7, 7], [0, 7, 6, 9], [6, 7, 10, 9]]) {
       px(c, ['#d8cbbb', '#cfc1b0', '#d3c6b6'][Math.floor(r() * 3)], x + i, y + j, w - 1, h - 1);
       px(c, '#e8dccd', x + i, y + j, w - 1, 1);
@@ -159,7 +160,7 @@ const leaves = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h:
 };
 
 /** Wallpaper for the 3/4 wall face along a room's north side (null = open air: a low parapet instead). */
-const WALL: Record<string, string | null> = { 'carpet-rose': '#f6d6cd', 'carpet-slate': '#d4dbe8', 'tile-blue': '#e3f1f6', 'tile-cream': '#f6e8c8', wood: '#f1d9a8', stone: '#e6d8c4', oak: '#f6f1e9', 'carpet-cream': '#fbf2ea', 'wood-dark': '#9a6844', deck: null, grass: null, pooldeck: null };
+const WALL: Record<string, string | null> = { 'carpet-rose': '#f6d6cd', 'carpet-slate': '#d4dbe8', 'tile-blue': '#e3f1f6', 'tile-cream': '#f6e8c8', wood: '#f1d9a8', stone: '#e6d8c4', oak: '#f6f1e9', 'carpet-cream': '#fbf2ea', 'wood-dark': '#554050', deck: null, grass: null, pooldeck: null };
 /** Wall-face decor per tile column (lived-in: framed prints, a shelf, a clock), picked by hash; null = bare. */
 const DECOR: (Draw | null)[] = [
   (c, x, y) => { px(c, OUT, x + 4, y + 1, 8, 6); px(c, '#f4efe4', x + 5, y + 2, 6, 4); px(c, '#8fb3a0', x + 6, y + 4, 4, 2); px(c, '#e9b07a', x + 8, y + 3, 2, 1); },
@@ -168,7 +169,7 @@ const DECOR: (Draw | null)[] = [
   (c, x, y) => { px(c, OUT, x + 6, y + 1, 5, 5); px(c, '#ffffff', x + 7, y + 2, 3, 3); px(c, OUT, x + 8, y + 3, 1, 1); },
   null, null, null,
 ];
-const WALL_FACE = 9;
+const WALL_FACE = 28;
 
 type Draw = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) => void;
 const px = (c: CanvasRenderingContext2D, col: string, x: number, y: number, w: number, h: number) => {
@@ -328,7 +329,7 @@ const FURN: Record<string, Draw> = {
   },
 };
 
-const WINDOWS = [3, 10, 16];
+const windowsFor = (floor: number) => house().rooms.filter(r => r.floor === floor && r.y === 0 && WALL[r.material]).flatMap(r => Array.from({ length: Math.max(1, Math.floor((r.w - 1) / 3)) }, (_, i) => r.x + 1 + i * 3));
 /** A walled room on the top row at column x (gets a window on its north wall). */
 const indoorAt = (x: number, floor: number) => !!WALL[house().rooms.find((r) => r.id === roomAt(x, 0, floor))?.material ?? ''];
 /** Lies flat on the floor: no drop shadow. */
@@ -336,9 +337,17 @@ const FLAT = new Set(['rug', 'sheepskin', 'sneakers', 'magazines', 'floorcushion
 
 /** Baked ComfyUI furniture sprites (scripts/assets/house_assets.py), 32 px per tile; missing ones stay procedural. */
 const ASSETS = new Map<string, HTMLImageElement>();
+/** Embedded game sprites from 0_mem0ry's Midcentury Modern set; licence/source in docs/HOUSE-UPGRADE.md. */
+function furnitureFrame(f: HouseContent['furniture'][number]): [number, number, number, number] | null {
+  if (f.type === 'chair') return f.dir === 'down' ? [128, 32, 32, 32] : [96, 16, 32, 48];
+  if (f.type === 'sofa') return f.dir === 'down' ? [192, 432, 48, 48] : [256, 448, 48, 32];
+  return null;
+}
+const BAKED: Record<string, string> = { bath: '2x2', beanbag: '1x1', bed: '1x2', bench: '3x1', bigplant: '1x1', bookshelf: '2x1', clothesrack: '1x1', coatrack: '1x1', counter: '2x1', desk: '1x1', diningtable: '5x2', floorcushions: '2x1', floorlamp: '1x1', fridge: '1x2', guitar: '1x1', island: '3x1', lantern: '1x1', lounger: '1x2', lowtable: '2x1', magazines: '1x1', plant: '1x1', planter: '1x1', pool: '8x3', pouf: '1x1', shoerack: '2x1', sidetable: '1x1', sink: '1x1', sneakers: '1x1', stool: '1x1', stove: '2x1', trashbin: '1x1', tv: '3x1', umbrella: '1x1', washbasin: '1x1', washer: '1x1', weights: '1x1', whiteboard: '2x1' };
 let assetsLoading: Promise<void> | null = null;
 export function loadHouseAssets(): Promise<void> {
-  assetsLoading ??= Promise.all([...new Set(house().furniture.map((f) => `${f.type}_${f.w}x${f.h}`))].map((key) => new Promise<void>((done) => {
+  const keys = new Set(['midcentury', ...Object.entries(BAKED).map(([type, size]) => `${type}_${size}`), ...house().furniture.filter(f => BAKED[f.type] && !['counter', 'sink'].includes(f.type)).map(f => `${f.type}_${f.w}x${f.h}`)]);
+  assetsLoading ??= Promise.all([...keys].map((key) => new Promise<void>((done) => {
     const img = new Image();
     img.onload = () => { ASSETS.set(key, img); done(); };
     img.onerror = () => done();
@@ -356,6 +365,7 @@ export function renderHouse(floor = 0): HTMLCanvasElement {
   const ctx = c.getContext('2d')!;
   ctx.scale(2, 2);
   ctx.imageSmoothingEnabled = false;
+  px(ctx, '#25212b', 0, 0, H.width * TILE, H.height * TILE);
   /** Walls bordering the pool deck are glass (Terrace House Tokyo: the pool behind a sheet of glass). */
   const isGlass = (x: number, y: number) => H.rooms.find((r) => r.id === roomAt(x, y, floor))?.material === 'pooldeck';
   /** Landing cut-out: look down into the floor below, darkened, behind a glass-and-oak balustrade. */
@@ -373,7 +383,7 @@ export function renderHouse(floor = 0): HTMLCanvasElement {
   for (const r of H.rooms.filter((r) => r.floor === floor)) {
     const rng = mulberry32(hashSeed(r.id));
     const f = FLOOR[r.material] ?? FLOOR.wood;
-    for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) f(ctx, x * TILE, y * TILE, () => rng.next());
+    for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) { ctx.save(); ctx.scale(2, 2); f(ctx, x * FLOOR_TILE, y * FLOOR_TILE, () => rng.next()); ctx.restore(); }
   }
   const edgeOf = (x: number, y: number, r: string) => (nx: number, ny: number) => {
     const nr = roomAt(nx, ny, floor);
@@ -399,18 +409,63 @@ export function renderHouse(floor = 0): HTMLCanvasElement {
       px(ctx, shade(paper, 0.82), X, Y + WALL_FACE - 4, TILE, 3); // wainscot
       px(ctx, OUT, X, Y + WALL_FACE - 1, TILE, 1); // skirting line
       px(ctx, SHADOW, X, Y + WALL_FACE, TILE, 2);
-      DECOR[hashSeed(`${r.id}:${x}`) % DECOR.length]?.(ctx, X, Y, TILE, WALL_FACE);
+      ctx.save(); ctx.translate(X, Y + 3); ctx.scale(2, 2);
+      DECOR[hashSeed(`${r.id}:${x}`) % DECOR.length]?.(ctx, 0, 0, 16, 12); ctx.restore();
     }
   }
   for (const f of H.furniture.filter((f) => f.floor === floor)) {
     const [X, Y, W, Hh] = [f.x * TILE, f.y * TILE, f.w * TILE, f.h * TILE];
-    const img = ASSETS.get(`${f.type}_${f.w}x${f.h}`);
+    const img = ASSETS.get(`${f.type}_${f.w}x${f.h}`) ?? ASSETS.get(`${f.type}_${BAKED[f.type]}`);
+    const atlas = ASSETS.get('midcentury');
+    const rect = furnitureFrame(f);
     if (f.type === 'void') drawVoid(ctx, X, Y, W, Hh);
+    else if (f.type === 'rug') {
+      const col = roomAt(f.x, f.y, floor) === 'living' ? '#6f9293' : '#d0b1a3';
+      px(ctx, '#59454e', X + 3, Y + 3, W - 6, Hh - 6);
+      px(ctx, col, X + 5, Y + 5, W - 10, Hh - 10);
+      px(ctx, '#e3d4ba', X + 9, Y + 9, W - 18, 2); px(ctx, '#e3d4ba', X + 9, Y + Hh - 11, W - 18, 2);
+      px(ctx, '#e3d4ba', X + 9, Y + 9, 2, Hh - 18); px(ctx, '#e3d4ba', X + W - 11, Y + 9, 2, Hh - 18);
+      for (let i = 8; i < W - 8; i += 5) { px(ctx, '#d8c8b0', X + i, Y + 1, 2, 2); px(ctx, '#d8c8b0', X + i, Y + Hh - 3, 2, 2); }
+    }
+    else if (f.type === 'counter' || f.type === 'sink') {
+      // Fitted units share a continuous worktop and cabinet rhythm at every orientation.
+      px(ctx, SHADOW, X + 2, Y + Hh - 2, W - 3, 4);
+      px(ctx, '#644a3e', X, Y + 2, W, Hh - 2);
+      px(ctx, '#dfd9c8', X + 2, Y + 5, W - 4, Hh - 7);
+      px(ctx, '#b58c62', X + 1, Y + 2, W - 2, Math.max(10, Hh - 15));
+      px(ctx, '#e2ba86', X + 2, Y + 3, W - 4, 2);
+      for (let i = 2; i < W - 2; i += 16) { px(ctx, '#b7afa0', X + i, Y + Hh - 13, 1, 10); px(ctx, '#685146', X + i + 5, Y + Hh - 10, 5, 1); }
+      if (f.type === 'sink') { box(ctx, X + 4, Y + 7, W - 8, 12, '#b5c7cc'); px(ctx, '#708d96', X + 7, Y + 10, W - 14, 6); px(ctx, '#e8e4da', X + 13, Y + 2, 3, 8); }
+      else { px(ctx, '#d0a26b', X + 6, Y + 8, Math.min(19, W - 12), 9); px(ctx, '#efe2c8', X + 8, Y + 9, Math.min(15, W - 16), 1); }
+    }
+    else if (atlas && rect) {
+      if (!FLAT.has(f.type)) px(ctx, SHADOW, X + 3, Y + Hh - 4, W - 6, 5);
+      if (f.type === 'sofa') {
+        const [sx, sy, sw, sh] = rect;
+        const top = Y + (f.dir === 'down' ? 8 : 20), height = Hh - (f.dir === 'down' ? 8 : 20);
+        ctx.drawImage(atlas, sx, sy, 12, sh, X, top, 16, height);
+        ctx.drawImage(atlas, sx + 12, sy, sw - 24, sh, X + 16, top, W - 32, height);
+        ctx.drawImage(atlas, sx + sw - 12, sy, 12, sh, X + W - 16, top, 16, height);
+        for (let i = 1; i < 3; i++) px(ctx, '#b8aca1', X + 12 + Math.round((W - 24) * i / 3), top + height / 3, 1, height / 3);
+        px(ctx, '#d5a0a4', X + 14, top + 13, 11, 9); px(ctx, '#96b4b1', X + W - 26, top + 13, 11, 9);
+      } else ctx.drawImage(atlas, ...rect, X, Y, W, Hh);
+    }
     else if (img) {
       if (!FLAT.has(f.type)) px(ctx, SHADOW, X + 2, Y + Hh - 2, W - 3, 3);
       ctx.drawImage(img, X, Y, W, Hh);
-    } else if (FURN[f.type]) FURN[f.type](ctx, X, Y, W, Hh);
+    } else if (FURN[f.type]) {
+      ctx.save(); ctx.translate(X, Y); ctx.scale(2, 2);
+      FURN[f.type](ctx, 0, 0, W / 2, Hh / 2); ctx.restore();
+    }
     else box(ctx, X, Y, W, Hh, '#cccccc');
+    if (f.type === 'bed') {
+      const women = roomAt(f.x, f.y, floor) === 'bedroomW';
+      const color = women ? '#d997a5' : '#ba8065';
+      px(ctx, color, X + 3, Y + Hh - 21, W - 6, 13);
+      px(ctx, women ? '#efb7c1' : '#d8a581', X + 3, Y + Hh - 21, W - 6, 2);
+      if (!women) for (let i = 4; i < W - 4; i += 7) px(ctx, '#886979', X + i, Y + Hh - 20, 3, 12);
+      for (let i = 4; i < W - 4; i += 3) px(ctx, color, X + i, Y + Hh - 8, 1, 3);
+    }
   }
   // thick wall tops with a lit rim
   for (let y = 0; y < H.height; y++)
@@ -428,12 +483,13 @@ export function renderHouse(floor = 0): HTMLCanvasElement {
       if (x === H.width - 1 || edge(x + 1, y)) { px(ctx, OUT, X + TILE - 3, Y, 3, TILE); px(ctx, WALL_TOP, X + TILE - 2, Y, 1, TILE); }
     }
   // windows on the outer north wall face
-  for (const wx of WINDOWS) {
+  for (const wx of windowsFor(floor)) {
     if (!indoorAt(wx, floor)) continue;
-    px(ctx, OUT, wx * TILE + 2, 2, 12, 7);
-    px(ctx, '#a9dcef', wx * TILE + 3, 3, 10, 5);
-    px(ctx, '#e4f6fb', wx * TILE + 4, 3, 3, 2);
-    px(ctx, OUT, wx * TILE + 8, 3, 1, 5);
+    px(ctx, OUT, wx * TILE + 2, 3, 48, 20);
+    px(ctx, '#a9dcef', wx * TILE + 4, 5, 44, 16);
+    px(ctx, '#e4f6fb', wx * TILE + 5, 5, 16, 7);
+    px(ctx, OUT, wx * TILE + 25, 5, 2, 16);
+    if (floor === 1) { px(ctx, '#ede3dc', wx * TILE, 3, 4, 24); px(ctx, '#ded0ca', wx * TILE + 48, 3, 4, 24); }
   }
   return c;
 }
@@ -448,27 +504,38 @@ export function spotFor(room: string, index: number): [number, number] {
 }
 
 /** Furniture that glows after dark: [type, radius in tiles, warm colour]. */
-const LIGHTS: [string, number, string][] = [['sofa', 3, '255,196,120'], ['diningtable', 3.5, '255,210,140'], ['bed', 1.8, '255,186,120'], ['desk', 2, '255,224,160'], ['stove', 1.6, '255,150,90'], ['tv', 2.2, '150,190,255'], ['washbasin', 1.6, '235,240,255'], ['bench', 2.5, '255,200,120'], ['floorlamp', 3, '255,214,150'], ['lantern', 2.2, '255,180,100'], ['pool', 4, '120,220,255'], ['island', 2.5, '255,214,150']];
+const LIGHTS: [string, number, string][] = [['desk', 2, '255,224,160'], ['stove', 1.6, '255,150,90'], ['tv', 2.2, '150,190,255'], ['floorlamp', 3, '255,214,150'], ['lantern', 2.2, '255,180,100'], ['pool', 4, '120,220,255']];
 let lightLayer: HTMLCanvasElement | null = null;
 
 /**
  * Time-of-day light over the finished scene: morning sun shafts from the north windows, a golden afternoon, and a
  * blue night where lamps cut warm pools out of the dark. `hour` is fractional (19.5 = 19:30).
  */
-export function drawLighting(ctx: CanvasRenderingContext2D, floor: number, hour: number) {
+export function drawLighting(ctx: CanvasRenderingContext2D, floor: number, hour: number, weather = 'sunny') {
   const H = house();
   const W = H.width * TILE, Hh = H.height * TILE;
   const night = hour >= 20 || hour < 5 ? 1 : hour >= 18 ? (hour - 18) / 2 : hour < 6 ? 1 - (hour - 5) : 0;
-  if (hour >= 6 && hour < 17) { // sun through the windows, slanting with the hour
+  if (hour >= 6 && hour < 17 && !['cloudy', 'rain', 'typhoon', 'snow'].includes(weather)) { // sun through the windows, slanting with the hour
     const slant = (hour - 11.5) * 3;
     ctx.fillStyle = `rgba(255,236,190,${hour < 9 ? 0.22 : 0.14})`;
-    for (const wx of WINDOWS) if (indoorAt(wx, floor)) {
+    for (const wx of windowsFor(floor)) if (indoorAt(wx, floor)) {
       ctx.beginPath();
       ctx.moveTo(wx * TILE + 3, 9); ctx.lineTo(wx * TILE + 13, 9);
       ctx.lineTo(wx * TILE + 13 - slant * 2, 9 + TILE * 2.5); ctx.lineTo(wx * TILE + 3 - slant * 2, 9 + TILE * 2.5);
       ctx.fill();
     }
+    if (floor === 0) for (const r of H.rooms.filter(r => ['living', 'kitchen'].includes(r.id))) {
+      ctx.save(); clipRoom(ctx, r);
+      ctx.fillStyle = 'rgba(255,236,192,0.22)';
+      for (let x = r.x + 1; x < r.x + r.w - 1; x += 3) {
+        ctx.beginPath(); ctx.moveTo(x * TILE, r.y * TILE + WALL_FACE);
+        ctx.lineTo((x + 1.6) * TILE, r.y * TILE + WALL_FACE);
+        ctx.lineTo((x + 3.2) * TILE, (r.y + 4) * TILE); ctx.lineTo((x + 1.6) * TILE, (r.y + 4) * TILE); ctx.fill();
+      }
+      ctx.restore();
+    }
   }
+  if (['cloudy', 'rain', 'typhoon', 'snow'].includes(weather)) { ctx.fillStyle = 'rgba(78,101,137,0.12)'; ctx.fillRect(0, 0, W, Hh); }
   if (hour >= 15 && hour < 20) { ctx.fillStyle = `rgba(255,140,60,${Math.min(1, (hour - 15) / 3) * 0.2 * (1 - night)})`; ctx.fillRect(0, 0, W, Hh); }
   if (hour < 9 && hour >= 5) { ctx.fillStyle = 'rgba(255,214,170,0.08)'; ctx.fillRect(0, 0, W, Hh); }
   if (night <= 0) return;
@@ -480,25 +547,96 @@ export function drawLighting(ctx: CanvasRenderingContext2D, floor: number, hour:
   l.clearRect(0, 0, W, Hh);
   l.fillStyle = `rgba(16,20,52,${0.58 * night})`;
   l.fillRect(0, 0, W, Hh);
-  const lamps = H.furniture.filter((f) => f.floor === floor).flatMap((f) => LIGHTS.filter(([t]) => t === f.type).map(([, r, col]) => ({ x: (f.x + f.w / 2) * TILE, y: (f.y + f.h / 2) * TILE, r: r * TILE, col })));
+  const lamps = H.furniture.filter((f) => f.floor === floor).flatMap((f) => LIGHTS.filter(([t]) => t === f.type).map(([, r, col]) => ({ x: (f.x + f.w / 2) * TILE, y: (f.y + f.h / 2) * TILE, r: r * TILE, col, room: H.rooms.find(room => room.id === roomAt(f.x, f.y, floor))! })));
+  for (const room of H.rooms.filter(r => r.floor === floor && WALL[r.material])) lamps.push({ x: (room.x + room.w / 2) * TILE, y: (room.y + 2) * TILE, r: Math.max(room.w, room.h) * TILE * 0.65, col: room.material === 'wood-dark' ? '255,183,113' : '255,224,183', room });
   l.globalCompositeOperation = 'destination-out';
   for (const p of lamps) {
+    l.save(); clipRoom(l, p.room);
     const g = l.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
     g.addColorStop(0, 'rgba(0,0,0,0.9)'); g.addColorStop(1, 'rgba(0,0,0,0)');
     l.fillStyle = g; l.fillRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+    l.restore();
   }
   ctx.drawImage(lightLayer, 0, 0);
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   for (const p of lamps) {
+    ctx.save(); clipRoom(ctx, p.room);
     const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 0.8);
     g.addColorStop(0, `rgba(${p.col},${0.16 * night})`); g.addColorStop(1, `rgba(${p.col},0)`);
     ctx.fillStyle = g; ctx.fillRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+    ctx.restore();
   }
   ctx.restore();
 }
 
-export type Pose = 'sit' | 'sleep' | 'cook';
+function clipRoom(ctx: CanvasRenderingContext2D, r: HouseContent['rooms'][number]) {
+  ctx.beginPath(); ctx.rect(r.x * TILE + 4, r.y * TILE + 4, r.w * TILE - 8, r.h * TILE - 8); ctx.clip();
+}
+
+export function drawWater(ctx: CanvasRenderingContext2D, floor: number, time: number) {
+  for (const p of house().furniture.filter(f => f.floor === floor && f.type === 'pool')) {
+    ctx.save(); ctx.beginPath(); ctx.rect(p.x * TILE + 16, p.y * TILE + 12, p.w * TILE - 32, p.h * TILE - 28); ctx.clip();
+    for (let i = 0; i < 28; i++) {
+      const phase = time / 1300 + i;
+      const x = p.x * TILE + 16 + (i * 31) % (p.w * TILE - 32);
+      const y = p.y * TILE + 12 + (i * 17) % (p.h * TILE - 28);
+      ctx.fillStyle = `rgba(205,255,247,${0.15 + 0.12 * Math.sin(phase)})`;
+      ctx.fillRect(x + Math.round(Math.sin(phase) * 3), y, 9, 1); ctx.fillRect(x + 3, y + 3, 5, 1);
+    }
+    ctx.restore();
+  }
+}
+
+export function drawWeather(ctx: CanvasRenderingContext2D, floor: number, weather: string, time: number) {
+  if (!['rain', 'typhoon', 'snow'].includes(weather)) return;
+  for (const r of house().rooms.filter(r => r.floor === floor && !WALL[r.material])) {
+    ctx.save(); clipRoom(ctx, r);
+    const storm = weather === 'typhoon', snow = weather === 'snow';
+    ctx.fillStyle = storm ? 'rgba(43,64,99,0.22)' : 'rgba(81,121,151,0.06)'; ctx.fillRect(r.x * TILE, r.y * TILE, r.w * TILE, r.h * TILE);
+    const count = Math.ceil(r.w * r.h * (storm ? 2 : 0.9));
+    for (let i = 0; i < count; i++) {
+      const x = r.x * TILE + (i * 53 + time / (snow ? 110 : storm ? 6 : 24)) % (r.w * TILE);
+      const y = r.y * TILE + (i * 37 + time / (snow ? 35 : 4)) % (r.h * TILE);
+      ctx.fillStyle = snow ? 'rgba(255,250,246,0.8)' : 'rgba(196,224,239,0.55)';
+      ctx.fillRect(Math.round(x), Math.round(y), snow ? 2 : 1, snow ? 2 : storm ? 9 : 5);
+      if (!snow && i % 4 === 0) { ctx.fillStyle = 'rgba(223,246,249,0.3)'; ctx.fillRect(Math.round(x) - 2, r.y * TILE + (i * 29) % (r.h * TILE), 5, 1); }
+    }
+    ctx.restore();
+  }
+}
+
+export function poolSeat(index: number): Seat | null {
+  const p = house().furniture.find(f => f.type === 'pool');
+  if (!p || index >= 6) return null;
+  return { x: p.x + 1 + (index % 3) * 2, y: p.y + 1 + Math.floor(index / 3), pose: 'swim', dir: 'down' };
+}
+
+export function withinPoolWater(x: number, y: number): boolean {
+  const p = house().furniture.find(f => f.type === 'pool');
+  return !!p && x >= p.x + 1 && x < p.x + p.w - 1 && y >= p.y + 1 && y < p.y + p.h - 1;
+}
+
+/** Stable player position and distinct guest destinations regardless of occupancy ordering. */
+export function poolPlaces(ids: string[], playerId: string, playerPosition?: [number, number]): Map<string, Seat> {
+  const places = new Map<string, Seat>();
+  if (ids.includes(playerId)) {
+    const first = poolSeat(0)!;
+    places.set(playerId, playerPosition ? { ...first, x: playerPosition[0], y: playerPosition[1] } : first);
+  }
+  const player = places.get(playerId);
+  const available = Array.from({ length: 6 }, (_, i) => poolSeat(i)!).filter(s => !player || s.x !== player.x || s.y !== player.y);
+  ids.filter(id => id !== playerId).forEach((id, i) => { if (available[i]) places.set(id, available[i]); });
+  return places;
+}
+
+export function swimSolids(floor = 0): Set<string> {
+  const solid = solidTiles(floor);
+  for (const p of house().furniture.filter(f => f.floor === floor && f.type === 'pool')) for (let y = p.y; y < p.y + p.h; y++) for (let x = p.x; x < p.x + p.w; x++) solid.delete(`${x},${y}`);
+  return solid;
+}
+
+export type Pose = 'sit' | 'sleep' | 'cook' | 'swim';
 export interface Seat { x: number; y: number; pose: Pose; dir: 'up' | 'down' | 'left' | 'right' }
 
 /**
@@ -515,10 +653,9 @@ export function seatFor(room: string, activity: string | null, index: number): S
   else if (activity === 'cook') for (const s of of('stove')) for (let i = 0; i < s.w; i++) seats.push({ x: s.x + i, y: s.y + 1, pose: 'cook', dir: 'up' });
   else if (activity === 'eat') {
     for (const t of of('diningtable')) {
-      for (const ch of of('chair')) seats.push({ x: ch.x, y: ch.y, pose: 'sit', dir: ch.x < t.x ? 'right' : 'left' });
-      for (let i = 1; i < t.w - 1; i++) seats.push({ x: t.x + i, y: t.y - 1, pose: 'sit', dir: 'down' }, { x: t.x + i, y: t.y + t.h, pose: 'sit', dir: 'up' });
+      for (const ch of of('chair')) seats.push({ x: ch.x, y: ch.y, pose: 'sit', dir: ch.y < t.y ? 'down' : ch.y >= t.y + t.h ? 'up' : ch.x < t.x ? 'right' : 'left' });
     }
-  } else if ((room === 'living' || room === 'stairsUp') && activity !== 'tidy' && activity !== 'exercise') for (const s of of('sofa')) for (let i = 0; i < s.w; i++) seats.push({ x: s.x + i, y: s.y, pose: 'sit', dir: 'up' });
+  } else if ((room === 'living' || room === 'stairsUp') && activity !== 'tidy' && activity !== 'exercise') for (const s of of('sofa')) for (let i = 0; i < (s.seats ?? Math.min(3, s.w)); i++) seats.push({ x: s.x + i, y: s.y + (s.dir === 'down' ? s.h - 1 : 0), pose: 'sit', dir: s.dir ?? 'up' });
   return seats[index] ?? null;
 }
 

@@ -6,7 +6,7 @@ import {
   panelPrediction, planSlot, predictionText, projectForPlayer, proposeOutcome, recordCommentary, resolveScene, content, placeName,
   type Commentary, type EventInstance, type GameState, type Intent, type LineContext, type NewGameOptions, type PlannedScene,
   type PlayerSetup, type PredictionCond, type Emotion, type Beat, classifyIntent, joinNewPlayer, recordChat, recordPlayerWords, replyBeatType,
-  MAX_TYPED_EXCHANGES, passTime, recordDiary, reactionTo, blockOver, isShabbat, SLOT_START, MINUTES_PER_LINE, occasionFor, typedResponders,
+  MAX_TYPED_EXCHANGES, passTime, recordDiary, reactionTo, blockOver, isShabbat, SLOT_START, MINUTES_PER_LINE, occasionFor, occasionForCharacter, outfitFor, typedResponders,
 } from '@shared-roof/shared';
 import { z } from 'zod';
 import type { Store } from '../db';
@@ -14,7 +14,7 @@ import { Budget } from '../llm/structured';
 import { Generator, speakerName, type Line } from './generate';
 import type { ImageQueue } from '../image/queue';
 import { PRIORITY } from '../image/queue';
-import { freezeRequest, locationRequest, portraitRequest } from '../image/requests';
+import { freezeRequest, locationRequest, portraitRequest, outfitPortraitRequest } from '../image/requests';
 import { config } from '../config';
 import { applyCharacterSnapshot, enrichCharacter } from './personas';
 
@@ -228,6 +228,11 @@ export class GameSession {
     this.digestSince = s.world.tick;
     const { state, plan } = planSlot(s, action);
     this.state = state;
+    if (action.type === 'pool' && action.mode === 'enter') for (const c of Object.values(state.characters).filter((c) => c.swimming)) {
+      const portrait = this.images.localFile(portraitRequest(c));
+      if (portrait) this.images.request(outfitPortraitRequest(c, outfitFor(c, 'beach', state.world.day), portrait), PRIORITY.prefetch);
+      else this.images.request(portraitRequest(c), PRIORITY.prefetch);
+    }
     this.log('action', { action });
     await this.enrichNewCharacters(Object.keys(s.characters));
     this.runs.clear();
@@ -471,7 +476,7 @@ export class GameSession {
           location: run.ev.location,
           locationName: placeName(run.ev.location),
           occasion: occasionFor(run.ev),
-          participants: run.ev.participants.map((p) => ({ id: p, name: speakerName(s, p) })),
+          participants: run.ev.participants.map((p) => ({ id: p, name: speakerName(s, p), occasion: occasionForCharacter(s.characters[p] ?? {}, run.ev) })),
           outsiders: Object.entries(run.ev.roles).filter(([, v]) => !s.characters[v]).map(([, v]) => ({ id: v, name: speakerName(s, v) })),
           isPlayerScene: run.ev.isPlayerScene,
           eavesdrop: run.response === 'eavesdrop',

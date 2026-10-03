@@ -575,6 +575,73 @@ describe('game session (mock + failing adapters)', () => {
 });
 
 describe('HTTP API', () => {
+  it('uses swimmer-specific outfits for streamed deck conversations and image requests', async () => {
+    const dir = tmp();
+    const store = new Store(openDb(join(dir, 'mixed-pool.sqlite')));
+    let generated = 0;
+    const image: ImageBackend = { name: 'comfyui', health: async () => true, generate: async () => {
+      const path = `pool-${++generated}.png`;
+      writeFileSync(join(dir, path), Buffer.from([generated]));
+      return { id: path, path, mime: 'image/png', placeholder: false };
+    } };
+    const { app, session, queue } = await buildApp({ llm: new MockLlm(), image, store, workflowHash: 'w', cacheDir: dir, assetsDir: null });
+    try {
+      await session.newGame({ seed: 11, moveInDay: false });
+      const s = session.state!;
+      s.world.slot = 'slot1'; s.world.flags.startedBlock = '1:slot1';
+      for (const c of Object.values(s.characters)) { c.persona.routine.jobSlots = []; c.activityUntil = 180; c.lastAction = 'hobby'; }
+      s.characters.ren.location = 'backyard';
+      await queue.settle(queue.request(portraitRequest(s.characters[s.playerId]), PRIORITY.portrait).key);
+      await queue.settle(queue.request(portraitRequest(s.characters.ren), PRIORITY.portrait).key);
+      await session.act({ type: 'pool', mode: 'enter' });
+      const c = session.state!.characters[session.state!.playerId];
+      const swimmerOutfit = outfitFor(c, 'beach', session.state!.world.day);
+      const expectedSwimmer = queue.request(outfitPortraitRequest(c, swimmerOutfit, queue.localFile(portraitRequest(c))), PRIORITY.currentScene);
+      const dressed = await app.inject({ method: 'GET', url: `/api/image/character/${c.id}/outfit?occasion=daily` });
+      expect(dressed.statusCode).toBe(200);
+      expect(dressed.json().key).toBe(expectedSwimmer.key);
+      const dry = session.state!.characters.ren;
+      const expectedDry = queue.request(outfitPortraitRequest(dry, outfitFor(dry, 'daily', session.state!.world.day), queue.localFile(portraitRequest(dry))), PRIORITY.currentScene);
+      const ordinary = await app.inject({ method: 'GET', url: '/api/image/character/ren/outfit?occasion=daily' });
+      expect(ordinary.json().key).toBe(expectedDry.key);
+      const { scenes } = await session.act({ type: 'talk', target: 'ren' });
+      const playerScene = scenes.find((sc) => sc.isPlayerScene)!;
+      session.runs.get(playerScene.id)!.ev = makeEvent(session.state!, eventTemplate('casual-chat'), { a: c.id, b: 'ren' }, 'backyard');
+      const output: { event: string; data: any }[] = [];
+      await session.stream(playerScene.id, (event, data) => output.push({ event, data }));
+      const header = output.find((event) => event.event === 'scene')!.data;
+      expect(header.occasion).toBe('daily');
+      expect(header.participants).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: c.id, occasion: 'beach' }),
+        expect.objectContaining({ id: 'ren', occasion: 'daily' }),
+      ]));
+    } finally { await app.close(); }
+  });
+
+  it('enters the pool with multiple guests without starting a scene, rejects duplicate invitations, and replays exit', async () => {
+    const dir = tmp();
+    const store = new Store(openDb(join(dir, 'pool.sqlite')));
+    const { app, session } = await buildApp({ llm: new MockLlm(), image: new DownImages(), store, workflowHash: 'w', cacheDir: dir, assetsDir: null });
+    try {
+      const started = await app.inject({ method: 'POST', url: '/api/game/new', payload: { seed: 11, moveInDay: false } });
+      expect(started.statusCode).toBe(200);
+      const s = session.state!;
+      const guests = Object.values(s.characters).filter((c) => !c.isPlayer && !c.persona.routine.jobSlots.some((j) => j.slot === s.world.slot && j.weekdays.includes(s.world.weekday))).slice(0, 2).map((c) => c.id);
+      expect(guests).toHaveLength(2);
+      const entered = await app.inject({ method: 'POST', url: '/api/game/action', payload: { action: { type: 'pool', mode: 'enter', with: guests } } });
+      expect(entered.statusCode).toBe(200);
+      expect(entered.json().scenes).toEqual([]);
+      expect(entered.json().view.characters.filter((c: any) => c.swimming)).toHaveLength(3);
+      expect(entered.json().view.clock).toBe(started.json().view.clock);
+      const invalid = await app.inject({ method: 'POST', url: '/api/game/action', payload: { action: { type: 'pool', mode: 'enter', with: [guests[0], guests[0]] } } });
+      expect(invalid.statusCode).toBe(400);
+      const left = await app.inject({ method: 'POST', url: '/api/game/action', payload: { action: { type: 'pool', mode: 'leave' } } });
+      expect(left.statusCode).toBe(200);
+      expect(left.json().view.characters.some((c: any) => c.swimming)).toBe(false);
+      expect(replayEvents(store.events(session.state!.gameId))).toEqual(session.state);
+    } finally { await app.close(); }
+  });
+
   it('health reports services down and the game still starts', async () => {
     const dir = tmp();
     const { app } = await buildApp({ llm: new DownLlm(), image: new DownImages(), store: new Store(openDb(join(dir, 'db.sqlite'))), workflowHash: 'w', cacheDir: dir, assetsDir: null });

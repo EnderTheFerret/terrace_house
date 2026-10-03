@@ -6,7 +6,7 @@ import { classToday, content, priceLabel, ROOMS, placeName, roomName, shiftToday
 import { useGame } from '../store';
 import { TopBar, StudioStrip, DigestModal, slotLabel } from '../components/layout';
 import { Btn, Modal, Panel } from '../components/ui';
-import { drawLighting, findPath, hotspots, houseSize, loadHouseAssets, passable, renderHouse, roomAt, seatFor, solidTiles, spotFor, TILE, type Seat } from '../pixel/house';
+import { drawLighting, drawWater, drawWeather, findPath, hotspots, houseSize, loadHouseAssets, passable, poolPlaces, renderHouse, roomAt, seatFor, solidTiles, spotFor, swimSolids, withinPoolWater, TILE, type Seat } from '../pixel/house';
 import { emote, MOOD_ICON, posedSprite, sprite } from '../pixel/sprites';
 import { Portrait } from '../components/pixel';
 import { api } from '../api';
@@ -68,12 +68,15 @@ export function House() {
   const [walking, setWalking] = useState(false);
   const [balcony, setBalcony] = useState('');
   const [invite, setInvite] = useState('');
+  const [poolOpen, setPoolOpen] = useState(false);
+  const [poolGuests, setPoolGuests] = useState<string[]>([]);
   const [assetsReady, setAssetsReady] = useState(false);
   useEffect(() => { void loadHouseAssets().then(() => setAssetsReady(true)); }, []);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- re-render once the baked furniture has loaded
   const base = useMemo(() => renderHouse(floor), [floor, assetsReady]);
   const solid = useMemo(() => solidTiles(floor), [floor]);
   const solids = useMemo(() => [solidTiles(0), solidTiles(1)], []);
+  const waterSolid = useMemo(() => swimSolids(0), []);
   const actors = useRef<Map<string, Actor>>(new Map());
   const doorAngles = useRef<Map<string, number>>(new Map());
   const keys = useRef<Set<string>>(new Set());
@@ -134,18 +137,27 @@ export function House() {
     if (!view?.occupancy) return;
     const seen = new Set<string>();
     for (const room of ROOMS) {
-      const taken = new Map<string, number>();
+      const taken = new Set<string>();
+      const player = actors.current.get(view.playerId);
+      const swimIds = (view.occupancy[room] ?? []).filter(id => view.characters.find(c => c.id === id)?.swimming);
+      const swimPlaces = poolPlaces(swimIds, view.playerId, player?.seat?.pose === 'swim' ? [player.tx, player.ty] : undefined);
       (view.occupancy[room] ?? []).forEach((id, i) => {
         seen.add(id);
         const activity = view.characters.find((c) => c.id === id)?.activity ?? null;
-        const n = taken.get(String(activity)) ?? 0;
-        taken.set(String(activity), n + 1);
-        const seat = id === view.playerId ? null : seatFor(room, activity, n);
-        const [sx, sy] = seat ? [seat.x, seat.y] : spotFor(room, i);
+        const swimming = view.characters.find(c => c.id === id)?.swimming;
+        let n = 0;
+        let seat = swimming ? swimPlaces.get(id) : id === view.playerId ? null : seatFor(room, activity, n);
+        while (seat && taken.has(`${seat.x},${seat.y}`)) seat = seatFor(room, activity, ++n);
+        let [sx, sy] = seat ? [seat.x, seat.y] : spotFor(room, i);
+        const spots = content().house.rooms.find(r => r.id === room)?.spots ?? [];
+        if (!seat && taken.has(`${sx},${sy}`)) [sx, sy] = spots.find(([x, y]) => !taken.has(`${x},${y}`)) ?? [sx, sy];
+        taken.add(`${sx},${sy}`);
         const a = actors.current.get(id);
+        const changedSwimming = a && (a.seat?.pose === 'swim') !== !!swimming;
         if (a) a.seat = seat ?? undefined;
         const level = content().house.rooms.find((r) => r.id === room)?.floor ?? 0;
         if (!a) { actors.current.set(id, { id, x: sx, y: sy, tx: sx, ty: sy, dir: 'down', moving: 0, floor: level, seat: seat ?? undefined }); if (id === view.playerId) setFloor(level); }
+        else if (changedSwimming) { delete a.transfer; delete a.path; delete a.pathFor; Object.assign(a, { x: sx, y: sy, tx: sx, ty: sy, floor: level }); if (id === view.playerId) { setFloor(level); setWalking(false); } }
         else if (id !== view.playerId) {
           if (a.transfer?.floor === level) Object.assign(a.transfer, { tx: sx, ty: sy });
           else if (level !== a.floor && !settings.reducedMotion) takeStairs(a, level, [sx, sy]);
@@ -167,8 +179,8 @@ export function House() {
       const el = wrapRef.current;
       if (!el) return;
       const [w, h] = houseSize();
-      // at least 3x (characters about 1.5 tiles tall read clearly); a bigger house than the window pans with the player
-      setScale(Math.max(3, Math.floor(Math.min(el.clientWidth / w, el.clientHeight / h) * 2) / 2));
+      // Native furniture and characters share a 32px scale; the camera follows when the whole floor cannot fit.
+      setScale(Math.max(1, Math.floor(Math.min(el.clientWidth / w, el.clientHeight / h) * 2) / 2));
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -190,11 +202,13 @@ export function House() {
       }
     }
     const h = hotspots(floor).find((h) => Math.abs(h.x - px) + Math.abs(h.y - py) <= 1);
+    if (!h && byId[me.id]?.swimming) return { label: 'get everyone out of the pool', run: () => setConfirm({ title: 'end the swim and change back?', action: { type: 'pool', mode: 'leave' } }) };
     if (!h) return null;
     return { label: h.label, run: () => hotspotAction(h.action) };
   };
 
   const hotspotAction = (action: string) => {
+    if (action === 'pool') { setPoolGuests([]); return setPoolOpen(true); }
     if (action.startsWith('stairs')) return stairs();
     if (action === 'fridge') return setScreen('fridge');
     if (action === 'cook') return setScreen('cooking');
@@ -216,7 +230,7 @@ export function House() {
   // input
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (confirm || balcony || busy || walking || (e.target as HTMLElement)?.closest('input,textarea,select,[role=dialog]')) return;
+      if (confirm || balcony || poolOpen || busy || walking || (e.target as HTMLElement)?.closest('input,textarea,select,[role=dialog]')) return;
       const k = e.key.toLowerCase();
       if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) {
         keys.current.add(k);
@@ -261,7 +275,7 @@ export function House() {
       // player movement (tile steps)
       const me = actors.current.get(view.playerId);
       stepCd -= dt;
-      if (me && !busy && !walking && !confirm && !balcony && stepCd <= 0 && Math.abs(me.x - me.tx) < 0.01 && Math.abs(me.y - me.ty) < 0.01) {
+      if (me && !busy && !walking && !confirm && !balcony && !poolOpen && stepCd <= 0 && Math.abs(me.x - me.tx) < 0.01 && Math.abs(me.y - me.ty) < 0.01) {
         const k = keys.current;
         let dx = 0;
         let dy = 0;
@@ -271,7 +285,9 @@ export function House() {
         else if (k.has('arrowright') || k.has('d')) [dx, me.dir] = [1, 'right'];
         if (dx || dy) {
           const occupied = [...actors.current.values()].some((a) => a.id !== me.id && a.floor === floor && Math.round(a.tx) === me.tx + dx && Math.round(a.ty) === me.ty + dy);
-          if (!occupied && passable(me.tx, me.ty, me.tx + dx, me.ty + dy, solid, floor)) {
+          const swimming = byId[me.id]?.swimming;
+          const withinWater = !swimming || withinPoolWater(me.tx + dx, me.ty + dy);
+          if (!occupied && withinWater && passable(me.tx, me.ty, me.tx + dx, me.ty + dy, swimming ? waterSolid : solid, floor)) {
             const room = roomAt(me.tx + dx, me.ty + dy, floor);
             const own = view.characters.find((c) => c.id === view.playerId)?.gender === 'man' ? 'bedroomM' : 'bedroomW';
             if (room && room !== roomAt(me.tx, me.ty, floor)) {
@@ -287,7 +303,9 @@ export function House() {
           stepCd = 0.13;
         }
       }
+      ctx.clearRect(0, 0, c.width / 2, c.height / 2);
       ctx.drawImage(base, 0, 0, base.width / 2, base.height / 2);
+      drawWater(ctx, floor, settings.reducedMotion ? 0 : t);
       drawHouseLife(ctx, view.house, floor);
       for (const [x, y, level] of content().house.doors) {
         if (level !== floor) continue;
@@ -310,7 +328,7 @@ export function House() {
         let [gx, gy] = [a.tx, a.ty];
         if (a.id !== view.playerId) {
           const goal = `${a.floor}:${a.tx},${a.ty}`;
-          if (a.pathFor !== goal) { a.pathFor = goal; a.path = findPath([Math.round(a.x), Math.round(a.y)], [a.tx, a.ty], solids[a.floor] ?? solid, a.floor) ?? undefined; }
+          if (a.pathFor !== goal) { a.pathFor = goal; a.path = findPath([Math.round(a.x), Math.round(a.y)], [a.tx, a.ty], byId[a.id]?.swimming ? waterSolid : solids[a.floor] ?? solid, a.floor) ?? undefined; }
           while (a.path?.length && Math.hypot(a.path[0][0] - a.x, a.path[0][1] - a.y) < 0.01) a.path.shift();
           if (a.path?.length) [gx, gy] = a.path[0];
         }
@@ -341,20 +359,25 @@ export function House() {
         const ch = byId[a.id];
         if (!ch) continue;
         const frame = a.moving > 0 ? [0, 1, 2, 1][Math.floor(a.moving * 8) % 4] : 1;
-        const pose = a.moving === 0 ? a.seat : undefined;
+        const pose = ch.swimming ? { ...a.seat, pose: 'swim' as const, dir: a.dir } : a.moving === 0 ? a.seat : undefined;
         // idle breathing; the cook stirs faster
         const bob = a.moving === 0 && pose?.pose !== 'sleep' && Math.floor(t / (pose?.pose === 'cook' ? 220 : 600) + a.x) % 2 === 0 ? 1 : 0;
         // 32x40 frames at 1:1 (about 1.5 tiles tall, like a handheld overworld): centred on the tile, feet on its bottom edge
         const tx = Math.round(a.x * TILE), ty = Math.round(a.y * TILE);
-        const X = tx - 8;
-        const Y = ty - 23 - bob + (pose?.pose === 'sleep' ? 9 : 0);
+        const bed = pose?.pose === 'sleep' ? content().house.furniture.find(f => f.type === 'bed' && f.floor === floor && f.x === a.tx && f.y === a.ty) : undefined;
+        const X = tx + TILE / 2 - 16 + (bed ? (bed.w - 1) * TILE / 2 : 0);
+        const Y = ty + TILE - 39 - bob + (pose?.pose === 'sleep' ? 18 : pose?.pose === 'swim' ? 16 : 0);
         const head = Y + 12; // top of the hair in a generated frame
-        if (pose?.pose !== 'sleep') {
+        if (pose?.pose !== 'sleep' && pose?.pose !== 'swim') {
           ctx.fillStyle = 'rgba(58,46,63,0.25)';
-          ctx.fillRect(tx + 1, ty + 13, 14, 3);
+          ctx.fillRect(tx + TILE / 2 - 7, ty + TILE - 3, 14, 3);
         }
         if (pose) a.dir = pose.dir;
         ctx.drawImage(pose ? posedSprite(ch, pose.pose, pose.dir) : sprite(ch, a.dir, frame), X, Y, 32, 40);
+        if (ch.swimming) {
+          ctx.fillStyle = 'rgba(106,213,220,0.45)'; ctx.fillRect(X + 4, Y + 27, 24, 5);
+          ctx.fillStyle = 'rgba(216,255,247,0.65)'; ctx.fillRect(X, Y + 30, 32, 1); ctx.fillRect(X + 4, Y + 34, 24, 1);
+        }
         if (pose?.pose === 'cook') for (let k = 0; k < 2; k++) { // steam off the pan
           const s = (t / 900 + k / 2) % 1;
           ctx.fillStyle = `rgba(255,255,255,${0.6 * (1 - s)})`;
@@ -364,7 +387,7 @@ export function House() {
         if (em) ctx.drawImage(em, tx + 13, head - 6 - (Math.floor(t / 500) % 2));
         if (a.id === view.playerId) {
           ctx.fillStyle = '#e07a6a';
-          ctx.fillRect(tx + 7, head - 5, 2, 2);
+          ctx.fillRect(tx + TILE / 2 - 1, head - 5, 2, 2);
         }
       }
       // camera: keep the player centred when the zoomed house is bigger than the window (clamped to the house edges)
@@ -375,16 +398,8 @@ export function House() {
         stage.style.transform = `translate(${pan(hw * scale, wrap.clientWidth, (me.x + 0.5) * TILE * scale)}px, ${pan(hh2 * scale, wrap.clientHeight, (me.y + 0.5) * TILE * scale)}px)`;
       }
       const [hh, mm] = view.clock.split(':').map(Number);
-      drawLighting(ctx, floor, hh + mm / 60);
-      if (view.weather === 'rain') {
-        ctx.fillStyle = 'rgba(200,220,240,0.6)';
-        for (let i = 0; i < 40; i++) {
-          const rx = (i * 53 + t / 4) % (7 * TILE);
-          const ry = (i * 37 + t / 2) % (6 * TILE);
-          const outside = content().house.rooms.find((r) => r.floor === floor && (r.id === 'backyard' || r.id.startsWith('balcony')));
-          if (outside) ctx.fillRect(outside.x * TILE + rx % (outside.w * TILE), outside.y * TILE + ry % (outside.h * TILE), 1, 3);
-        }
-      }
+      drawLighting(ctx, floor, hh + mm / 60, view.weather);
+      drawWeather(ctx, floor, view.weather, settings.reducedMotion ? 0 : t);
       const p = nearestInteraction();
       const label = p?.label ?? '';
       if (label !== lastPrompt) {
@@ -396,12 +411,14 @@ export function House() {
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, base, solid, byId, floor, walking, busy, confirm, balcony, settings.reducedMotion, scale]);
+  }, [view, base, solid, byId, floor, walking, busy, confirm, balcony, poolOpen, settings.reducedMotion, scale]);
 
   if (!view) return null;
   const [W, H] = houseSize();
   const npcsHere = chars.filter((c) => !c.isPlayer);
   const me = chars.find((c) => c.isPlayer);
+  const playerActor = actors.current.get(view.playerId);
+  const speakingActor = playerActor ? [...actors.current.values()].filter(a => a.id !== view.playerId && a.floor === floor && !byId[a.id]?.swimming && Math.hypot(a.tx - playerActor.tx, a.ty - playerActor.ty) <= 2.5).sort((a, b) => Math.hypot(a.tx - playerActor.tx, a.ty - playerActor.ty) - Math.hypot(b.tx - playerActor.tx, b.ty - playerActor.ty))[0]?.id : undefined;
   const out = npcsHere.filter((c) => c.location === 'out');
   const doAct = (a: PlayerAction) => {
     if (walking || busy) return;
@@ -431,12 +448,12 @@ export function House() {
               if (!c || c.isPlayer || a.floor !== floor) return null;
               const m = c.mood ? MOOD_ICON[c.mood] : null;
               return (
-                <div key={a.id} className="pointer-events-none absolute -translate-x-1/2 text-center text-[0.65rem] leading-none" style={{ left: (a.tx * TILE + 8) * scale, top: (a.ty * TILE - 24) * scale - 4, transition: 'left 600ms linear, top 600ms linear' }}>
+                <div key={a.id} className="pointer-events-none absolute -translate-x-1/2 text-center text-[0.65rem] leading-none" style={{ left: (a.tx * TILE + TILE / 2) * scale, top: (a.ty * TILE + TILE - 48) * scale - 4, transition: 'left 600ms linear, top 600ms linear' }}>
                   <span className="bg-paper/85 px-1" style={{ boxShadow: '0 0 0 1px var(--color-ink)' }}>
                     {m && <span style={{ color: m.color }} aria-hidden>{m.glyph} </span>}
                     {c.name.split(' ')[0]}
                   </span>
-                  {c.bark && <span className="mt-1 block max-w-40 bg-paper px-2 py-1 text-xs leading-tight">{c.bark}</span>}
+                  {c.bark && a.id === speakingActor && <span className="mt-1 block max-w-40 bg-paper px-2 py-1 text-xs leading-tight">{c.bark}</span>}
                 </div>
               );
             })}
@@ -462,6 +479,12 @@ export function House() {
             <Btn disabled={busy || walking} onClick={stairs}>{floor === 0 ? 'take stairs upstairs' : 'take stairs downstairs'}</Btn>
             <div className="mt-2 flex flex-wrap gap-2">{content().house.rooms.filter((r) => r.id.startsWith('balcony')).map((r) => <Btn key={r.id} disabled={busy || walking} onClick={() => { setBalcony(r.id); setInvite(''); }}>{r.name}</Btn>)}</div>
             <p className="caption mt-2 text-xs">Balconies belong to their bedrooms. Ask a roommate to invite you.</p>
+          </Panel>
+          <Panel title="pool">
+            <p className="caption mb-2 text-xs">{chars.filter(c => c.swimming).length ? `${chars.filter(c => c.swimming).length} in the water · swimwear on` : 'Change into swimwear and take a dip, alone or with housemates.'}</p>
+            <Btn disabled={busy || walking || view.weather === 'typhoon'} onClick={() => { setPoolGuests([]); setPoolOpen(true); }}>{me?.swimming ? 'invite more swimmers' : 'swim & invite housemates'}</Btn>
+            {chars.some(c => c.swimming) && <Btn className="mt-2" disabled={busy || walking} onClick={() => doAct({ type: 'pool', mode: 'leave' })}>everyone out of the pool</Btn>}
+            {view.weather === 'typhoon' && <p className="mt-2 text-xs">The pool is closed during the storm.</p>}
           </Panel>
           {view.approaches.map((a) => <Panel key={a.id} title={byId[a.from]?.name.split(' ')[0] ?? a.from}><p className="mb-2 text-sm">{a.text}</p><div className="flex gap-2"><Btn disabled={busy || walking} onClick={() => doAct({ type: 'approach', id: a.id, accept: true })}>got a minute</Btn><Btn disabled={busy || walking} onClick={() => doAct({ type: 'approach', id: a.id, accept: false })}>not now</Btn></div></Panel>)}
           <Panel title={`${slotLabel(view.slot)} ${view.clock} — what will you do?`}>
@@ -549,6 +572,13 @@ export function House() {
           </div>
         </Modal>
       )}
+      {poolOpen && <Modal title="swim together" onClose={() => setPoolOpen(false)}>
+        <p className="mb-3 text-sm">You change into your swimsuit. Invite up to five housemates; everyone changes into their own swimwear. Stay until the block ends, or get out whenever you like.</p>
+        <fieldset className="mb-4 flex flex-col gap-2 text-sm"><legend className="caption mb-2">invite housemates</legend>
+          {npcsHere.map(c => <label key={c.id} className="flex items-center gap-2"><input type="checkbox" checked={poolGuests.includes(c.id) || !!c.swimming} disabled={busy || !!c.swimming || c.location === 'out'} onChange={() => setPoolGuests(ids => ids.includes(c.id) ? ids.filter(id => id !== c.id) : [...ids, c.id])} />{c.name.split(' ')[0]}{c.swimming ? ' · already swimming' : c.location === 'out' ? ' · away' : ''}</label>)}
+        </fieldset>
+        <div className="flex gap-3"><Btn primary autoFocus disabled={busy || walking || view.weather === 'typhoon'} onClick={() => { setPoolOpen(false); doAct({ type: 'pool', mode: 'enter', with: poolGuests }); }}>{me?.swimming ? 'invite selected housemates' : 'enter pool'}</Btn><Btn onClick={() => setPoolOpen(false)}>cancel</Btn></div>
+      </Modal>}
       {balcony && <Modal title={`visit ${roomName(balcony)}?`} onClose={() => setBalcony('')}>
         <label className="mb-3 flex flex-col gap-1 text-sm">invited by
           <select aria-label="balcony invitation" className="px-panel-soft px-2 py-1" value={invite} onChange={(e) => setInvite(e.target.value)}><option value="">on my own</option>{chars.filter((c) => !c.isPlayer && view.invitations.some((p) => p.node === balcony && p.episode === view.episode && p.slot === view.slot && p.status === 'accepted' && [p.from, p.to].includes(c.id) && [p.from, p.to].includes(view.playerId))).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>

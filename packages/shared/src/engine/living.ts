@@ -36,6 +36,7 @@ export function observeRoutines(s: GameState) {
 }
 
 export function scheduleActivity(s: GameState, c: GameState['characters'][string], a: AgentAction, start = s.world.minutes) {
+  c.swimming = a.kind === 'swim';
   c.lastAction = a.kind;
   c.actionTarget = a.target;
   c.actionNode = a.node;
@@ -110,6 +111,7 @@ export function startPlans(s: GameState) {
       const c = s.characters[id];
       if (!c || c.isPlayer || c.status !== 'inHouse' || isShabbat(s, c) || c.lastAction === 'work') continue;
       c.location = p.node;
+      c.swimming = false;
       c.lastAction = 'goOut';
       c.activityUntil = SLOT_MINUTES;
       c.actionNode = p.node;

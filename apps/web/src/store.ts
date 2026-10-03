@@ -40,7 +40,7 @@ export interface LiveScene {
     locationName: string;
     /** what everyone wears here (beach, date, outdoor, daily) */
     occasion: Occasion;
-    participants: { id: string; name: string }[];
+    participants: { id: string; name: string; occasion?: Occasion }[];
     outsiders: { id: string; name: string }[];
     isPlayerScene: boolean;
     eavesdrop: boolean;

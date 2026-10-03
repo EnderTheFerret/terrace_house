@@ -15,7 +15,7 @@ const PASTEL = ['#f4a7b9', '#a7c7f4', '#b8e2b0', '#f6d48f', '#c9b4ef', '#f7b98a'
 const KEYWORD_COLORS: [RegExp, string][] = [
   [/white|cook|chef/, '#eef0f2'], [/navy/, '#2f3f6e'], [/black|band/, '#2b2b33'], [/denim|jean/, '#5577aa'], [/pastel|pink|rose/, '#f2b5c8'],
   [/cream|beige|linen/, '#efe3c8'], [/green|olive/, '#7fa36b'], [/red/, '#c8504f'], [/yellow/, '#efcf6a'], [/stripe/, '#8fb3dd'], [/grey|gray/, '#9aa0a8'],
-  [/hawaiian|graphic|tee/, '#f39a6b'], [/knit|sweater|cardigan/, '#b9a0d8'], [/flannel/, '#b45a4a'],
+  [/coral/, '#e8817c'], [/blue/, '#5d9dcc'], [/hawaiian|graphic|tee/, '#f39a6b'], [/knit|sweater|cardigan/, '#b9a0d8'], [/flannel/, '#b45a4a'],
 ];
 
 export function shade(hex: string, f: number): string {
@@ -34,7 +34,7 @@ export function palette(a: Appearance) {
   const skin = a.palette?.skin ?? SKIN[a.skinTone.toLowerCase()] ?? SKIN.light;
   const eye = EYES[a.eyeColor.toLowerCase()] ?? '#4a3020';
   const outfit = a.palette?.outfit ?? KEYWORD_COLORS.find(([re]) => re.test(a.outfit.toLowerCase()))?.[1] ?? PASTEL[hashSeed(a.outfit) % PASTEL.length];
-  const pants = /skirt|dress/.test(a.outfit) ? shade(outfit, 0.85) : /short/.test(a.outfit) ? '#4f7fb0' : '#3d4a66';
+  const pants = /bikini|swimsuit|trunks|board shorts/i.test(a.outfit) ? outfit : /skirt|dress/.test(a.outfit) ? shade(outfit, 0.85) : /short/.test(a.outfit) ? '#4f7fb0' : '#3d4a66';
   return { hair, accent, skin, eye, outfit, pants, line: '#2a2030' };
 }
 
@@ -183,26 +183,29 @@ function spriteBase(a: Appearance, dir: Dir, frame: number): Pixels {
   const flip = (x: number) => (dir === 'left' ? 15 - x : x); // profiles are drawn facing right, mirrored for left
   const outfit = a.outfit.toLowerCase();
   const acc = a.accessory.toLowerCase();
+  const swimwear = /bikini|swimsuit|trunks|board shorts/.test(outfit);
+  const bikini = /bikini/.test(outfit);
+  const trunks = /trunks|board shorts/.test(outfit);
   const skirt = /skirt|dress/.test(outfit);
-  const shorts = /short/.test(outfit);
+  const shorts = /short/.test(outfit) || trunks;
   const w = /broad|athletic/.test(a.build) ? 1 : /petite|slim/.test(a.build) ? -1 : 0;
   const dark = (c: string) => shade(c, 0.78);
-  const shoe = '#3a3036';
+  const shoe = swimwear ? pal.skin : '#3a3036';
 
   // legs + shoes (skin shows under skirts and shorts)
   const legTop = skirt ? 17 : shorts ? 16 : 15;
   if (side) {
     for (const [lx, d] of [[6 + step, 1], [8 - step, 0.8]] as const) {
       const x = Math.min(flip(lx), flip(lx + 1));
-      rect(p, x, 15, 2, 3, shade(skirt || shorts ? pal.skin : pal.pants, d));
+      rect(p, x, 15, 2, 3, shade(swimwear || skirt || shorts ? pal.skin : pal.pants, d));
       rect(p, x, 15, 2, legTop - 15, shade(pal.pants, d));
       rect(p, x, 18, 2, 1, shoe);
     }
   } else {
     for (const [lx, lift] of [[5, step < 0], [9, step > 0]] as const) {
       const h = lift ? 3 : 4;
-      rect(p, lx, 15, 2, h, skirt || shorts ? pal.skin : pal.pants);
-      if (!skirt && !shorts) set(p, lx + 1, 15 + h - 1, dark(pal.pants));
+      rect(p, lx, 15, 2, h, swimwear || skirt || shorts ? pal.skin : pal.pants);
+      if (!swimwear && !skirt && !shorts) set(p, lx + 1, 15 + h - 1, dark(pal.pants));
       if (skirt || shorts) rect(p, lx, 15, 2, legTop - 15, pal.pants);
       rect(p, lx, 15 + h - 1, 2, 1, shoe);
     }
@@ -210,6 +213,13 @@ function spriteBase(a: Appearance, dir: Dir, frame: number): Pixels {
   // torso with side shading; skirts flare out
   rect(p, 4 - w, 10, 8 + w * 2, 6, pal.outfit);
   rect(p, 11 + w, 10, 1, 6, dark(pal.outfit));
+  if (swimwear) {
+    rect(p, 4 - w, 10, 8 + w * 2, 6, pal.skin);
+    rect(p, 11 + w, 10, 1, 6, shade(pal.skin, 0.85));
+    if (bikini) rect(p, 4 - w, 11, 8 + w * 2, 2, pal.outfit);
+    if (trunks || bikini) rect(p, 4 - w, 14, 8 + w * 2, trunks ? 3 : 2, pal.outfit);
+    if (!bikini && !trunks) rect(p, 5 - w, 11, 6 + w * 2, 5, pal.outfit);
+  }
   if (skirt) {
     rect(p, 3 - w, 14, 10 + w * 2, 3, shade(pal.outfit, 0.92));
     rect(p, 12 + w, 14, 1, 3, dark(pal.outfit));
@@ -220,17 +230,18 @@ function spriteBase(a: Appearance, dir: Dir, frame: number): Pixels {
       rect(p, 7, 10, 2, 5, /hoodie/.test(outfit) ? shade(pal.outfit, 0.85) : '#f4f0e6');
       set(p, 6, 11, dark(pal.outfit));
       set(p, 9, 11, dark(pal.outfit));
-    } else rect(p, 7, 10, 2, 1, dark(pal.outfit)); // collar
+    } else if (!swimwear) rect(p, 7, 10, 2, 1, dark(pal.outfit)); // collar
     if (/apron/.test(outfit)) rect(p, 5, 12, 6, 4, '#e9dcc0');
   }
   // arms: sleeves in outfit colour, skin hands; they swing with the step
   if (side) {
     const ax = flip(8);
-    rect(p, ax, 11 + step, 1, 3, dark(pal.outfit));
+    rect(p, ax, 11 + step, 1, 3, dark(swimwear ? pal.skin : pal.outfit));
     set(p, ax, 14 + step, pal.skin);
   } else {
     for (const [ax, sw] of [[3 - w, step > 0 ? 1 : 0], [12 + w, step < 0 ? 1 : 0]] as const) {
-      rect(p, ax, 11 + sw, 1, 3, ax > 8 ? dark(pal.outfit) : pal.outfit);
+      const sleeve = swimwear ? pal.skin : pal.outfit;
+      rect(p, ax, 11 + sw, 1, 3, ax > 8 ? dark(sleeve) : sleeve);
       set(p, ax, 14 + sw, pal.skin);
     }
   }
@@ -355,6 +366,7 @@ export function spritePixels(a: Appearance, dir: Dir, frame: number): Pixels {
   const outfit = a.outfit.toLowerCase();
   const acc = a.accessory.toLowerCase();
   // Fine hair clusters follow the silhouette rather than a flat enlarged fill.
+  const swimwear = /bikini|swimsuit|trunks|board shorts/.test(outfit);
   for (let y = 3; y < 23; y++) for (let x = 4; x < 28; x++) {
     if (p[y][x] !== pal.hair) continue;
     if ((x + y * 2) % 11 === 0 && p[y + 1]?.[x] === pal.hair) {
@@ -381,9 +393,11 @@ export function spritePixels(a: Appearance, dir: Dir, frame: number): Pixels {
   const trim = shade(pal.outfit, 0.68);
   const light = shade(pal.outfit, 1.18);
   if (face) {
-    rect(p, 10, 22, 3, 1, light);
-    rect(p, 19, 23, 2, 1, light);
-    if (/jacket|cardigan|coat|blazer|hoodie|shirt/.test(outfit)) {
+    if (!swimwear) {
+      rect(p, 10, 22, 3, 1, light);
+      rect(p, 19, 23, 2, 1, light);
+    }
+    if (!swimwear && /jacket|cardigan|coat|blazer|hoodie|shirt/.test(outfit)) {
       for (const x of [12, 19]) {
         rect(p, x, 23, 1, 7, trim);
         rect(p, x + 1, 24, 1, 5, light);
@@ -421,14 +435,14 @@ export function spritePixels(a: Appearance, dir: Dir, frame: number): Pixels {
       }
       rect(p, 14, 13, 4, 1, '#625963');
     }
-  } else if (dir === 'up') {
+  } else if (dir === 'up' && !swimwear) {
     rect(p, 11, 24, 10, 1, trim);
     rect(p, 12, 25, 8, 1, light);
     if (/apron/.test(outfit)) {
       rect(p, 10, 28, 12, 1, '#d7c29b');
       rect(p, 15, 28, 2, 3, '#d7c29b');
     }
-  } else {
+  } else if (!swimwear) {
     rect(p, flip(17), 23, 1, 5, light);
     rect(p, flip(17), 28, 2, 1, trim);
   }

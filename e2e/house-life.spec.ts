@@ -52,12 +52,12 @@ test('stairs, private balconies and a shared plan are accessible', async ({ page
   await expect(page.getByRole('region', { name: 'ground floor', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'take stairs upstairs', exact: true })).toBeEnabled();
   const canvas = page.getByLabel(/^top-down view of the share house/);
-  const doorPixel = () => canvas.evaluate((node: HTMLCanvasElement) => [...node.getContext('2d')!.getImageData((25 * 16 + 8) * 2, (6 * 16 + 1) * 2, 1, 1).data]);
+  const doorPixel = () => canvas.evaluate((node: HTMLCanvasElement) => { const tile = node.width / 52; return [...node.getContext('2d')!.getImageData((16 * tile + 1) * 2, (14 * tile + tile / 2) * 2, 1, 1).data]; });
   await canvas.focus();
   const closedDoor = await doorPixel();
-  for (let i = 0; i < 2; i++) { await page.keyboard.down('ArrowDown'); await page.waitForTimeout(50); await page.keyboard.up('ArrowDown'); await page.waitForTimeout(180); }
+  for (const key of ['ArrowLeft', 'ArrowLeft', 'ArrowLeft', 'ArrowDown']) { await page.keyboard.down(key); await page.waitForTimeout(50); await page.keyboard.up(key); await page.waitForTimeout(180); }
   await expect.poll(doorPixel).not.toEqual(closedDoor);
-  for (let i = 0; i < 2; i++) { await page.keyboard.down('ArrowUp'); await page.waitForTimeout(50); await page.keyboard.up('ArrowUp'); await page.waitForTimeout(180); }
+  for (const key of ['ArrowUp', 'ArrowRight', 'ArrowRight', 'ArrowRight']) { await page.keyboard.down(key); await page.waitForTimeout(50); await page.keyboard.up(key); await page.waitForTimeout(180); }
   await expect.poll(doorPixel).toEqual(closedDoor);
   await expect(page.getByRole('button', { name: 'backyard', exact: true })).toBeVisible();
   const before = await (await request.get('/api/game')).json();

@@ -195,9 +195,10 @@ export function Scene() {
           <div role="group" aria-label="people in this conversation" className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-center" style={{ top: '6%', right: live.choice && reveal.complete ? 304 : 0 }}>
             {stage.map((c, i) => {
               const speaking = lastSpeaker === c.id;
+              const occasion = h.participants.find(p => p.id === c.id)?.occasion ?? (c.swimming && h.location === 'backyard' ? 'beach' : h.occasion ?? 'daily');
               return (
                 <div key={c.id} className="flex h-full items-end transition-all duration-300" style={{ marginLeft: i ? `-${stage.length > 2 ? 6 : 2}vw` : 0, zIndex: speaking ? 5 : 1, transform: speaking ? 'translateY(-1%) scale(1.02)' : 'none', filter: lastSpeaker && !speaking ? 'brightness(0.68) saturate(0.85)' : 'none' }}>
-                  <Stand key={`${view.gameId}:${c.portraitSeed}:${h.occasion}:${view.day}`} char={c} outfit={{ occasion: h.occasion ?? 'daily', day: view.day }} emotion={emotionOf(c.id)} height={stage.length <= 2 ? '92%' : stage.length <= 3 ? '80%' : '68%'} />
+                  <Stand key={`${view.gameId}:${c.portraitSeed}:${occasion}:${view.day}`} char={c} outfit={{ occasion, day: view.day }} emotion={emotionOf(c.id)} height={stage.length <= 2 ? '92%' : stage.length <= 3 ? '80%' : '68%'} />
                 </div>
               );
             })}

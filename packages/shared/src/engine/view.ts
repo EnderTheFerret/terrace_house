@@ -42,6 +42,7 @@ export interface CharView {
   bark: string | null;
   floor: number | null;
   activityUntil: number;
+  swimming: boolean;
 }
 
 export interface BoardEdge {
@@ -184,6 +185,7 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
       bark: visible && !c.isPlayer && !['sleep', 'work'].includes(c.lastAction ?? '') ? barkFor(s, c) : null,
       floor: room && visible ? room.floor : null,
       activityUntil: visible ? c.activityUntil : 0,
+      swimming: visible && c.swimming && c.location === 'backyard',
     };
   });
   const occupancy = playerHome ? Object.fromEntries(ROOMS.map((r) => [r, hm.filter((c) => c.location === r && characters.find((v) => v.id === c.id)?.location === r).map((c) => c.id)])) : null;

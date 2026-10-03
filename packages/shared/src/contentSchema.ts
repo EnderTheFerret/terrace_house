@@ -277,7 +277,7 @@ export const HouseContent = z.object({
     z.object({ id: z.string(), name: z.string(), x: z.number(), y: z.number(), w: z.number(), h: z.number(), floor: z.number().int().default(0), material: z.string().default('wood'), private: z.boolean().default(false), spots: z.array(z.tuple([z.number(), z.number()])) }),
   ),
   doors: z.array(z.tuple([z.number(), z.number(), z.number().int()])),
-  furniture: z.array(z.object({ type: z.string(), x: z.number(), y: z.number(), floor: z.number().int().default(0), w: z.number().default(1), h: z.number().default(1), solid: z.boolean().default(true) })),
+  furniture: z.array(z.object({ type: z.string(), x: z.number(), y: z.number(), floor: z.number().int().default(0), w: z.number().default(1), h: z.number().default(1), solid: z.boolean().default(true), dir: z.enum(['up', 'down', 'left', 'right']).optional(), seats: z.number().int().min(1).max(6).optional() })),
   hotspots: z.array(z.object({ id: z.string(), label: z.string(), x: z.number(), y: z.number(), floor: z.number().int().default(0), action: z.string() })),
   ingredients: z.array(z.object({ id: z.string(), name: z.string(), price: z.number() })),
   startFridge: z.record(z.string(), z.number()),

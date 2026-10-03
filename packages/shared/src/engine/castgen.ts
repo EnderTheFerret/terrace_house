@@ -162,6 +162,7 @@ export function baseCharacter(
     archetypeId: opts.archetypeId,
     lowMoodStreak: 0,
     activityUntil: 0,
+    swimming: false,
   };
   c.appearanceTags = compileAppearanceTags(c);
   return c;

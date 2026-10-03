@@ -36,13 +36,19 @@ export const DAILY_ROTATION = 4;
 const pick = (pool: string[], id: string, salt: string) => pool[hashSeed(`${id}:${salt}`) % pool.length];
 
 /** What a scene calls for: swimwear at the beach, gear on trips, date clothes on dates, otherwise today's outfit. */
-export function occasionFor(ev: { location: string; type: string; tags: string[]; templateId: string; slot?: string }): Occasion {
-  if (ev.location === 'beach') return 'beach';
+export function occasionFor(ev: { location: string; type: string; tags: string[]; templateId: string; slot?: string; swimming?: boolean }): Occasion {
+  if (ev.location === 'beach' || ev.swimming || ev.tags.includes('swim')) return 'beach';
   // after 23:00 at home everyone is in their sleepwear
   if (ev.slot === 'lateNight' && (ROOMS as readonly string[]).includes(ev.location)) return 'sleep';
   if (ev.tags.some((t) => ['camping', 'hike', 'trip', 'overnight'].includes(t))) return 'outdoor';
   if (ev.type === 'date' || ev.tags.includes('date') || ev.templateId.includes('date')) return 'date';
   return 'daily';
+}
+
+export function occasionForCharacter(c: { swimming?: boolean }, ev: Parameters<typeof occasionFor>[0]): Occasion {
+  if (ev.location !== 'backyard') return occasionFor(ev);
+  if (c.swimming) return 'beach';
+  return occasionFor({ ...ev, swimming: false, tags: ev.tags.filter((tag) => tag !== 'swim') });
 }
 
 /** `day` is the 0-based world day; day 0 (and every DAILY_ROTATION days after) is the character's signature outfit. */

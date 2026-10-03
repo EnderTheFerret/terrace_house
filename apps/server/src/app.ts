@@ -201,7 +201,7 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
   const OutfitQuery = z.object({ occasion: Occasion.default('daily'), day: z.coerce.number().int().min(0).optional() });
   /** Character dressed for an occasion: the outfit portrait's request and its local file once it exists. */
   const dressed = (c: Character, o: z.infer<typeof OutfitQuery>) => {
-    const outfit = outfitFor(c, o.occasion, o.day ?? session.state!.world.day);
+    const outfit = outfitFor(c, c.swimming && c.location === 'backyard' ? 'beach' : o.occasion, o.day ?? session.state!.world.day);
     const base = queue.localFile(portraitRequest(c));
     const req = base ? outfitPortraitRequest(c, outfit, base) : null;
     return { c: { ...c, appearance: { ...c.appearance, outfit } }, req, file: req ? queue.localFile(req) : null };

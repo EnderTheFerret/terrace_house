@@ -160,6 +160,7 @@ export const Character = z.object({
   lowMoodStreak: z.number().int().default(0),
   lastAction: z.string().optional(),
   activityUntil: z.number().default(0),
+  swimming: z.boolean().default(false),
   actionTarget: z.string().optional(),
   actionNode: z.string().optional(),
   partnerId: z.string().optional(),
@@ -480,6 +481,7 @@ export type GameState = z.infer<typeof GameState>;
 
 // ---------- player actions ----------
 export const PlayerAction = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('pool'), mode: z.enum(['enter', 'leave']), with: z.array(z.string()).max(5).refine((ids) => new Set(ids).size === ids.length, 'choose each housemate once').optional() }),
   z.object({ type: z.literal('house'), activity: z.enum(['hangout', 'cook', 'tidy', 'rest', 'backyard', 'hobby']), target: z.string().optional() }),
   z.object({ type: z.literal('talk'), target: z.string() }),
   z.object({

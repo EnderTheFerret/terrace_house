@@ -14,7 +14,7 @@ import { ACTIVITY_MINUTES, isOpen, reachability } from './city';
 import { reputationOf } from './social';
 
 export type ActionKind =
-  | 'sleep' | 'cook' | 'eat' | 'tidy' | 'work' | 'exercise' | 'hobby' | 'goOut'
+  | 'sleep' | 'cook' | 'eat' | 'tidy' | 'work' | 'exercise' | 'hobby' | 'goOut' | 'swim'
   | 'seek' | 'avoid' | 'text' | 'gossip' | 'apologize' | 'confess' | 'retreat' | 'shower' | 'snack' | 'nap';
 
 export interface AgentAction {
@@ -27,7 +27,7 @@ export interface AgentAction {
   duration?: number;
 }
 
-export const durationFor = (a: AgentAction) => a.duration ?? ({ shower: 40, snack: 20, nap: 90, sleep: 180, work: 180, goOut: 120, cook: 60, eat: 20, tidy: 30, exercise: 40, hobby: 60, seek: 30, avoid: 45, text: 15, gossip: 25, apologize: 20, confess: 30, retreat: 45 }[a.kind]);
+export const durationFor = (a: AgentAction) => a.duration ?? ({ swim: SLOT_MINUTES, shower: 40, snack: 20, nap: 90, sleep: 180, work: 180, goOut: 120, cook: 60, eat: 20, tidy: 30, exercise: 40, hobby: 60, seek: 30, avoid: 45, text: 15, gossip: 25, apologize: 20, confess: 30, retreat: 45 }[a.kind]);
 
 // ponytail: fixed 18:00 sundown; use seasonal solar times if the calendar gains a year and latitude.
 export function isShabbat(s: GameState, c?: Character): boolean {
@@ -38,6 +38,7 @@ export function isShabbat(s: GameState, c?: Character): boolean {
 
 /** s_k(a): how much each action satisfies each need (positive = reduces deficit). */
 const SAT: Record<ActionKind, Partial<NeedVec>> = {
+  swim: { social: 14, achievement: 8, energy: -6 },
   sleep: { energy: 38, privacy: 12 },
   cook: { hunger: 30, achievement: 8, social: 3 },
   eat: { hunger: 34 },
@@ -297,7 +298,8 @@ export function roomFor(s: GameState, c: Character, a: AgentAction): string {
     case 'eat':
     case 'snack':
     case 'tidy': return 'kitchen';
-    case 'exercise': return 'backyard';
+    case 'exercise':
+    case 'swim': return 'backyard';
     case 'work': return a.node ?? 'station';
     case 'goOut': return a.node ?? 'konbini';
     case 'hobby': {

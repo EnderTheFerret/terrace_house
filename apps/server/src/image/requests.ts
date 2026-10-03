@@ -1,6 +1,6 @@
 // Image request builders (prompts compiled by shared pure functions; style prefix from config).
 import {
-  compileAppearancePrompt, compileAppearanceTags, compileLocationPrompt, content, hashSeed, sanitizePromptText, GLOBAL_NEGATIVE,
+  compileAppearancePrompt, compileAppearanceTags, compileLocationPrompt, content, hashSeed, sanitizePromptText, GLOBAL_NEGATIVE, outfitFor, occasionForCharacter,
   type Character, type Emotion, type EventInstance, type GameState, type ImageRequest, type Slot,
 } from '@shared-roof/shared';
 import { config } from '../config';
@@ -127,7 +127,7 @@ export function locationRequest(locId: string, slot: Slot, weather: string): Ima
  * portrait); the subject key is the post/message, so each photo is drawn once and reused.
  */
 export function photoRequest(s: GameState, people: Character[], location: string, slot: Slot, caption: string, subjectKey: string, fileOf: (r: ImageRequest) => string | null, selfie = false): ImageRequest {
-  const ev = { id: subjectKey, templateId: 'photo', title: selfie ? 'a selfie' : 'a photo for the house feed', location, slot, participants: people.map((c) => c.id) } as unknown as EventInstance;
+  const ev = { id: subjectKey, templateId: 'photo', type: 'photo', tags: [], title: selfie ? 'a selfie' : 'a photo for the house feed', location, slot, participants: people.map((c) => c.id) } as unknown as EventInstance;
   const r = freezeRequest(s, ev, fileOf, `${selfie ? 'casual phone selfie at arm length, looking into the camera' : 'casual phone snapshot posted to social media'}: ${caption}`);
   return { ...r, subjectKey, seed: hashSeed(subjectKey) % 100000 };
 }
@@ -153,13 +153,18 @@ export function avatarRequest(panelistId: string): ImageRequest {
  */
 export function freezeRequest(s: GameState, ev: EventInstance, fileOf: (r: ImageRequest) => string | null = () => null, context = ''): ImageRequest {
   const people = ev.participants.map((id) => s.characters[id]).filter(Boolean).slice(0, 6);
+  const dressed = people.map((c) => {
+    const outfit = outfitFor(c, occasionForCharacter(c, ev), s.world.day);
+    return { original: c, outfit, character: { ...c, appearance: { ...c.appearance, outfit } } };
+  });
   const refs: string[] = [];
-  const who = people.map((c) => {
+  const who = dressed.map(({ original, character: c, outfit }) => {
     const looks = compileAppearancePrompt(c, 'scene', { stylePrefix: '' }).positive.replace(/^,\s*/, '');
-    const file = fileOf(portraitRequest(c));
+    const base = fileOf(portraitRequest(original));
+    const file = fileOf(outfitPortraitRequest(original, outfit, base)) ?? base;
     if (!file) return looks;
     refs.push(file);
-    return `the person from image ${refs.length} (${looks})`;
+    return `the person from image ${refs.length} (${looks}), wearing ${sanitizePromptText(outfit)}; copy their face and hair identity while using these clothes`;
   }).join('; and ');
   const loc = scenery[ev.location] ?? content().city.nodes.find((n) => n.id === ev.location)?.description ?? `share house ${ev.location}`;
   const bg = fileOf(locationRequest(ev.location, ev.slot, s.world.weather)) ?? fileOf(locationRequest(ev.location, ev.slot, 'clear'));
@@ -173,8 +178,8 @@ export function freezeRequest(s: GameState, ev: EventInstance, fileOf: (r: Image
     seed: hashSeed(ev.id) % 100000,
     width: W,
     height: H,
-    subjectKey: `freeze:${ev.templateId}:${ev.location}:${ev.participants.join('-')}`,
+    subjectKey: `freeze:${ev.templateId}:${ev.location}:${ev.participants.join('-')}:outfits:${hashSeed(JSON.stringify(dressed.map((c) => c.outfit)))}`,
     ...(refs.length ? { references: refs } : {}),
-    meta: { timeOfDay: timeOfDay(ev.slot), people: people.map((c) => ({ appearance: c.appearance, gender: c.gender, seed: c.portraitSeed })) },
+    meta: { timeOfDay: timeOfDay(ev.slot), people: dressed.map(({ character: c }) => ({ appearance: c.appearance, gender: c.gender, seed: c.portraitSeed })) },
   };
 }

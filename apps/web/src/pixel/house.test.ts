@@ -1,25 +1,62 @@
 import { describe, expect, it } from 'vitest';
 import { content } from '@shared-roof/shared';
-import { findPath, passable, solidTiles } from './house';
+import { findPath, passable, poolPlaces, poolSeat, seatFor, solidTiles, swimSolids, withinPoolWater } from './house';
 
 describe('house layout', () => {
+  it('keeps the player visible when new swimmers precede them in occupancy', () => {
+    const first = poolSeat(0)!;
+    const group = poolPlaces(['kai', 'ron', 'player'], 'player', [first.x, first.y]);
+    expect(group.get('player')).toEqual(first);
+    expect(new Set([...group.values()].map(s => `${s.x},${s.y}`)).size).toBe(3);
+    const moved = poolSeat(2)!;
+    const full = poolPlaces(['a', 'b', 'c', 'd', 'e', 'player'], 'player', [moved.x, moved.y]);
+    expect(new Set([...full.values()].map(s => `${s.x},${s.y}`)).size).toBe(6);
+    expect(full.get('player')).toEqual(moved);
+  });
+  it('provides six distinct real dining chairs and six reachable sofa places', () => {
+    const solid = solidTiles(0);
+    for (const [room, activity] of [['kitchen', 'eat'], ['living', 'hangout']]) {
+      const seats = Array.from({ length: 6 }, (_, i) => seatFor(room, activity, i)!);
+      expect(seats.every(Boolean)).toBe(true);
+      expect(new Set(seats.map(s => `${s.x},${s.y}`)).size).toBe(6);
+      const stairs = content().house.hotspots.find(h => h.action === 'stairs-up')!;
+      for (const s of seats) expect(findPath([stairs.x, stairs.y], [s.x, s.y], solid, 0), `${room}:${s.x},${s.y}`).not.toBeNull();
+      expect(seatFor(room, activity, 6)).toBeNull();
+    }
+  });
+  it('keeps water blocked for walkers but gives six swimmers distinct reachable water places', () => {
+    const dry = solidTiles(0), water = swimSolids(0);
+    const seats = Array.from({ length: 6 }, (_, i) => poolSeat(i)!);
+    expect(new Set(seats.map(s => `${s.x},${s.y}`)).size).toBe(6);
+    for (const s of seats) {
+      expect(withinPoolWater(s.x, s.y)).toBe(true);
+      expect(dry.has(`${s.x},${s.y}`)).toBe(true);
+      expect(water.has(`${s.x},${s.y}`)).toBe(false);
+      expect(findPath([8, 4], [s.x, s.y], water, 0)).not.toBeNull();
+    }
+    expect(poolSeat(6)).toBeNull();
+    const p = content().house.furniture.find(f => f.type === 'pool')!;
+    expect(withinPoolWater(p.x, p.y + 1)).toBe(false);
+    expect(withinPoolWater(p.x + 1, p.y + p.h - 1)).toBe(false);
+  });
   it('walks around furniture and through doors, never through a wall or a solid piece', () => {
     const solid = solidTiles(0);
     // entrance -> far side of the kitchen: has to use the entrance/living and living/kitchen doors
-    const path = findPath([2, 12], [25, 10], solid, 0)!;
+    const path = findPath([3, 10], [24, 9], solid, 0)!;
     expect(path).not.toBeNull();
-    let [x, y] = [2, 12];
+    let [x, y] = [3, 10];
     for (const [nx, ny] of path) {
       expect(passable(x, y, nx, ny, solid, 0)).toBe(true);
       [x, y] = [nx, ny];
     }
     // a seat on the sofa is solid furniture but still a valid goal
     const sofa = content().house.furniture.find((f) => f.type === 'sofa' && f.floor === 0)!;
-    expect(findPath([9, 9], [sofa.x, sofa.y], solid, 0)?.at(-1)).toEqual([sofa.x, sofa.y]);
+    expect(findPath([6, 11], [sofa.x, sofa.y], solid, 0)?.at(-1)).toEqual([sofa.x, sofa.y]);
   });
   it('every room spot and hotspot is reachable from the stairs on its floor (upstairs women\'s room included)', () => {
     for (const floor of [0, 1]) {
       const solid = solidTiles(floor);
+      for (const r of content().house.rooms.filter(r => r.floor === floor)) for (const [x, y] of r.spots) expect(solid.has(`${x},${y}`), `${r.id} standing spot ${x},${y}`).toBe(false);
       const stairs = content().house.hotspots.find((h) => h.floor === floor && h.action.startsWith('stairs'))!;
       const targets = [...content().house.rooms.filter((r) => r.floor === floor).flatMap((r) => r.spots), ...content().house.hotspots.filter((h) => h.floor === floor).map((h) => [h.x, h.y])];
       for (const [tx, ty] of targets) expect(findPath([stairs.x, stairs.y], [tx, ty], solid, floor), `${floor}:${tx},${ty}`).not.toBeNull();
