@@ -1,6 +1,6 @@
 // Character creator: identity → personality → tastes → appearance (live portrait) → housemates. Keyboard accessible.
 import { useEffect, useMemo, useState } from 'react';
-import { compileAppearanceTags, content, DEFAULT_PLAYER, hashSeed, TASTE_AXES, TRAIT_NAMES, type Appearance, type Gender, type PlayerSetup } from '@shared-roof/shared';
+import { compileAppearanceTags, content, defaultCast, DEFAULT_PLAYER, hashSeed, TASTE_AXES, TRAIT_NAMES, type Appearance, type Gender, type PlayerSetup } from '@shared-roof/shared';
 import { useGame } from '../store';
 import { Btn, Panel } from '../components/ui';
 import { PixelImage, ProcPortrait, SpritePreview, samplePortraitPalette, useImage } from '../components/pixel';
@@ -59,8 +59,15 @@ export function Creator() {
   const { newGame, joinAsNewPlayer, busy, setScreen, health, view, settings, setSettings } = useGame();
   // after your character graduates you create the next one; the cast is already there
   const next = !!view?.awaitingPlayer;
+  // three men and three women: the next character takes the graduate's place, same gender
+  const lockedGender = next ? (view.characters.find((c) => c.id === view.playerId)?.gender as Gender | undefined) : undefined;
   const [step, setStep] = useState(0);
-  const [p, setP] = useState<PlayerSetup>({ ...DEFAULT_PLAYER, name: next ? '' : DEFAULT_PLAYER.name, portraitSeed: next ? Math.floor(Math.random() * 99999) : hashSeed(DEFAULT_PLAYER.name) % 100000 });
+  const [p, setP] = useState<PlayerSetup>({
+    ...DEFAULT_PLAYER,
+    ...(lockedGender && lockedGender !== DEFAULT_PLAYER.gender ? { gender: lockedGender, interestedIn: [lockedGender === 'man' ? 'woman' : 'man'] } : {}),
+    name: next ? '' : DEFAULT_PLAYER.name,
+    portraitSeed: next ? Math.floor(Math.random() * 99999) : hashSeed(DEFAULT_PLAYER.name) % 100000,
+  });
   const [portrait, setPortrait] = useState(p);
   const [portraitBusy, setPortraitBusy] = useState(false);
   const portraitDirty = portraitKey(p) !== portraitKey(portrait);
@@ -110,7 +117,7 @@ export function Creator() {
                   {!ageOk && <span className="ml-2 text-xs text-rose">housemates are 20–35</span>}
                 </div>
                 <label htmlFor="c-gender">gender</label>
-                <select id="c-gender" className="px-panel-soft px-2 py-1" value={p.gender} onChange={(e) => set({ gender: e.target.value as Gender })}>
+                <select id="c-gender" className="px-panel-soft px-2 py-1" value={p.gender} disabled={!!lockedGender} title={lockedGender ? `taking your last character's place: the house stays three men and three women` : undefined} onChange={(e) => set({ gender: e.target.value as Gender })}>
                   <option value="woman">woman</option>
                   <option value="man">man</option>
                   <option value="nonbinary">nonbinary</option>
@@ -273,7 +280,7 @@ export function Creator() {
               </label>
               {!randomCast ? (
                 <div className="grid grid-cols-5 gap-3">
-                  {content().cast.map((c) => (
+                  {defaultCast(p.gender).map((c) => (
                     <div key={c.id} className="px-panel-soft flex flex-col items-center p-2 text-center text-xs">
                       <CreatorPortrait id={c.id} age={c.age} gender={c.gender} appearance={c.appearance} seed={c.portraitSeed} />
                       <div className="mt-1 text-sm">{c.name}</div>

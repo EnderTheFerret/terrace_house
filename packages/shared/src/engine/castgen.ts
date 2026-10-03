@@ -168,8 +168,20 @@ export function baseCharacter(
   return c;
 }
 
-export function defaultCast(): Character[] {
-  return content().cast.map((e) => baseCharacter(e.id, e));
+/** Terrace House is always three men and three women: the five housemates who complete the player's half. */
+export const castGenders = (player: Gender): Gender[] => (player === 'man' ? ['woman', 'woman', 'woman', 'man', 'man'] : ['woman', 'woman', 'man', 'man', 'man']);
+
+/** The hand-written cast (three of each): all six, or the five in file order that fill `castGenders(player)`. */
+export function defaultCast(player?: Gender): Character[] {
+  const need = player ? castGenders(player) : null;
+  const take = (g: Gender) => {
+    if (!need) return true;
+    const i = need.indexOf(g);
+    if (i < 0) return false;
+    need.splice(i, 1);
+    return true;
+  };
+  return content().cast.filter((e) => take(e.gender)).map((e) => baseCharacter(e.id, e));
 }
 
 function speechFromArchetype(a: Archetype, rng: Rng): Speech {

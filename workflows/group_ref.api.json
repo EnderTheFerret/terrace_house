@@ -28,60 +28,6 @@
       "title": "VAE"
     }
   },
-  "ref1": {
-    "class_type": "LoadImage",
-    "inputs": {
-      "image": "reference.png"
-    },
-    "_meta": {
-      "title": "Participant 1 portrait (patched; unused slots are removed)"
-    }
-  },
-  "ref2": {
-    "class_type": "LoadImage",
-    "inputs": {
-      "image": "reference.png"
-    },
-    "_meta": {
-      "title": "Participant 2 portrait (patched; unused slots are removed)"
-    }
-  },
-  "ref3": {
-    "class_type": "LoadImage",
-    "inputs": {
-      "image": "reference.png"
-    },
-    "_meta": {
-      "title": "Participant 3 portrait (patched; unused slots are removed)"
-    }
-  },
-  "ref4": {
-    "class_type": "LoadImage",
-    "inputs": {
-      "image": "reference.png"
-    },
-    "_meta": {
-      "title": "Participant 4 portrait (patched; unused slots are removed)"
-    }
-  },
-  "ref5": {
-    "class_type": "LoadImage",
-    "inputs": {
-      "image": "reference.png"
-    },
-    "_meta": {
-      "title": "Participant 5 portrait (patched; unused slots are removed)"
-    }
-  },
-  "ref6": {
-    "class_type": "LoadImage",
-    "inputs": {
-      "image": "reference.png"
-    },
-    "_meta": {
-      "title": "Participant 6 portrait (patched; unused slots are removed)"
-    }
-  },
   "enc": {
     "class_type": "TextEncodeQwenImage21",
     "inputs": {
@@ -95,45 +41,17 @@
       ],
       "prompt": "positive prompt",
       "negative_prompt": "",
-      "resolution": 768,
-      "images.image_1": [
-        "ref1",
-        0
-      ],
-      "images.image_2": [
-        "ref2",
-        0
-      ],
-      "images.image_3": [
-        "ref3",
-        0
-      ],
-      "images.image_4": [
-        "ref4",
-        0
-      ],
-      "images.image_5": [
-        "ref5",
-        0
-      ],
-      "images.image_6": [
-        "ref6",
-        0
-      ],
-      "images.image_7": [
-        "ref7",
-        0
-      ]
+      "resolution": 0
     },
     "_meta": {
-      "title": "Prompt + participant references"
+      "title": "Scene descriptions with optional room canvas"
     }
   },
   "lat": {
     "class_type": "EmptyLatentImage",
     "inputs": {
-      "width": 1024,
-      "height": 768,
+      "width": 1216,
+      "height": 832,
       "batch_size": 1
     },
     "_meta": {
@@ -193,19 +111,10 @@
         "img",
         0
       ],
-      "filename_prefix": "shared_roof_group"
+      "filename_prefix": "shared_roof_scene"
     },
     "_meta": {
       "title": "Save"
-    }
-  },
-  "ref7": {
-    "class_type": "LoadImage",
-    "inputs": {
-      "image": "reference.png"
-    },
-    "_meta": {
-      "title": "Room background (patched; removed when the location has none)"
     }
   }
 }

@@ -87,14 +87,17 @@ export function chatPrompt(s: GameState, from: string, to: string, thread: { fro
   );
 }
 
-/** One visual line for a freeze-frame (SillyTavern's "Scenario" image mode): staging, not dialogue. */
+/** One short action for the current speaker; the game supplies everyone else's body language. */
 export function shotPrompt(s: GameState, ev: EventInstance, transcript: { speaker: string; text: string }[]): string {
-  const who = ev.participants.map((id) => firstName(s, id)).join(', ');
+  const who = [...new Set(ev.participants)].filter((id) => s.characters[id]).slice(0, 6).map((id) => `${id}: ${firstName(s, id)}`).join(', ');
+  const swimmers = ev.participants.filter((id) => s.characters[id]?.swimming).map((id) => firstName(s, id));
+  const speaker = transcript.findLast((l) => ev.participants.includes(l.speaker) && s.characters[l.speaker])?.speaker ?? ev.participants[0];
   return [
     `A reality show freeze-frame of "${ev.title}" at the ${placeName(ev.location)} with ${who}.`,
     `What just happened: ${ev.premise}`,
+    ...(swimmers.length ? [`In the pool water: ${swimmers.join(', ')}. Everyone else is out of the water.`] : []),
     `Last lines:\n${transcript.slice(-4).map((l) => `${s.characters[l.speaker] ? firstName(s, l.speaker) : l.speaker}: ${l.text}`).join('\n')}`,
-    'Describe the single frame in one sentence (max 35 words): who stands or sits where, their poses and expressions, one key prop. Use the names. No dialogue, no camera talk, nothing explicit.',
+    `Output JSON only: {"${speaker}":"short action"}. Describe only this speaker's expression and hand gesture from the last lines, max 100 characters. The game fixes their position and clothes. Do not add swimming motions, floating, sitting, new clothing or invented props. A prop is allowed only if the dialogue explicitly mentions it. Omit names, other people, dialogue and camera talk. Nothing explicit.`,
   ].join('\n\n');
 }
 

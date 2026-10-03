@@ -31,7 +31,7 @@ export const config = {
   comfyUrl: env('COMFY_URL', 'http://127.0.0.1:8188'),
   comfyWorkflow: resolve(ROOT, env('COMFY_WORKFLOW', './workflows/txt2img.api.json')),
   comfyMapping: resolve(ROOT, env('COMFY_MAPPING', './workflows/mapping.json')),
-  /** reference-image workflow for consistent faces in freeze-frames; COMFY_REF_WORKFLOW=off disables it */
+  /** portrait edit workflow; scenes have their own room-only workflow */
   comfyRefWorkflow: env('COMFY_REF_WORKFLOW', './workflows/ref_edit.api.json'),
   comfyRefMapping: resolve(ROOT, env('COMFY_REF_MAPPING', './workflows/ref_mapping.json')),
   stylePrefix: env('IMAGE_STYLE_PREFIX', 'pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, reality show still'),

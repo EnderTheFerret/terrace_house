@@ -6,7 +6,7 @@ import {
   panelPrediction, planSlot, predictionText, projectForPlayer, proposeOutcome, recordCommentary, resolveScene, content, placeName,
   type Commentary, type EventInstance, type GameState, type Intent, type LineContext, type NewGameOptions, type PlannedScene,
   type PlayerSetup, type PredictionCond, type Emotion, type Beat, classifyIntent, joinNewPlayer, recordChat, recordPlayerWords, replyBeatType,
-  MAX_TYPED_EXCHANGES, passTime, recordDiary, reactionTo, blockOver, isShabbat, SLOT_START, MINUTES_PER_LINE, occasionFor, occasionForCharacter, outfitFor, typedResponders,
+  MAX_TYPED_EXCHANGES, passTime, recordDiary, reactionTo, feltEmotion, blockOver, isShabbat, SLOT_START, MINUTES_PER_LINE, occasionFor, occasionForCharacter, outfitFor, typedResponders,
 } from '@shared-roof/shared';
 import { z } from 'zod';
 import type { Store } from '../db';
@@ -150,6 +150,9 @@ export class GameSession {
   newPlayer(setup: PlayerSetup) {
     if (this.busy) throw new Error('generation is running');
     const s = this.requireState();
+    // three men and three women: whoever moves in takes the graduate's place
+    const old = s.characters[s.playerId];
+    if (setup.gender !== old.gender) throw new Error(`your next housemate takes ${old.name}'s place, so they must be a ${old.gender}`);
     this.state = joinNewPlayer(s, setup);
     this.log('new-player', { setup });
     this.digestSince = this.state.world.tick;
@@ -425,7 +428,7 @@ export class GameSession {
   // ------------------------------------------------------------ scene streaming
 
   /** Illustrate a visible conversation on demand without changing its outcome or advancing time. */
-  sceneImage(id: string) {
+  async sceneImage(id: string) {
     const s = this.requireState();
     const run = this.runs.get(id);
     if (!run || !run.rendered || run.phase === 'awaiting-response') throw new Error('scene is not available');
@@ -434,9 +437,9 @@ export class GameSession {
     if (participants.length < 2) throw new Error('a scene image needs another housemate');
     const phone = run.ev.location === 'phone';
     const ev = { ...run.ev, participants, location: phone ? s.characters[s.playerId].location : run.ev.location };
-    const exchange = run.transcript.slice(-6).map((l) => `${speakerName(s, l.speaker)}: ${l.text}`).join(' ').slice(-1200);
-    const context = `${phone ? `phone conversation, split-screen composition, ${participants.map((p) => `${speakerName(s, p)} separately at ${placeName(s.characters[p].location)}`).join('; ')}, each holding a phone, not in the same room. ` : ''}${run.ev.premise}. Recent conversation: ${exchange}. Illustrate the situation and body language, no speech bubbles or captions.`;
-    return this.images.request(freezeRequest(s, ev, (r) => this.images.localFile(r), context), PRIORITY.currentScene);
+    const poses = phone ? Object.fromEntries(participants.map((p) => [p, `holding a phone, separately at ${placeName(s.characters[p].location)}`])) : await this.gen.shot(s, ev, run.transcript);
+    const context = `${phone ? 'phone conversation, split-screen composition, not in the same room. ' : ''}No speech bubbles or captions.`;
+    return this.images.request(freezeRequest(s, ev, (r) => this.images.localFile(r), context, run.transcript, poses), PRIORITY.currentScene);
   }
 
   /** Run the next segment of a scene, emitting SSE events. Resolves when the segment ends. */
@@ -573,7 +576,7 @@ export class GameSession {
     const idx = run.transcript.length;
     emit('line-start', { index: idx, speaker: P, name: speakerName(s, P), caption: null, emotion: 'neutral', beatType: 'smalltalk', subtext: null });
     emit('token', { index: idx, token: text });
-    run.transcript.push({ speaker: P, text, source: 'player' });
+    run.transcript.push({ speaker: P, text, source: 'player', emotion: feltEmotion(text) ?? undefined });
     emit('line-end', { index: idx, speaker: P, text, caption: null, source: 'player' });
     const responders = typedResponders(s, run.ev.participants, run.transcript, text);
     if (responders.length) {
@@ -622,7 +625,7 @@ export class GameSession {
     );
     lines.forEach((l, i) => {
       const caption = captionFor(beats[i]);
-      run.transcript.push({ ...l, caption });
+      run.transcript.push({ ...l, caption, emotion: beats[i].emotion });
       emit('line-end', { index: base + i, speaker: l.speaker, text: l.text, caption, source: l.source });
     });
   }
@@ -706,9 +709,9 @@ export class GameSession {
     this.log('commentary', { eventId: ev.id, prediction, calledBack: callbacks, remarks, commentary: cm.commentary, source: cm.source });
     run.commentary = { ...cm.commentary, prediction: prediction ? { text: prediction.text } : undefined };
     if (ev.freeze) {
-      // the LLM stages the frame (who stands where, poses, a prop); empty in mock mode
+      // Keep dialogue-based actions inside each participant's description.
       const shot = await this.gen.shot(this.state, ev, run.transcript);
-      const img = this.images.request(freezeRequest(this.state, ev, (r) => this.images.localFile(r), shot), PRIORITY.freeze);
+      const img = this.images.request(freezeRequest(this.state, ev, (r) => this.images.localFile(r), '', run.transcript, shot), PRIORITY.freeze);
       run.freeze = { caption: cm.commentary.freezeFrame?.caption ?? 'that moment', image: img.key };
       emit('freeze', { id: ev.id, caption: run.freeze.caption, image: img });
     }

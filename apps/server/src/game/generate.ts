@@ -1,11 +1,11 @@
 // Generation service: wires prompts + LLM client + mock fallback + budget + voice checks.
 import {
   BeatSheet, Commentary, DeltaProposal, content, firstName, hashSeed, mockBeatSheet, mulberry32, voiceCheck, placeName, isShabbat,
-  type Beat, type EventInstance, type GameState, type Intent, type LineContext, type LlmClient, type PredictionCond, type SceneChoices,
+  type Beat, type Emotion, type EventInstance, type GameState, type Intent, type LineContext, type LlmClient, type PredictionCond, type SceneChoices,
 } from '@shared-roof/shared';
 import { config } from '../config';
 import { MockLlm } from '../llm/mock';
-import { structured, logFailure, type Budget } from '../llm/structured';
+import { structured, logFailure, extractJson, type Budget } from '../llm/structured';
 import { beatSheetPrompt, deltaPrompt, linesPrompt, parseLines } from '../prompts/scene';
 import { chatPrompt, commentaryPrompt, flavorPrompt, intermissionPrompt, shotPrompt } from '../prompts/studio';
 import { contentCheck } from './personas';
@@ -18,6 +18,8 @@ export interface Line {
   text: string;
   caption?: string | null;
   source: 'llm' | 'mock' | 'player';
+  /** how the speaker felt saying it: stages their pose in scene images */
+  emotion?: Emotion;
 }
 
 export class VoiceStats {
@@ -204,14 +206,18 @@ export class Generator {
     }
   }
 
-  /** One staged visual line for a freeze-frame; '' when the LLM is off or the answer is unusable. */
-  async shot(s: GameState, ev: EventInstance, transcript: Line[]): Promise<string> {
-    if (!this.real) return '';
+  /** The current speaker's action stays inside that person's image description. */
+  async shot(s: GameState, ev: EventInstance, transcript: Line[]): Promise<Record<string, string>> {
+    if (!this.real) return {};
     try {
-      const t = (await this.llm.complete({ kind: 'flavor', prompt: shotPrompt(s, ev, transcript), temperature: 0.5, maxTokens: 80 })).trim().split('\n')[0];
-      return t.length > 10 && t.length < 300 && contentCheck(t) ? t : '';
+      const speaker = transcript.findLast((l) => ev.participants.includes(l.speaker) && s.characters[l.speaker])?.speaker ?? ev.participants[0];
+      const ids = s.characters[speaker] ? [speaker] : [];
+      const schema = { type: 'object', properties: Object.fromEntries(ids.map((id) => [id, { type: 'string', maxLength: 100 }])), required: ids, additionalProperties: false };
+      const j = extractJson(await this.llm.complete({ kind: 'flavor', prompt: shotPrompt(s, ev, transcript), temperature: 0.5, maxTokens: 120, schema }));
+      if (!j || typeof j !== 'object' || Array.isArray(j)) return {};
+      return Object.fromEntries(Object.entries(j).filter(([id, pose]) => ids.includes(id) && typeof pose === 'string' && pose.trim().length > 0 && pose.length <= 100 && contentCheck(pose)).map(([id, pose]) => [id, (pose as string).trim()]));
     } catch {
-      return '';
+      return {};
     }
   }
 

@@ -19,40 +19,10 @@
     "node": "lat",
     "input": "height"
   },
-  "reference": {
-    "node": "ref1",
-    "input": "image"
+  "canvas": {
+    "encoder": "enc",
+    "sampler": "k"
   },
-  "references": [
-    {
-      "node": "ref1",
-      "input": "image"
-    },
-    {
-      "node": "ref2",
-      "input": "image"
-    },
-    {
-      "node": "ref3",
-      "input": "image"
-    },
-    {
-      "node": "ref4",
-      "input": "image"
-    },
-    {
-      "node": "ref5",
-      "input": "image"
-    },
-    {
-      "node": "ref6",
-      "input": "image"
-    },
-    {
-      "node": "ref7",
-      "input": "image"
-    }
-  ],
   "output": {
     "node": "save"
   }

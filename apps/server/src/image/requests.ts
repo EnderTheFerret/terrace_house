@@ -1,6 +1,6 @@
 // Image request builders (prompts compiled by shared pure functions; style prefix from config).
 import {
-  compileAppearancePrompt, compileAppearanceTags, compileLocationPrompt, content, hashSeed, sanitizePromptText, GLOBAL_NEGATIVE, outfitFor, occasionForCharacter,
+  compileAppearancePrompt, compileAppearanceTags, compileLocationPrompt, content, hashSeed, isOutdoors, sanitizePromptText, GLOBAL_NEGATIVE, outfitFor, occasionForCharacter,
   type Character, type Emotion, type EventInstance, type GameState, type ImageRequest, type Slot,
 } from '@shared-roof/shared';
 import { config } from '../config';
@@ -113,8 +113,9 @@ export function locationRequest(locId: string, slot: Slot, weather: string): Ima
   const name = node?.name ?? (room ? `share house ${room.name}` : locId);
   const desc = scenery[locId] ?? node?.description ?? (room ? `interior of a Tel Aviv share house ${room.name}` : '');
   const tod = timeOfDay(slot);
-  // weather variants are rendered as overlays client-side; only rain/snow get their own background
-  const w = weather === 'rain' || weather === 'typhoon' || weather === 'snow' ? weather : 'clear';
+  // weather variants are rendered as overlays client-side; only rain/snow get their own background, and only outdoors
+  // (a "rainy" kitchen was drawn with rain falling inside)
+  const w = (weather === 'rain' || weather === 'typhoon' || weather === 'snow') && isOutdoors(locId) ? weather : 'clear';
   const style = config.stylePrefix.replace(/,?\s*reality show still/gi, '');
   const p = compileLocationPrompt(name, desc, tod, w, style);
   if (scenery[locId]) p.positive = `${style}, wide game background, ${desc}, ${tod} lighting${w === 'clear' ? '' : `, ${w} weather`}, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people`;
@@ -146,40 +147,60 @@ export function avatarRequest(panelistId: string): ImageRequest {
   };
 }
 
+/** Body language for a person's last felt emotion, so scene images show reactions instead of a lineup. */
+const POSE: Record<Emotion, string> = {
+  neutral: 'relaxed, listening',
+  happy: 'laughing with a big smile',
+  shy: 'smiling bashfully and glancing away, a hand touching their hair',
+  awkward: 'awkward half-smile, rubbing the back of their neck',
+  annoyed: 'arms crossed, unimpressed frown',
+  sad: 'eyes downcast, shoulders slumped',
+  excited: 'beaming and leaning in, hands raised mid-gesture',
+  nervous: 'fidgeting and biting their lip',
+  tender: 'soft smile, leaning toward the person they are talking to',
+  angry: 'scowling, tense, pointing',
+};
+
 /**
  * Freeze-frame / scene still with everyone in it (up to 6). `fileOf` returns a finished image file for a request:
- * each participant's approved portrait becomes a reference (image 1, image 2, ...) so every face stays consistent, and
- * the room's pixel-art background goes last so the model copies its style instead of drawing the room as a photo.
+ * The room is the only image reference; identities and actions stay together in each character description.
  */
-export function freezeRequest(s: GameState, ev: EventInstance, fileOf: (r: ImageRequest) => string | null = () => null, context = ''): ImageRequest {
-  const people = ev.participants.map((id) => s.characters[id]).filter(Boolean).slice(0, 6);
+export function freezeRequest(s: GameState, ev: EventInstance, fileOf: (r: ImageRequest) => string | null = () => null, context = '', lines: { speaker: string; emotion?: Emotion }[] = [], poses: Record<string, string> = {}): ImageRequest {
+  const people = [...new Set(ev.participants)].map((id) => s.characters[id]).filter(Boolean).slice(0, 6);
   const dressed = people.map((c) => {
     const outfit = outfitFor(c, occasionForCharacter(c, ev), s.world.day);
     return { original: c, outfit, character: { ...c, appearance: { ...c.appearance, outfit } } };
   });
-  const refs: string[] = [];
-  const who = dressed.map(({ original, character: c, outfit }) => {
-    const looks = compileAppearancePrompt(c, 'scene', { stylePrefix: '' }).positive.replace(/^,\s*/, '');
-    const base = fileOf(portraitRequest(original));
-    const file = fileOf(outfitPortraitRequest(original, outfit, base)) ?? base;
-    if (!file) return looks;
-    refs.push(file);
-    return `the person from image ${refs.length} (${looks}), wearing ${sanitizePromptText(outfit)}; copy their face and hair identity while using these clothes`;
-  }).join('; and ');
-  const loc = scenery[ev.location] ?? content().city.nodes.find((n) => n.id === ev.location)?.description ?? `share house ${ev.location}`;
+  // each person is staged on their own: where they are (in the water or not) and the body language of their last line
+  const anySwimming = people.some((c) => c.swimming);
+  const lastSpeaker = lines.at(-1)?.speaker;
+  const staging = (c: Character) => {
+    const felt = lines.findLast((l) => l.speaker === c.id && l.emotion)?.emotion;
+    return [
+      c.swimming ? 'in the pool water up to the chest' : anySwimming ? 'out of the water and dry, sitting at the pool edge or on a lounger' : '',
+      poses[c.id] ?? '',
+      !poses[c.id] && c.id === lastSpeaker ? 'talking, mid-gesture' : '',
+      poses[c.id] ? '' : POSE[felt ?? 'neutral'],
+    ].filter(Boolean).join(', ');
+  };
   const bg = fileOf(locationRequest(ev.location, ev.slot, s.world.weather)) ?? fileOf(locationRequest(ev.location, ev.slot, 'clear'));
-  if (bg) refs.push(bg);
-  const style = bg ? `set in the room from image ${refs.length}, everything including the people redrawn in the exact pixel art style and palette of image ${refs.length}, not a photo` : 'the whole image including the room drawn in the same pixel art style, not a photo';
+  const who = dressed.map(({ original, character: c }) => {
+    const tags = compileAppearanceTags(c);
+    const looks = [`adult ${c.gender === 'man' ? 'man' : c.gender === 'woman' ? 'woman' : 'person'}`, ...tags.slice(1).filter((t) => !t.endsWith(' eyes')), c.appearanceText ? sanitizePromptText(c.appearanceText) : ''].filter(Boolean).join(', ');
+    return `${original.name.split(' ')[0]} (${looks}), ${staging(original)}`;
+  }).join('; ');
+  const loc = bg ? ev.location : scenery[ev.location] ?? content().city.nodes.find((n) => n.id === ev.location)?.description ?? `share house ${ev.location}`;
+  const style = bg ? 'set in the room from image 1, everything including the people redrawn in the pixel art style and palette of image 1, not a photo' : 'the whole image including the room drawn in the same pixel art style, not a photo';
   const [W, H] = size('freeze');
   return {
     kind: 'freeze',
-    prompt: `${config.stylePrefix}, adult, age 20+, freeze frame still, ${sanitizePromptText(ev.title)} at ${loc}, ${people.length > 2 ? `a group of ${people.length}: ` : ''}${who}, emotional moment, cinematic composition, ${style}${context ? `, ${timeOfDay(ev.slot)} lighting, ${s.world.weather} weather, ${sanitizePromptText(context)}` : ''}`,
+    prompt: `${config.stylePrefix}, adult, age 20+, freeze frame still at ${loc}, exactly ${people.length} people, each of them appears once, nobody else. Wide shot with all heads and upper bodies clearly visible. From left to right: ${who}. Draw each listed housemate once, with their distinct hair and clothes. Candid conversation, not lined up, not posing for the camera. ${style}, ${timeOfDay(ev.slot)} lighting, ${['rain', 'typhoon', 'snow'].includes(s.world.weather) && !isOutdoors(ev.location) ? `${s.world.weather} only outside the windows, dry indoors` : `${s.world.weather} weather`}. No other people, duplicate people, background figures, mirrors, speech bubbles, captions or text${context ? `, ${sanitizePromptText(context)}` : ''}`,
     negative: GLOBAL_NEGATIVE,
     seed: hashSeed(ev.id) % 100000,
     width: W,
     height: H,
     subjectKey: `freeze:${ev.templateId}:${ev.location}:${ev.participants.join('-')}:outfits:${hashSeed(JSON.stringify(dressed.map((c) => c.outfit)))}`,
-    ...(refs.length ? { references: refs } : {}),
+    ...(bg ? { reference2: bg } : {}),
     meta: { timeOfDay: timeOfDay(ev.slot), people: dressed.map(({ character: c }) => ({ appearance: c.appearance, gender: c.gender, seed: c.portraitSeed })) },
   };
 }

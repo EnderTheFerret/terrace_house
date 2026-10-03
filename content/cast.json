@@ -790,6 +790,163 @@
         "diet": "vegan",
         "keepsShabbat": false
       }
+    },
+    {
+      "id": "hana",
+      "name": "Noga Friedman",
+      "age": 23,
+      "gender": "woman",
+      "interestedIn": [
+        "man"
+      ],
+      "occupation": "kindergarten teacher and weekend DJ",
+      "hometown": "Kibbutz Ein Gedi",
+      "appearance": {
+        "hairStyle": "long wavy, half up",
+        "hairColor": "honey blonde",
+        "eyeColor": "green",
+        "build": "athletic",
+        "outfit": "oversized linen shirt, bike shorts, sandals",
+        "accessory": "stack of beaded bracelets",
+        "skinTone": "tan"
+      },
+      "voiceNotes": "Bright, quick, warm. Laughs first and asks later; gets oddly formal when hurt.",
+      "portraitSeed": 1606,
+      "contractEp": 21,
+      "persona": {
+        "traits": [
+          0.7,
+          0.4,
+          0.85,
+          0.75,
+          0.4
+        ],
+        "attachment": "anxious",
+        "conflictStyle": "deflect-with-humor",
+        "values": [
+          "fun",
+          "loyalty",
+          "freedom",
+          "family",
+          "honesty"
+        ],
+        "needsProfile": {
+          "energy": 9,
+          "hunger": 7,
+          "social": 9,
+          "privacy": 3,
+          "romance": 7,
+          "achievement": 4
+        },
+        "goals": {
+          "long": {
+            "id": "hana-city",
+            "text": "prove she can make it in the city without going back to the kibbutz",
+            "kind": "career"
+          },
+          "short": {
+            "id": "hana-crush",
+            "text": "find out if anyone here likes her for more than the fun",
+            "kind": "partner"
+          }
+        },
+        "secret": {
+          "factId": "secret-hana",
+          "content": "Noga failed her teaching certification exam twice and still works on a temporary licence.",
+          "exposureCost": 0.4
+        },
+        "fears": [
+          "being the fun one nobody takes seriously",
+          "going home with nothing to show"
+        ],
+        "tells": [
+          "laughs a beat too long",
+          "fiddles with her bracelets"
+        ],
+        "speech": {
+          "sentenceLen": {
+            "mean": 9,
+            "sd": 4
+          },
+          "formality": 0.15,
+          "fillers": [
+            "wait",
+            "like",
+            "yalla"
+          ],
+          "fillerRate": 0.25,
+          "humor": "teasing",
+          "catchphrase": {
+            "text": "Okay but hear me out.",
+            "maxRate": 0.08
+          },
+          "trailing": "none",
+          "chat": {
+            "stampRate": 0.6,
+            "punctuation": "heavy",
+            "replyLatency": "instant",
+            "readIgnoreProb": 0.02
+          },
+          "exemplars": [
+            "Okay but hear me out: pool, music, nobody cooks tonight.",
+            "Wait, you were being serious? Sorry. I'm listening now, really.",
+            "Thirty kids before ten a.m. You think you scare me?"
+          ],
+          "doNot": [
+            "cruelty",
+            "long speeches"
+          ],
+          "slang": [
+            "sababa",
+            "achla"
+          ]
+        },
+        "routine": {
+          "jobSlots": [
+            {
+              "slot": "slot1",
+              "weekdays": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            }
+          ],
+          "habits": [
+            {
+              "slot": "evening",
+              "action": "hobby",
+              "room": "living"
+            },
+            {
+              "slot": "morning",
+              "action": "exercise",
+              "room": "backyard"
+            }
+          ],
+          "hobbies": [
+            "DJing",
+            "open-water swimming",
+            "thrift shopping"
+          ],
+          "tastes": [
+            0.6,
+            0.3,
+            0.2,
+            -0.2,
+            0.7,
+            0.1
+          ]
+        },
+        "backstory": "Grew up on a kibbutz by the Dead Sea and moved to Tel Aviv for a teaching job and the nightlife. Spins small sets on weekends. Everyone loves her at parties; she is less sure anyone knows her.",
+        "homesickness": 0.55,
+        "gossipiness": 0.5,
+        "kashrut": "none",
+        "diet": "omnivore",
+        "keepsShabbat": false
+      }
     }
   ]
 }

@@ -84,13 +84,16 @@ export function validPlanPlace(s: GameState, destination: string, from: string, 
   return [from, to].some((id) => { const c = s.characters[id]; return c && [bedroomOf(c), c.gender === 'man' ? 'balconyM' : 'balconyW'].includes(destination); });
 }
 
+/** Open to the sky: weather (rain, heat) reaches it. Every other house room and city place is indoors. */
+export const isOutdoors = (place: string) =>
+  ['backyard', 'balconyW', 'balconyM'].includes(place) || ['beach', 'park', 'scenic', 'harbor'].includes(content().city.nodes.find((n) => n.id === place)?.type ?? '');
+
 export function startPlans(s: GameState) {
   for (const p of s.invitations.filter((p) => p.status === 'accepted' && p.episode === s.world.episode && p.slot === s.world.slot)) {
     if (s.world.flags[`planStarted_${p.id}`]) continue;
     s.world.flags[`planStarted_${p.id}`] = true;
     if (!validPlanPlace(s, p.node, p.from, p.to)) { p.status = 'declined'; continue; }
-    const outdoor = ['beach', 'park', 'scenic', 'harbor'].includes(content().city.nodes.find((n) => n.id === p.node)?.type ?? '') || ['backyard', 'balconyW', 'balconyM'].includes(p.node);
-    if (outdoor && ['rain', 'heatwave', 'typhoon'].includes(s.world.weather)) {
+    if (isOutdoors(p.node) &&['rain', 'heatwave', 'typhoon'].includes(s.world.weather)) {
       p.status = 'declined';
       postGroupChat(s, p.from, `Let's postpone ${content().city.nodes.find((n) => n.id === p.node)?.name ?? p.node}: ${s.world.weather}. No hard feelings.`);
       addLog(s, { kind: 'system', text: `Weather postponed the plan with ${firstName(s, p.from)}.`, participants: [p.from, p.to], salience: 0.3 });

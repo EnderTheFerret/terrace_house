@@ -9,8 +9,20 @@ import { content, eventTemplate } from '../content';
 import { cloneState, housemates, rel } from './core';
 import type { MemoryItem } from '../model';
 import { dayForEpisode, cityEventFor, chooseTyphoonDay, dateOf } from './calendar';
-import { checkDynamics, generateCast, personaLike } from './castgen';
+import { checkDynamics, DEFAULT_PLAYER, generateCast, personaLike } from './castgen';
 import { addPrediction, expirePredictions, pendingCallbacks, proposeCondition, recordCommentary, resolveOn } from './predictions';
+
+describe('cast', () => {
+  it('is always three men and three women, whatever the player picks', () => {
+    for (const gender of ['man', 'woman'] as const) for (const randomizeCast of [false, true]) {
+      const s = createGame({ seed: 5, randomizeCast, moveInDay: false, player: { ...DEFAULT_PLAYER, gender } });
+      const all = Object.values(s.characters);
+      expect(all).toHaveLength(6);
+      expect(all.filter((c) => c.gender === 'man')).toHaveLength(3);
+      expect(all.filter((c) => c.gender === 'woman')).toHaveLength(3);
+    }
+  });
+});
 
 describe('rng', () => {
   it('mulberry32 is deterministic and in [0,1)', () => {

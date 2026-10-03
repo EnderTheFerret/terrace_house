@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGame, type LiveLine } from '../store';
 import { StudioStrip, TopBar } from '../components/layout';
 import { Btn, INTENT_LABEL } from '../components/ui';
-import { EMOTIONS, type Emotion } from '@shared-roof/shared';
+import { EMOTIONS, isOutdoors, type Emotion } from '@shared-roof/shared';
 import { PixelImage, Portrait, Stand, useImage } from '../components/pixel';
 import { api, waitImage, type ImageStatus } from '../api';
 import { chime } from '../audio';
@@ -156,7 +156,7 @@ export function Scene() {
         {/* background */}
         <div className="absolute inset-0">
           {bg?.url ? <PixelImage url={bg.url} factor={6} alt={h?.locationName ?? 'location'} className="h-full w-full" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div className="h-full w-full bg-gradient-to-b from-[#cfe6f7] to-[#f8e1d0]" />}
-          {(view.weather === 'rain' || view.weather === 'typhoon') && !chat && <div className="rain-overlay absolute inset-0" />}
+          {(view.weather === 'rain' || view.weather === 'typhoon') && !chat && h && isOutdoors(h.location) && <div className="rain-overlay absolute inset-0" />}
           {view.slot === 'evening' && <div className="absolute inset-0 bg-[rgb(30_30_80/0.25)]" />}
         </div>
         {/* header */}

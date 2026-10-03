@@ -41,7 +41,7 @@ it('renders distinct swimwear silhouettes with bare arms and legs while preservi
   }
 });
 
-it('generates pool scene swimwear from dressed references and changes cached stills when outfits change', () => {
+it('describes current pool swimwear without portrait references and changes cached stills when outfits change', () => {
   const s = createGame({ seed: 1 });
   for (const c of Object.values(s.characters)) { c.persona.routine.jobSlots = []; c.lastAction = 'hobby'; }
   const pool = planSlot(s, { type: 'pool', mode: 'enter', with: ['mio'] }).state;
@@ -50,7 +50,7 @@ it('generates pool scene swimwear from dressed references and changes cached sti
   const request = freezeRequest(pool, ev, (r) => r.subjectKey.includes(':outfit:') ? `/cache/${r.subjectKey}.png` : r.kind === 'portrait' ? '/cache/base.png' : null);
   const expected = outfitFor(pool.characters.mio, 'beach', pool.world.day);
   expect(request.prompt).toContain(expected);
-  expect(request.references?.some((p) => p.includes(':outfit:'))).toBe(true);
+  expect(request.references).toBeUndefined();
   expect(request.meta?.people).toEqual(expect.arrayContaining([expect.objectContaining({ appearance: expect.objectContaining({ outfit: expected }) })]));
   pool.characters.mio.swimming = false;
   pool.characters[pool.playerId].swimming = false;

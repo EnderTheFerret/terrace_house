@@ -1,6 +1,53 @@
 # Session handoff
 
-Updated: 2026-10-03 afternoon (Asia/Jerusalem). **Nothing is committed.** All work is in the working tree (see "Files" near the end).
+Updated: 2026-10-03 evening (Asia/Jerusalem). Latest workflow status is below; older sections record earlier experiments.
+
+## Room-only scene workflow integrated (2026-10-03, latest)
+- User accepts the initial kitchen image's character likeness and changes in art style. Success means distinct requested characters without extra copies.
+- `group_ref.api.json` now uses Qwen-Image 2.1 Turbo Q8 with only the room canvas. Character descriptions include hair, skin, build, clothes and accessories; there are no portrait-reference nodes.
+- All scenes up to six people use this route, including manual images and automatic freeze frames. Missing room art uses the same model with an empty latent; scene workflow hashes invalidate old cached stills.
+- `Generator.shot` returns one short JSON action for the latest participating speaker. It is attached inside that character's description. The game supplies swimming positions and the other characters' emotion/body language. Invalid output falls back to those defaults.
+- Six detailed LLM action descriptions failed the first integration smoke (eight people); shortened descriptions and one action corrected it. Final real-model API smoke, replaying the dialogue captured in the first real run, rendered exactly six distinct housemates. Evidence: `logs/scene-probe/integrated-short/pool.png`, `scene-job.json` and `integrated-short.log` (gitignored).
+- Earlier fixed-prompt pool experiment: 10/10 clean seeds. Final integration smoke: one clean image; broader character-count reliability still needs playtesting. Full history: [docs/GENERATE-SCENE.md](docs/GENERATE-SCENE.md).
+- Final checks: 45 targeted tests passed; build passed; source lint passed with `--ignore-pattern logs/**`. Plain lint fails in gitignored exploratory scripts and downloaded LanPaint code. No new dependency or production custom-node installation.
+- Playtest app was started at http://127.0.0.1:5173, API 8787 in real mode; health reports Gemma4 12B and ComfyUI healthy. Test probes used separate databases.
+- User authorized publication: "commit and push".
+
+## Cast balance, generate scene on real scenes, rain indoors (earlier 2026-10-03 evening)
+- **Three men and three women, always:**
+  - `content/cast.json` has a 6th hand-written housemate, **Noga Friedman** (`hana`, woman). The schema now expects 6 entries.
+  - `defaultCast(playerGender)` and `castGenders()` (`castgen.ts`) pick the five who complete the player's half; `defaultCast()` with no argument still returns all six (used by `build-jobs.ts`). Before this, a male player got 4 men and 2 women.
+  - The Creator previews the matching five.
+  - Replacing a graduated *player* must keep their gender: `session.newPlayer` throws, and the Creator locks the gender select. The check is not in `joinNewPlayer`, so old replay logs still load.
+  - NPC graduates were already refilled with the same gender (`leave.ts`). A nonbinary player gets the woman's split.
+  - Noga has **no prebaked portrait** yet; it is generated on demand. Run `build-jobs.ts` + `comfy_gen.py` to bake it.
+- **Generate scene, tested live** (male player, seed 21, real Ollama + ComfyUI). Probe: `npx tsx logs/scene-probe.ts logs/scene-probe pool|dinner`. It lives in the git-ignored `logs/`, as do the images in `logs/scene-probe/`.
+  - **The first pool image was a placeholder.** The 6-person + room job (7 references) passed `IMAGE_TIMEOUT_MS` (180 s); the abandoned ComfyUI job then ran 456 s and slowed the next LLM calls to over a minute.
+  - Uncontended benchmarks for 7 references: 768 → 77 s, 512 → 36 s, 384 → 28 s (faces equal at 512); cold start 101 s; right after a location job 109 s. **The 456 s was not reproduced in isolation.**
+  - Fixes:
+    - `patchWorkflow` sets the encoder `resolution` to 512 for 5+ references (`resolution` entry in `group_ref_mapping.json`).
+    - `ComfyBackend` cancels its own prompt on timeout (targeted `/interrupt` + `/queue delete`).
+    - `ImageQueue` logs `[images] <kind> failed, using a placeholder: <reason>` once (not for jobs skipped while offline).
+  - **Staging** (`freezeRequest(…, lines)`):
+    - per person, in-water vs "out of the water and dry" when anyone is swimming;
+    - body language from their last line's emotion (`POSE` map; `Line.emotion` is now kept in transcripts);
+    - "talking, mid-gesture" for the last speaker;
+    - "candid moment … not lined up".
+  - `sceneImage` is now async and calls `gen.shot`. With a shot, the premise and raw dialogue are left out. `shotPrompt` says who is in the water.
+  - **Open: duplicate people. Full record of every attempt, with images, saved workflows and scripts: [docs/GENERATE-SCENE.md](docs/GENERATE-SCENE.md). Fix this first next session.** Qwen-Image 2.1 sometimes draws someone twice, worst with the player's full-res 832×1216 outfit portrait (the prebaked portraits are 104×152).
+    - Shipped: names tied to references ("Omer, the person from image 1") and an exact headcount.
+    - Tried and dropped: room-first ordering, an "identity references only" line, equal tiny references (0.02 MP), head-and-shoulders crops (1/3 clean).
+    - Next idea: rework the group workflow (crop or mask the outfit portrait to the face, or a different identity method).
+  - Live timings: pool image 90 s (129 s with the LLM shot), kitchen 165 s (249 s total).
+  - Gotcha: resubmitting a job to ComfyUI while Gemma was resident produced pure noise. The game itself unloads Ollama first (`beforeJob`).
+- **Rain never falls indoors:**
+  - `isOutdoors(place)` (`living.ts`; pool deck, balconies, beach/park/scenic/harbor nodes).
+  - `locationRequest` only makes rain/snow variants outdoors, so indoor rooms reuse the clear prebaked art.
+  - The VN `rain-overlay` only shows outdoors.
+  - Scene images say "rain only outside the windows, dry indoors" inside.
+  - The house map was already outdoor-only. Trip destinations count as indoor.
+- Checks: typecheck, lint, **164/164 unit tests** (`SIM_SEEDS=10`), 9 browser tests (scene-image, game, pool, VN; Edge, mock), a mock browser check of a rainy indoor scene.
+- Files: `content/cast.json`, `packages/shared/src/{content,engine/castgen,engine/loop,engine/living,engine/engine.test}.ts`, `apps/server/src/{image/requests,image/comfy,image/queue,game/session,game/generate,prompts/studio,server.test,game/scene-image.test}.ts`, `apps/web/src/screens/{Creator,Scene}.tsx`, `workflows/group_ref_mapping.json`.
 
 ## One model, recall, group-image style, PC freezes (2026-10-03 afternoon)
 

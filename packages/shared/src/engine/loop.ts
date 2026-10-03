@@ -24,7 +24,7 @@ import { depart, departLeaving, evaluateLeaves, markLeaving, processArrivals } f
 import { expirePredictions } from './predictions';
 import { compactAll, previouslyRecap, updatePairSummaries } from './memory';
 import { pruneFacts } from './knowledge';
-import { defaultCast, DEFAULT_PLAYER, generateCast, initRelationships, playerFromSetup, type PlayerSetup } from './castgen';
+import { castGenders, defaultCast, DEFAULT_PLAYER, generateCast, initRelationships, playerFromSetup, type PlayerSetup } from './castgen';
 import { fridgeTotal } from './conditions';
 import { ACTIVITY_MINUTES, canUseCar, classToday, CONTRACT_BONUS, contractDays, MISSES_BEFORE_FIRED, reachability, shiftToday, WAGE } from './city';
 import { epilogueFor } from './epilogue';
@@ -72,8 +72,7 @@ export function createGame(o: NewGameOptions): GameState {
   const rng = mulberry32(o.seed);
   const seasonLength = o.seasonLength ?? 0;
   const P = playerFromSetup(o.player ?? DEFAULT_PLAYER);
-  const genders = P.gender === 'man' ? (['woman', 'woman', 'woman', 'man', 'man'] as const) : (['woman', 'woman', 'man', 'man', 'man'] as const);
-  const cast: Character[] = o.randomizeCast ? generateCast(rng, [...genders], P, seasonLength) : defaultCast();
+  const cast: Character[] = o.randomizeCast ? generateCast(rng, castGenders(P.gender), P, seasonLength) : defaultCast(P.gender);
   const all = [...cast, P];
   const s: GameState = {
     schemaVersion: SCHEMA_VERSION,

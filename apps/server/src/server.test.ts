@@ -55,8 +55,10 @@ describe('prompt builder', () => {
     const room = locationRequest('kitchen', 'lateNight', 'rain');
     expect(room.prompt).toContain('interior of a modern open kitchen');
     expect(room.prompt).not.toContain('reality show still');
-    expect(room.prompt).toContain('night lighting, rain weather');
-    expect(room.subjectKey).toBe('location:kitchen:night:rain');
+    // rain never falls indoors: rooms keep their clear art, open-air places get the rainy variant
+    expect(room.prompt).not.toContain('rain');
+    expect(room.subjectKey).toBe('location:kitchen:night');
+    expect(locationRequest('backyard', 'lateNight', 'rain').prompt).toContain('night lighting, rain weather');
     expect(freezeRequest(s, ev).prompt).toContain('interior of a modern open kitchen');
     expect(locationRequest('backyard', 'evening', 'sunny').prompt).toContain('glass wall separating it from the living room');
   });
@@ -192,15 +194,37 @@ describe('ComfyUI workflow patching', () => {
     expect(out[map.width.node].inputs.width).toBe(832);
     expect(wf[map.positive.node].inputs.text).toBe('positive prompt');
   });
-  it('group workflow: fills one reference per participant and removes the unused slots', () => {
+  it('group workflow has no portrait references or placeholder image dependencies', () => {
     const wf = JSON.parse(readFileSync(resolve(ROOT, 'workflows/group_ref.api.json'), 'utf8'));
     const map = JSON.parse(readFileSync(resolve(ROOT, 'workflows/group_ref_mapping.json'), 'utf8'));
     const req: ImageRequest = { kind: 'freeze', prompt: 'p', negative: 'n', seed: 3, width: 1024, height: 768, subjectKey: 'freeze:x' };
-    const out = patchWorkflow(wf, map, req, undefined, 'a.png', undefined, ['a.png', 'b.png']);
-    expect([out.ref1.inputs.image, out.ref2.inputs.image]).toEqual(['a.png', 'b.png']);
-    expect(out.ref3).toBeUndefined();
-    expect(Object.keys(out.enc.inputs).filter((k) => k.startsWith('images.'))).toEqual(['images.image_1', 'images.image_2']);
-    expect(wf.ref3).toBeDefined(); // template untouched
+    const out = patchWorkflow(wf, map, req);
+    expect(Object.values(out).filter((n) => n.class_type === 'LoadImage')).toHaveLength(0);
+    expect(Object.keys(out.enc.inputs).filter((k) => k.startsWith('images.'))).toEqual([]);
+    expect(out.enc.inputs.resolution).toBe(0);
+    expect(out.unet.inputs.unet_name).toBe('qwen_image_2.1_turbo_Q8_0.gguf');
+    expect(out.lat.inputs).toMatchObject({ width: 1024, height: 768 });
+  });
+  it('samples scenes of any cast size on the room canvas at the requested size', () => {
+    const wf = JSON.parse(readFileSync(resolve(ROOT, 'workflows/group_ref.api.json'), 'utf8'));
+    const map = JSON.parse(readFileSync(resolve(ROOT, 'workflows/group_ref_mapping.json'), 'utf8'));
+    const scene = { ...req, kind: 'freeze' as const, width: 1216, height: 832 };
+    const out = patchWorkflow(wf, map, scene, undefined, undefined, 'kitchen.png');
+    expect(out.sceneCanvas.inputs.image).toBe('kitchen.png');
+    expect(out.sceneCanvasScale.inputs).toMatchObject({ width: 1216, height: 832 });
+    expect(out.enc.inputs['images.image_1']).toEqual(['sceneCanvasScale', 0]);
+    expect(Object.values(out).filter((n) => n.class_type === 'LoadImage')).toHaveLength(1);
+    expect(Object.keys(out.enc.inputs).filter((k) => k.startsWith('images.'))).toEqual(['images.image_1']);
+    expect(out.enc.inputs.resolution).toBe(0);
+    expect(out.k.inputs.latent_image).toEqual(['enc', 2]);
+    expect(out.enc.inputs.vae).toEqual(['vae', 0]);
+    expect(wf.k.inputs.latent_image).toEqual(['lat', 0]);
+    const withoutRoom = patchWorkflow(wf, map, scene);
+    expect(withoutRoom.sceneCanvas).toBeUndefined();
+    expect(withoutRoom.k.inputs.latent_image).toEqual(['lat', 0]);
+    const roomOnly = patchWorkflow(wf, map, scene, undefined, undefined, 'kitchen.png');
+    expect(roomOnly.ref1).toBeUndefined();
+    expect(Object.keys(roomOnly.enc.inputs).filter((k) => k.startsWith('images.'))).toEqual(['images.image_1']);
   });
   it('rejects mappings that point at missing nodes', () => {
     expect(() => patchWorkflow(wf, { positive: { node: '999', input: 'text' } }, req)).toThrow(/missing node/);
@@ -240,6 +264,48 @@ describe('ComfyUI workflow patching', () => {
     expect(prompts[0][refMap.reference.node].inputs.image).toBe('shared_roof_face.png');
     expect(prompts[0][refMap.positive.node].inputs.prompt).toBe('POS');
     expect(prompts[1][map.positive.node].inputs.text).toBe('POS'); // no reference → plain txt2img
+  });
+  it('routes scenes to Qwen 2.1 with or without a room, uploads only the room and hashes that workflow', async () => {
+    const dir = tmp();
+    const room = join(dir, 'room.png');
+    writeFileSync(room, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    const prompts: any[] = [];
+    let uploads = 0;
+    const fake = (async (url: string, init?: RequestInit) => {
+      const u = String(url);
+      const json = (j: unknown) => new Response(JSON.stringify(j));
+      if (u.endsWith('/upload/image')) { uploads++; return json({ name: 'room.png' }); }
+      if (u.endsWith('/prompt')) { prompts.push(JSON.parse(String(init!.body)).prompt); return json({ prompt_id: `p${prompts.length}` }); }
+      if (u.includes('/history/')) return json({ [u.split('/history/')[1]]: { outputs: { save: { images: [{ filename: 'a.png', subfolder: '', type: 'output' }] } } } });
+      return new Response(new Uint8Array([1, 2, 3]));
+    }) as typeof fetch;
+    const comfy = new ComfyBackend('http://comfy', resolve(ROOT, 'workflows/txt2img.api.json'), resolve(ROOT, 'workflows/mapping.json'), dir, 5000, fake, undefined, {
+      freeze: { workflowPath: resolve(ROOT, 'workflows/group_ref.api.json'), mappingPath: resolve(ROOT, 'workflows/group_ref_mapping.json') },
+    });
+    const scene = { ...req, kind: 'freeze' as const, width: 1216, height: 832 };
+    expect(comfy.workflowHashFor(scene)).not.toBe(comfy.workflowHashFor(req));
+    expect(comfy.workflowHashFor(scene)).toBe(comfy.workflowHashFor({ ...scene, reference2: room }));
+    await comfy.generate(scene);
+    await comfy.generate({ ...scene, reference2: room });
+    expect(uploads).toBe(1);
+    expect(prompts.map((p) => p.unet.inputs.unet_name)).toEqual(Array(2).fill('qwen_image_2.1_turbo_Q8_0.gguf'));
+    expect(Object.values(prompts[0]).filter((n: any) => n.class_type === 'LoadImage')).toHaveLength(0);
+    expect(Object.values(prompts[1]).filter((n: any) => n.class_type === 'LoadImage')).toHaveLength(1);
+    expect(prompts[1].enc.inputs['images.image_1']).toEqual(['sceneCanvasScale', 0]);
+  });
+  it('a job that times out is cancelled in ComfyUI instead of left hogging the GPU', async () => {
+    const posts: string[] = [];
+    const fake = (async (url: string, init?: RequestInit) => {
+      const u = String(url);
+      if (init?.method === 'POST') posts.push(`${u.replace('http://comfy', '')} ${init.body ?? ''}`);
+      if (u.endsWith('/prompt')) return new Response(JSON.stringify({ prompt_id: 'slow' }));
+      return new Response('{}'); // history: never finishes
+    }) as typeof fetch;
+    const comfy = new ComfyBackend('http://comfy', resolve(ROOT, 'workflows/txt2img.api.json'), resolve(ROOT, 'workflows/mapping.json'), tmp(), 300, fake);
+    await expect(comfy.generate(req)).rejects.toThrow();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(posts).toContain('/interrupt {"prompt_id":"slow"}');
+    expect(posts).toContain('/queue {"delete":["slow"]}');
   });
 });
 
@@ -530,7 +596,10 @@ describe('game session (mock + failing adapters)', () => {
     await drive({ type: 'graduate' });
     expect(session.state!.awaitingPlayer).toBe(true);
     await expect(session.act({ type: 'idle' })).rejects.toThrow(/move in first/);
-    const v = session.newPlayer({ name: 'Aki Mori', age: 26, gender: 'man', interestedIn: ['woman'], hometown: 'Kobe', occupation: 'barista', traits: [0.5, 0.5, 0.5, 0.5, 0.5], quirks: [], tastes: [0, 0, 0, 0, 0, 0], hobbies: ['surfing', 'film', 'running'], appearance: { hairStyle: 'short messy', hairColor: 'black', eyeColor: 'brown', build: 'average', outfit: 'linen shirt', accessory: 'none', skinTone: 'tan' } });
+    const next = { name: 'Aki Mori', age: 26, gender: 'woman' as const, interestedIn: ['man' as const], hometown: 'Kobe', occupation: 'barista', traits: [0.5, 0.5, 0.5, 0.5, 0.5], quirks: [], tastes: [0, 0, 0, 0, 0, 0], hobbies: ['surfing', 'film', 'running'], appearance: { hairStyle: 'short messy', hairColor: 'black', eyeColor: 'brown', build: 'average', outfit: 'linen shirt', accessory: 'none', skinTone: 'tan' } };
+    // three men and three women: a woman graduated, so a woman takes her place
+    expect(() => session.newPlayer({ ...next, gender: 'man' })).toThrow(/must be a woman/);
+    const v = session.newPlayer(next);
     expect(v.playerId).not.toBe(before);
     await drive({ type: 'idle' });
     const replayed = replayEvents(store.events(session.state!.gameId));

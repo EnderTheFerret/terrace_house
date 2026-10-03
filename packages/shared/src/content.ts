@@ -69,7 +69,7 @@ function load(): Content {
     'archetypes',
   );
   const content: Content = {
-    cast: parse(z.object({ cast: z.array(CastEntry).length(5) }), castJson, 'cast').cast,
+    cast: parse(z.object({ cast: z.array(CastEntry).length(6) }), castJson, 'cast').cast,
     archetypes: arch.archetypes,
     names: arch.names,
     hometowns: arch.hometowns,

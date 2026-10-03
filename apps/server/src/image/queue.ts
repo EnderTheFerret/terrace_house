@@ -245,7 +245,11 @@ export class ImageQueue {
         this.generated++;
       } catch (e) {
         if (job.abort.signal.aborted || this.preempted === job) throw e; // preempted jobs are requeued, not placeholdered
-        if (this.backend.name !== 'mock') this.lastFailure = Date.now();
+        if (this.backend.name !== 'mock') {
+          // say why once; jobs skipped while offline would only repeat it
+          if (!this.offline) console.warn(`[images] ${job.req.kind} failed, using a placeholder: ${(e as Error).message}`);
+          this.lastFailure = Date.now();
+        }
         res = await this.fallback.generate(job.req);
       }
       this.store.imagePut(job.key, res.path, job.req.kind, job.req.prompt, job.req.seed, res.placeholder);

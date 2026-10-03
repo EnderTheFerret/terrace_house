@@ -18,6 +18,10 @@ export interface Mapping {
   reference2?: { node: string; input: string };
   /** group workflows: one LoadImage per participant; slots beyond the request's references are removed */
   references?: { node: string; input: string }[];
+  /** group workflows: the encoder's per-reference resolution (lowered for a full house) */
+  resolution?: { node: string; input: string };
+  /** Qwen 2.1: optional room canvas supplied in reference2, sampled at the encoder's own size. */
+  canvas?: { encoder: string; sampler: string };
   output?: { node: string };
 }
 
@@ -40,13 +44,33 @@ export function patchWorkflow(wf: Workflow, map: Mapping, req: ImageRequest, che
   if (checkpoint) put(map.checkpoint, checkpoint);
   if (referenceName) put(map.reference, referenceName);
   if (reference2Name) put(map.reference2, reference2Name);
-  if (referenceNames.length && map.references) {
+  // a full house (5+ references) at 512 keeps faces as well as 768 and runs twice as fast (36 s vs 77 s for 7)
+  if (referenceNames.length > 4) put(map.resolution, 512);
+  if (map.references && (referenceNames.length || (map.canvas && reference2Name))) {
     map.references.forEach((m, i) => {
       if (i < referenceNames.length) return put(m, referenceNames[i]);
       // drop the unused LoadImage and every input wired to it
       delete out[m.node];
       for (const n of Object.values(out)) for (const [k, v] of Object.entries(n.inputs)) if (Array.isArray(v) && v[0] === m.node) delete n.inputs[k];
     });
+  }
+  if (map.canvas && reference2Name) {
+    const enc = out[map.canvas.encoder];
+    const sampler = out[map.canvas.sampler];
+    if (!enc || !sampler) throw new Error('canvas mapping refers to a missing node');
+    out.sceneCanvas = { class_type: 'LoadImage', inputs: { image: reference2Name } };
+    out.sceneCanvasScale = { class_type: 'ImageScale', inputs: { image: ['sceneCanvas', 0], upscale_method: 'nearest-exact', width: req.width, height: req.height, crop: 'disabled' } };
+    const images = Object.entries(enc.inputs).filter(([k]) => k.startsWith('images.'));
+    for (const [k] of images) delete enc.inputs[k];
+    enc.inputs['images.image_1'] = ['sceneCanvasScale', 0];
+    images.forEach(([, image], i) => {
+      const node = `sceneRef${i + 1}Scale`;
+      out[node] = { class_type: 'ImageScaleToTotalPixels', inputs: { image, upscale_method: 'lanczos', megapixels: 0.262144, resolution_steps: 32 } };
+      enc.inputs[`images.image_${i + 2}`] = [node, 0];
+    });
+    // Preserve the canvas dimensions exactly; changing them after encoding shifts the edit onto the portraits.
+    enc.inputs.resolution = 0;
+    sampler.inputs.latent_image = [map.canvas.encoder, 2];
   }
   return out;
 }
@@ -95,7 +119,7 @@ export class ComfyBackend implements ImageBackend {
     }
     for (const [kind, p] of Object.entries(kinds)) {
       const r = loadPair(p.workflowPath, p.mappingPath);
-      if (!r.map.reference) throw new Error(`${kind} mapping needs a "reference" entry`);
+      if (!r.map.reference && !r.map.canvas) throw new Error(`${kind} mapping needs a "reference" or "canvas" entry`);
       this.kinds.set(kind, r);
       hash = createHash('sha256').update(hash).update(r.hash).digest('hex');
     }
@@ -104,7 +128,9 @@ export class ComfyBackend implements ImageBackend {
   }
 
   workflowHashFor(req: ImageRequest): string {
-    return req.reference || req.references?.length ? (this.kinds.get(req.kind) ?? this.ref)?.hash ?? this.baseHash : this.baseHash;
+    const own = this.kinds.get(req.kind);
+    if (own?.map.canvas) return own.hash;
+    return req.reference || req.reference2 || req.references?.length ? (this.kinds.get(req.kind) ?? this.ref)?.hash ?? this.baseHash : this.baseHash;
   }
 
   /** Unload ComfyUI's models from VRAM so Ollama can keep the whole card (one consumer GPU). */
@@ -114,6 +140,12 @@ export class ComfyBackend implements ImageBackend {
 
   async interrupt(): Promise<void> {
     await this.fetchImpl(`${this.url}/interrupt`, { method: 'POST', signal: AbortSignal.timeout(5000) }).catch(() => {});
+  }
+
+  /** Stop one prompt, running or still queued, without touching anyone else's. */
+  private async cancelPrompt(pid: string): Promise<void> {
+    const post = (path: string, body: unknown) => this.fetchImpl(`${this.url}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(5000) }).catch(() => {});
+    await Promise.all([post('/interrupt', { prompt_id: pid }), post('/queue', { delete: [pid] })]);
   }
 
   /** Upload a local image to ComfyUI's input folder; returns the name LoadImage expects. */
@@ -173,7 +205,7 @@ export class ComfyBackend implements ImageBackend {
     const clientId = randomUUID();
     const own = this.kinds.get(req.kind);
     const reference = own ?? this.ref;
-    const useRef = !!(reference && (req.reference || (own?.map.references && req.references?.length)));
+    const useRef = !!(reference && (own?.map.canvas || req.reference || (own?.map.references && req.references?.length)));
     // txt2img cannot draw a sheet or a cutout; let the queue fall back instead
     if ((req.kind === 'sprite' || req.kind === 'cutout') && !(own && req.reference)) throw new Error(`${req.kind} needs its workflow and a reference image`);
     const map = useRef ? reference!.map : this.map;
@@ -185,7 +217,11 @@ export class ComfyBackend implements ImageBackend {
     const wsDone = this.waitWs(clientId, () => pid, sig, onProgress).catch(() => null).finally(() => (wsSettled = true));
     const r = await this.fetchImpl(`${this.url}/prompt`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt: wf, client_id: clientId }), signal: sig });
     if (!r.ok) throw new Error(`comfy /prompt ${r.status}: ${(await r.text()).slice(0, 300)}`);
-    pid = ((await r.json()) as { prompt_id: string }).prompt_id;
+    const promptId = ((await r.json()) as { prompt_id: string }).prompt_id;
+    pid = promptId;
+    // a timed-out job must not keep the GPU busy (it slowed the next LLM calls to minutes): cancel only ours.
+    // Preemption (the caller's signal) already interrupts through the queue.
+    sig.addEventListener('abort', () => { if (!signal?.aborted) void this.cancelPrompt(promptId); }, { once: true });
     const outNode = map.output?.node;
     let images: { filename: string; subfolder: string; type: string }[] | undefined;
     for (;;) {

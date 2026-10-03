@@ -84,10 +84,15 @@ The script downsamples and palette-quantizes each image into true pixel art and 
 `apps/web/public/assets/manifest.json`. The server serves these before queueing anything, in both modes. Pass a
 substring to regenerate only some files, for example `... jobs.json portraits/kaito`.
 
-## 6. Reference images: consistent faces
+## 6. Scene and portrait references
 
-Freeze-frames are generated with the lead character's approved portrait (prebaked or previously generated) as a
-reference image, so their face, hair and outfit carry over. The default reference workflow is
+Scene images and freeze-frames use `workflows/group_ref.api.json`: Qwen-Image 2.1 Turbo Q8 GGUF,
+`TextEncodeQwenImage21`, 8 steps, CFG 1. The room is the only image reference and is scaled to 1216×832;
+character identities, current clothes and actions are described inline. With no room image, the same model
+generates from text. This reduces duplicate people; exact likeness and character count remain model limits.
+See [Generate Scene](GENERATE-SCENE.md) for the tested images and results.
+
+Portrait clothing/expression edits still use the approved portrait. The default portrait reference workflow is
 `workflows/ref_edit.api.json` (Qwen-Image-Edit 2511 + its Lightning 8-step LoRA, `TextEncodeQwenImageEditPlus` with
 the portrait as `image1`). It needs, in addition to the files above:
 
@@ -98,14 +103,14 @@ the portrait as `image1`). It needs, in addition to the files above:
 
 How it works: when an image request carries a `reference` file, `ComfyBackend.generate` uploads it with
 `POST /upload/image`, writes the returned name into the node named by `"reference"` in `workflows/ref_mapping.json`,
-and runs the reference workflow; every other request uses the normal txt2img workflow. Cache keys include the
-reference, so a new portrait means a new freeze-frame.
+and runs the reference workflow. Requests with their own workflow, including scenes, use that workflow.
+Cache keys include the selected workflow and its reference inputs.
 
 - Disable it with `COMFY_REF_WORKFLOW=off`.
 - Prefer SDXL + IP-Adapter (FaceID)? Export an API-format graph with a `LoadImage` → IPAdapter branch, point
   `COMFY_REF_WORKFLOW` / `COMFY_REF_MAPPING` at it, and give the mapping a `"reference": { "node", "input" }` entry.
 - Cost: switching between Qwen-Image and Qwen-Image-Edit reloads a model (first edit image ≈ 50 s on a 16 GB card).
-- Limit: one reference face per image; the second person in a two-shot relies on the fixed tag order.
+- Scene identities rely on hair, skin, clothes and character descriptions rather than portrait matching.
 
 ## 6b. Sharing one GPU with Ollama
 
