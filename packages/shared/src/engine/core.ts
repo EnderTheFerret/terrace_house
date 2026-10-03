@@ -130,6 +130,9 @@ export function learn(s: GameState, charId: string, factId: string, source: Know
 
 export const knows = (s: GameState, charId: string, factId: string) => !!s.knowledge[charId]?.[factId];
 
+/** A pair's rung on the romance ladder: 0 none, 1 first date, 2 second date, 3 hand-holding, 4 first kiss. */
+export const milestoneOf = (s: GameState, a: string, b: string) => Number(s.world.flags[`ms_${[a, b].sort().join('|')}`] ?? 0);
+
 export function belief(s: GameState, observer: string, a: string, b: string) {
   s.beliefs[observer] ??= {};
   return (s.beliefs[observer][dk(a, b)] ??= { affinity: 0, romance: 0, conf: 0.05 });

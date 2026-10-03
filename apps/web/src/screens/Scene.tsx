@@ -1,9 +1,11 @@
 // Scene: dialogue with streamed lines, captions, player intents, eavesdrop prompt, freeze-frame and studio panel.
+import { Tip } from '../components/Tip';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGame, type LiveLine } from '../store';
 import { StudioStrip, TopBar } from '../components/layout';
 import { Btn, INTENT_LABEL } from '../components/ui';
-import { PixelImage, Portrait, useImage } from '../components/pixel';
+import { EMOTIONS, type Emotion } from '@shared-roof/shared';
+import { PixelImage, Portrait, Stand, useImage } from '../components/pixel';
 import { api, waitImage, type ImageStatus } from '../api';
 import { chime } from '../audio';
 
@@ -38,7 +40,7 @@ function useReveal(lines: LiveLine[], enabled: boolean) {
 }
 
 export function Scene() {
-  const { live, view, choose, say, endTalk, respond, nextScene, settings } = useGame();
+  const { live, view, choose, say, endTalk, keepListening, respond, nextScene, settings } = useGame();
   const [phaseShown, setPhaseShown] = useState<'dialogue' | 'freeze' | 'panel'>('dialogue');
   const logRef = useRef<HTMLDivElement>(null);
   const reveal = useReveal(live?.lines ?? [], settings.typewriter && !settings.reducedMotion);
@@ -116,12 +118,20 @@ export function Scene() {
   const h = live.header;
   const chat = h?.chat;
   const visible = live.lines.slice(0, reveal.idx + 1);
+  // first person: the player is never on stage; everyone else in the scene is
+  const stage = people.filter((c) => c!.id !== view.playerId) as NonNullable<(typeof people)[number]>[];
+  const lastSpeaker = visible[visible.length - 1]?.speaker;
+  const emotionOf = (id: string): Emotion => {
+    const e = [...visible].reverse().find((l) => l.speaker === id && l.emotion)?.emotion;
+    return (EMOTIONS as readonly string[]).includes(e ?? '') ? (e as Emotion) : 'neutral';
+  };
+  const current = visible[visible.length - 1];
 
   if (live.respond) {
     const sc = useGame.getState().scenes.find((s) => s.id === live.id);
     return (
       <div className="flex h-full flex-col">
-        <TopBar />
+        <TopBar /><Tip id="talk" />
         <main className="flex flex-1 items-center justify-center p-6">
           <div className="px-panel max-w-lg p-6 text-center">
             <p className="caption mb-2 text-sm">you can hear a conversation nearby</p>
@@ -180,24 +190,19 @@ export function Scene() {
             </div>
           </div>
         )}
-        {/* portraits */}
-        {!chat && (
-          <div className="absolute bottom-40 left-0 right-0 flex items-end justify-around px-8" style={{ right: live.choice && reveal.complete ? 304 : 0 }}>
-            {people.map((c, i) => {
-              const speaking = visible[visible.length - 1]?.speaker === c!.id;
+        {/* visual-novel stage: cut-out figures stand on the location; the speaker steps forward, the rest drop back */}
+        {!chat && h && (
+          <div role="group" aria-label="people in this conversation" className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-center" style={{ top: '6%', right: live.choice && reveal.complete ? 304 : 0 }}>
+            {stage.map((c, i) => {
+              const speaking = lastSpeaker === c.id;
               return (
-                <div key={c!.id} className={`flex flex-col items-center transition-transform ${speaking ? '-translate-y-2' : 'opacity-90'}`} style={{ order: i }}>
-                  <div className="px-panel bg-paper p-1">
-                    <Portrait key={`${view.gameId}:${c!.portraitSeed}`} charId={c!.id} appearance={c!.appearance} gender={c!.gender} seed={c!.portraitSeed} size={120} label={c!.name} expressions />
-                  </div>
-                  <span className="mt-1 bg-paper px-2 text-xs" style={{ boxShadow: '0 0 0 2px var(--color-ink)' }}>
-                    {c!.name.split(' ')[0]}
-                  </span>
+                <div key={c.id} className="flex h-full items-end transition-all duration-300" style={{ marginLeft: i ? `-${stage.length > 2 ? 6 : 2}vw` : 0, zIndex: speaking ? 5 : 1, transform: speaking ? 'translateY(-1%) scale(1.02)' : 'none', filter: lastSpeaker && !speaking ? 'brightness(0.68) saturate(0.85)' : 'none' }}>
+                  <Stand key={`${view.gameId}:${c.portraitSeed}:${h.occasion}:${view.day}`} char={c} outfit={{ occasion: h.occasion ?? 'daily', day: view.day }} emotion={emotionOf(c.id)} height={stage.length <= 2 ? '92%' : stage.length <= 3 ? '80%' : '68%'} />
                 </div>
               );
             })}
-            {h?.outsiders.map((o) => (
-              <div key={o.id} className="px-panel bg-paper px-3 py-6 text-center text-sm">
+            {h.outsiders.map((o) => (
+              <div key={o.id} className="px-panel mb-48 bg-paper px-3 py-6 text-center text-sm">
                 {o.name}
               </div>
             ))}
@@ -222,20 +227,31 @@ export function Scene() {
             </div>
           </div>
         ) : (
-          <div className="absolute bottom-3 left-3 right-3 z-10 px-panel h-36 p-3">
-            <div ref={logRef} className="h-full overflow-y-auto pr-2 scroll-thin" aria-live="polite">
-              {visible.map((l, i) => {
-                const text = i === reveal.idx ? l.text.slice(0, reveal.chars) : l.text;
-                return (
-                  <p key={l.index} className={`mb-1 ${i < visible.length - 1 ? 'opacity-60' : ''}`}>
-                    <span className="caption mr-2">{l.speaker === view.playerId ? 'you' : l.name}</span>
-                    {settings.captions && l.caption && <span className="caption mr-2 text-xs">{l.caption}</span>}
-                    <span>{text}</span>
-                  </p>
-                );
-              })}
-              {live.streaming && !live.choice && visible.length === 0 && <p className="caption">…</p>}
-              {live.error && <p className="caption text-xs">({live.error}) </p>}
+          <div className="absolute bottom-3 left-3 right-3 z-10" style={{ right: live.choice && reveal.complete ? 316 : 12 }}>
+            {/* name tag over the box, visual-novel style */}
+            {current && (
+              <div className="relative z-10 -mb-2 ml-4 inline-block bg-paper px-4 py-1 text-lg lowercase" style={{ boxShadow: '0 0 0 3px var(--color-ink), 4px 4px 0 var(--color-ink)' }}>
+                {current.speaker === view.playerId ? 'you' : current.name}
+              </div>
+            )}
+            <div className="px-panel bg-paper/90 p-4 pt-5 backdrop-blur-[2px]">
+              <div ref={logRef} className="h-28 overflow-y-auto pr-2 scroll-thin" aria-live="polite">
+                {visible.map((l, i) => {
+                  const text = i === reveal.idx ? l.text.slice(0, reveal.chars) : l.text;
+                  const last = i === visible.length - 1;
+                  return (
+                    <p key={l.index} className={last ? 'mt-1 text-lg' : 'caption text-xs'}>
+                      {!last && <span className="mr-2">{l.speaker === view.playerId ? 'you' : l.name}:</span>}
+                      {settings.captions && l.caption && <span className="caption mr-2 text-xs">{l.caption}</span>}
+                      <span>{text}</span>
+                    </p>
+                  );
+                })}
+                {live.streaming && !live.choice && visible.length === 0 && <p className="caption">…</p>}
+                {live.error && <p className="caption text-xs">({live.error}) </p>}
+              </div>
+              {/* the player answers in their own words right in the box */}
+              {live.choice && reveal.complete && live.canType && <div className="mt-2"><SayBox onSay={(t) => void say(t)} autoFocus wide /></div>}
             </div>
           </div>
         )}
@@ -250,7 +266,8 @@ export function Scene() {
                 {i + 1}. {INTENT_LABEL[c] ?? c}
               </Btn>
             ))}
-            {live.canType && <SayBox onSay={(t) => void say(t)} autoFocus={live.canEnd} />}
+            {live.canType && chat && <SayBox onSay={(t) => void say(t)} autoFocus={live.canEnd} />}
+            {live.canListen && <Btn onClick={() => void keepListening()} title="stay quiet and let them talk among themselves">keep listening…</Btn>}
             {live.canEnd && (
               <Btn primary onClick={() => void endTalk()}>
                 that's all
@@ -303,11 +320,11 @@ export function Scene() {
 }
 
 /** Type your own words instead of picking a response; the housemate answers what you actually said. */
-function SayBox({ onSay, autoFocus }: { onSay: (text: string) => void; autoFocus?: boolean }) {
+function SayBox({ onSay, autoFocus, wide }: { onSay: (text: string) => void; autoFocus?: boolean; wide?: boolean }) {
   const [text, setText] = useState('');
   return (
     <form
-      className="flex gap-1"
+      className={`flex gap-1 ${wide ? 'w-full' : ''}`}
       onSubmit={(e) => {
         e.preventDefault();
         if (text.trim()) onSay(text);
@@ -315,8 +332,8 @@ function SayBox({ onSay, autoFocus }: { onSay: (text: string) => void; autoFocus
     >
       <input
         aria-label="say something in your own words"
-        placeholder="or say it yourself…"
-        className="px-panel-soft w-56 bg-paper px-2 py-1 text-sm"
+        placeholder={wide ? 'say something… (address someone by name, or everyone)' : 'or say it yourself…'}
+        className={`px-panel-soft bg-paper px-2 py-1 text-sm ${wide ? 'flex-1 text-base' : 'w-56'}`}
         maxLength={200}
         value={text}
         autoFocus={autoFocus}

@@ -1,0 +1,7 @@
+{
+  "tag": "k1",
+  "chars": [
+    {"id": "kaito", "seeds": [1202, 7], "portrait": "C:/Projects/terrace_house/apps/web/public/assets/portraits/kaito.png"},
+    {"id": "mio", "seeds": [2306, 7], "portrait": "C:/Projects/terrace_house/apps/web/public/assets/portraits/mio.png"}
+  ]
+}

@@ -7,7 +7,7 @@ import { clamp, fill } from '../util';
 import { content } from '../content';
 import {
   addFact, addLog, addMemory, addRel, attracted, coupleOf, firstName, housemates, learn, placeName, rel, traitsOf,
-} from './core';
+milestoneOf, } from './core';
 import { applyProposal, sanitizeProposal } from './relationships';
 import { gossipCandidate, observe, revealSecret, transmit } from './knowledge';
 import { addGrudge, apologize, mintReference, publicAct } from './social';
@@ -222,8 +222,7 @@ export function applyEffects(s: GameState, rng: Rng, ev: EventInstance, choices:
         (res.leaving ??= []).push(id);
       }
     }
-    if (e.money && ev.participants.includes(s.playerId)) s.world.money = Math.max(0, s.world.money + e.money);
-    if (e.house) for (const [k, v] of Object.entries(e.house)) {
+      if (e.house) for (const [k, v] of Object.entries(e.house)) {
       const key = k as 'dishes' | 'laundry' | 'trash' | 'noise' | 'groceryBudget';
       s.house[key] = key === 'groceryBudget' ? s.house[key] + v : clamp(s.house[key] + v, 0, 100);
     }
@@ -258,6 +257,19 @@ export function applyEffects(s: GameState, rng: Rng, ev: EventInstance, choices:
       if (x && y) {
         s.world.flags.lastDate = `${x}|${y}`;
         s.world.flags.lastDateTick = s.world.tick;
+      }
+    }
+    if (e.milestone) {
+      const [x, y] = e.milestone.map((r) => b[r]);
+      if (x && y) {
+        const level = milestoneOf(s, x, y) + 1;
+        s.world.flags[`ms_${[x, y].sort().join('|')}`] = level;
+        const what = ['', 'went on their first date', 'went on a second date', 'held hands', 'kissed'][level];
+        if (what) {
+          const f = addFact(s, { subject: x, about: y, kind: 'romance', content: `${firstName(s, x)} and ${firstName(s, y)} ${what}`, truth: true, sensitivity: 0.3 + level * 0.1 });
+          learn(s, x, f.id, 'self');
+          learn(s, y, f.id, 'self');
+        }
       }
     }
     if (e.groupChatKick && b[e.groupChatKick]) s.house.groupChat.members = s.house.groupChat.members.filter((m) => m !== b[e.groupChatKick!]);

@@ -1,4 +1,7 @@
 // Messages, shared plans and the house social feed.
+import { Tip } from '../components/Tip';
+import { PixelImage, useImage } from '../components/pixel';
+import { api, type ImageStatus } from '../api';
 import { useEffect, useState } from 'react';
 import { content, freezePixels, pixelsToSvg, SLOTS, type Slot } from '@shared-roof/shared';
 import { useGame } from '../store';
@@ -29,7 +32,7 @@ export function Phone() {
   const chat = tab === 'group' || !!contact;
   return (
     <div className="flex h-full flex-col">
-      <TopBar />
+      <TopBar /><Tip id="phone" />
       <main className="flex min-h-0 flex-1 justify-center p-4">
         <div className="flex w-full max-w-2xl flex-col rounded-[22px] bg-[#2b2b33] p-3 shadow-xl">
           <div className="mb-2 flex justify-between px-2 text-xs text-paper"><span>{view.dateLabel} · {view.clock}</span><button className="underline" onClick={goBack}>close</button></div>
@@ -46,6 +49,7 @@ export function Phone() {
               {messages.length === 0 && <p className="caption text-xs">no messages yet.</p>}
               {messages.map((m, i) => <div key={i} className={`max-w-[85%] text-sm ${m.from === view.playerId ? 'self-end' : 'self-start'}`}>
                 {m.from !== view.playerId && <div className="caption text-[0.65rem]">{name(m.from)}</div>}
+                {'photo' in m && !!m.photo && <PhonePhoto request={() => api.selfie(m.from, m.tick)} deps={[m.from, m.tick]} alt={`photo from ${name(m.from)}`} />}
                 <div className={`rounded-[10px] px-2 py-1 ${m.from === view.playerId ? 'bg-[#9fe0b0]' : 'bg-white'}`}>{m.text}</div>
                 {m.from === view.playerId && <div className="caption text-right text-[0.6rem]">{'read' in m && !m.read ? 'delivered' : 'read'}</div>}
               </div>)}
@@ -70,7 +74,7 @@ export function Phone() {
             </>}
             {tab === 'feed' && <>
               <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); submit({ type: 'post', text: draft.trim(), kind: postKind }); setDraft(''); }}><select aria-label="post format" value={postKind} onChange={(e) => setPostKind(e.target.value as 'photo' | 'story')}><option value="photo">photo</option><option value="story">story</option></select><input aria-label="new social post" maxLength={200} className="px-panel-soft min-w-0 flex-1 px-2 text-sm" placeholder="share a moment…" value={draft} onChange={(e) => setDraft(e.target.value)} /><Btn disabled={busy || !draft.trim()}>post</Btn></form>
-              {[...view.feed].reverse().map((p) => <article key={p.id} className={`rounded bg-white p-2 text-sm ${p.kind === 'story' ? 'border-l-4 border-[#9fe0b0]' : ''}`}><div className="caption text-xs">{name(p.from)}{p.with ? ` with ${name(p.with)}` : ''} · {p.kind} · ep {p.episode}</div>{p.people.length > 0 && <img className="pixelated my-2 w-full rounded" style={{ maxHeight: 220, objectFit: 'contain' }} alt={`${p.kind} by ${name(p.from)} at ${content().city.nodes.find((n) => n.id === p.location)?.name ?? p.location}`} src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(pixelsToSvg(freezePixels(p.location, p.slot === 'lateNight' || p.slot === 'evening' ? 'night' : p.slot === 'slot3' ? 'evening' : 'day', p.people), 4))}`} />}<p>{p.text}</p><button className="mt-1 text-xs underline" disabled={busy || p.likes.includes(view.playerId)} onClick={() => submit({ type: 'like', id: p.id })}>{p.likes.includes(view.playerId) ? '♥ liked' : '♡ like'} · {p.likes.length}</button>{p.likes.length > 0 && <span className="caption ml-2 text-xs">{p.likes.map(name).join(', ')}</span>}</article>)}
+              {[...view.feed].reverse().map((p) => <article key={p.id} className={`rounded bg-white p-2 text-sm ${p.kind === 'story' ? 'border-l-4 border-[#9fe0b0]' : ''}`}><div className="caption text-xs">{name(p.from)}{p.with ? ` with ${name(p.with)}` : ''} · {p.kind} · ep {p.episode}</div>{p.people.length > 0 && <PhonePhoto request={() => api.feedPhoto(p.id)} deps={[p.id]} alt={`${p.kind} by ${name(p.from)} at ${content().city.nodes.find((n) => n.id === p.location)?.name ?? p.location}`} placeholder={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(pixelsToSvg(freezePixels(p.location, p.slot === 'lateNight' || p.slot === 'evening' ? 'night' : p.slot === 'slot3' ? 'evening' : 'day', p.people), 4))}`} />}<p>{p.text}</p><button className="mt-1 text-xs underline" disabled={busy || p.likes.includes(view.playerId)} onClick={() => submit({ type: 'like', id: p.id })}>{p.likes.includes(view.playerId) ? '♥ liked' : '♡ like'} · {p.likes.length}</button>{p.likes.length > 0 && <span className="caption ml-2 text-xs">{p.likes.map(name).join(', ')}</span>}</article>)}
             </>}
           </div>
           {contact && <>
@@ -84,4 +88,12 @@ export function Phone() {
       </main>
     </div>
   );
+}
+
+/** A phone photo: the procedural snapshot at once, the generated picture (everyone's real face) once it is drawn. */
+function PhonePhoto({ request, deps, alt, placeholder }: { request: () => Promise<ImageStatus>; deps: unknown[]; alt: string; placeholder?: string }) {
+  const st = useImage(request, deps);
+  const real = st?.status === 'ready' && !st.placeholder && st.url ? st.url : null;
+  if (real) return <PixelImage url={real} factor={4} alt={alt} className="my-2 block w-full rounded" style={{ maxHeight: 260, objectFit: 'contain' }} />;
+  return placeholder ? <img className="pixelated my-2 w-full rounded" style={{ maxHeight: 220, objectFit: 'contain' }} alt={alt} src={placeholder} /> : <div className="caption my-2 text-xs" role="status">📷 photo loading…</div>;
 }

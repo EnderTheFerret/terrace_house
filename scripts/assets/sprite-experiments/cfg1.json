@@ -1,0 +1,15 @@
+{
+  "tag": "t1",
+  "style": "C:/Users/User/AppData/Local/Temp/claude/C--Projects-terrace-house/0c555bcd-65ad-4b17-8eca-60684b16b781/scratchpad/ref8x.png",
+  "front": "Image 1 is a pixel art sprite sheet used ONLY as the art style guide; do not copy its character, hair, headband or outfit. Draw ONE single new character in exactly this handheld RPG overworld pixel sprite style: {who}. One full-body standing idle sprite, facing the viewer, centered, arms relaxed at sides. Chibi proportions about two heads tall, oversized voluminous hair clusters, small face with simple dark eyes, short body and short legs, thick dark one-pixel outline, flat cel shading with 3 to 4 tones per color, large clean square pixels. Pure white background, no text, no shadow, no other characters.",
+  "negative": "multiple characters, sprite sheet, grid, realistic, 3d, blurry, text, watermark, cropped, shadow, scenery, brown spiky hair, red headband",
+  "views": {
+    "back": "<sks> back view eye-level shot medium shot",
+    "lside": "<sks> left side view eye-level shot medium shot",
+    "rside": "<sks> right side view eye-level shot medium shot"
+  },
+  "chars": [
+    {"id": "kaito", "seed": 1202, "who": "24-year-old adult man, wavy shoulder-length sun-bleached brown hair, brown eyes, athletic build, tan skin, wearing oversized graphic tee and board shorts, shell necklace"},
+    {"id": "tamar", "seed": 2306, "who": "24-year-old adult woman, long wavy dark brown hair, brown eyes, slim build, brown skin, wearing olive utility jacket over cream shirt and rust trousers, gold hoop earrings"}
+  ]
+}

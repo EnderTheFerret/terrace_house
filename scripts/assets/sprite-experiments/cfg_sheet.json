@@ -1,0 +1,8 @@
+{
+  "tag": "r1",
+  "prompt": "Image 1 is a 4x4 pixel art walking sprite sheet. Redraw Image 1 as the same sprite sheet for a different character: the person in Image 2, {who}. Keep every one of the 16 frames exactly where it is, with the same pose, direction, size, chibi proportions, outline thickness and pixel size as Image 1. Only change the hair style and hair colour, skin tone, face and clothes to match the new character. Remove the red headband. Plain white background, pixel art, no text.",
+  "chars": [
+    {"id": "kaito", "seed": 1202, "portrait": "C:/Projects/terrace_house/apps/web/public/assets/portraits/kaito.png", "who": "a young man with wavy shoulder-length sun-bleached brown hair, tan skin, white graphic tee, dark board shorts, shell necklace"},
+    {"id": "mio", "seed": 2306, "portrait": "C:/Projects/terrace_house/apps/web/public/assets/portraits/mio.png", "who": "a young woman with long straight chestnut-brown hair, fair skin, pink cardigan over a white top, mauve knee-length skirt"}
+  ]
+}

@@ -1,6 +1,6 @@
 // Zustand store: screens, game view, scene queue/streaming state, settings.
 import { create } from 'zustand';
-import type { PlayerAction, PlayerSetup, PlayerView } from '@shared-roof/shared';
+import type { Occasion, PlayerAction, PlayerSetup, PlayerView } from '@shared-roof/shared';
 import { api, streamScene, type Health, type ImageStatus, type SceneSummary } from './api';
 import { blip } from './audio';
 
@@ -16,6 +16,9 @@ export interface Settings {
   textScale: number;
   author: boolean;
   typewriter: boolean;
+  /** move-in day tutorial tips (the day itself always happens) */
+  tutorial: boolean;
+  tipsSeen: string[];
 }
 
 export interface LiveLine {
@@ -35,6 +38,8 @@ export interface LiveScene {
     premise: string;
     location: string;
     locationName: string;
+    /** what everyone wears here (beach, date, outdoor, daily) */
+    occasion: Occasion;
     participants: { id: string; name: string }[];
     outsiders: { id: string; name: string }[];
     isPlayerScene: boolean;
@@ -48,6 +53,8 @@ export interface LiveScene {
   /** the player may type their own words / end a typed conversation */
   canType: boolean;
   canEnd: boolean;
+  /** the player can stay quiet and let the group keep talking */
+  canListen: boolean;
   respond: boolean;
   outcome: { confession?: string; leaving?: string[]; cues: string[] } | null;
   commentary: { lines: { speaker: string; text: string; reaction: string }[]; prediction?: { text: string }; predictionBy?: string } | null;
@@ -58,7 +65,7 @@ export interface LiveScene {
 }
 
 const SETTINGS_KEY = 'shared-roof-settings';
-const defaults: Settings = { captions: true, reducedMotion: false, images: true, sound: true, textScale: 1, author: false, typewriter: true };
+const defaults: Settings = { captions: true, reducedMotion: false, images: true, sound: true, textScale: 1, author: false, typewriter: true, tutorial: true, tipsSeen: [] };
 function loadSettings(): Settings {
   try {
     return { ...defaults, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') };
@@ -98,13 +105,14 @@ interface State {
   choose(intent: string): Promise<void>;
   say(text: string): Promise<void>;
   endTalk(): Promise<void>;
+  keepListening(): Promise<void>;
   joinAsNewPlayer(player: PlayerSetup): Promise<void>;
   finishSlot(): Promise<void>;
   setView(v: PlayerView): void;
   clearError(): void;
 }
 
-const emptyLive = (id: string): LiveScene => ({ id, lines: [], choice: null, canType: false, canEnd: false, respond: false, outcome: null, commentary: null, freeze: null, done: false, streaming: false });
+const emptyLive = (id: string): LiveScene => ({ id, lines: [], choice: null, canType: false, canEnd: false, canListen: false, respond: false, outcome: null, commentary: null, freeze: null, done: false, streaming: false });
 
 export const useGame = create<State>((set, get) => ({
   screen: 'title',
@@ -166,7 +174,8 @@ export const useGame = create<State>((set, get) => ({
     set({ busy: true });
     try {
       const g = await api.load(id);
-      set({ view: g.view, scenes: [], screen: 'house', busy: false, live: null });
+      // the episode card holds until every housemate's sprite sheet is ready
+      set({ view: g.view, scenes: [], episodeCard: 'start', screen: 'episode', busy: false, live: null });
     } catch (e) {
       set({ error: (e as Error).message, busy: false });
     }
@@ -217,7 +226,7 @@ export const useGame = create<State>((set, get) => ({
             });
             break;
           case 'choice':
-            patch((l) => ({ ...l, choice: d.intents, canType: !!d.canType, canEnd: !!d.canEnd }));
+            patch((l) => ({ ...l, choice: d.intents, canType: !!d.canType, canEnd: !!d.canEnd, canListen: !!d.canListen }));
             break;
           case 'respond':
             patch((l) => ({ ...l, respond: true }));
@@ -278,6 +287,14 @@ export const useGame = create<State>((set, get) => ({
     await get().playLive(live.id);
   },
 
+  keepListening: async () => {
+    const live = get().live;
+    if (!live?.choice) return;
+    set((st) => ({ live: st.live ? { ...st.live, choice: null } : null }));
+    await api.choose(live.id, { listen: true });
+    await get().playLive(live.id);
+  },
+
   endTalk: async () => {
     const live = get().live;
     if (!live?.choice) return;
@@ -290,7 +307,7 @@ export const useGame = create<State>((set, get) => ({
     set({ busy: true, error: null });
     try {
       const g = await api.newPlayer(player);
-      set({ view: g.view, scenes: [], screen: 'house', busy: false, live: null });
+      set({ view: g.view, scenes: [], episodeCard: 'start', screen: 'episode', busy: false, live: null });
     } catch (e) {
       set({ error: (e as Error).message, busy: false });
     }

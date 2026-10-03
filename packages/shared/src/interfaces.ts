@@ -22,7 +22,8 @@ export interface LlmClient {
   stream(req: LlmRequest): AsyncIterable<string>;
 }
 
-export type ImageKind = 'portrait' | 'scene' | 'freeze' | 'avatar' | 'location' | 'sprite';
+/** `cutout` = a finished portrait with its background removed (visual-novel standing figure). */
+export type ImageKind = 'portrait' | 'scene' | 'freeze' | 'avatar' | 'location' | 'sprite' | 'cutout';
 
 export interface ImageRequest {
   kind: ImageKind;
@@ -37,6 +38,8 @@ export interface ImageRequest {
   reference?: string;
   /** Optional second reference, e.g. a sprite direction/layout guide. */
   reference2?: string;
+  /** Group images: every participant's approved portrait, in the order the prompt names them (image 1, image 2, ...). */
+  references?: string[];
   /** structured hints for procedural placeholders */
   meta?: {
     appearance?: import('./model').Appearance;
@@ -56,8 +59,12 @@ export interface ImageResult {
 
 export interface ImageBackend {
   readonly name: string;
+  /** Hash only the workflow that draws this request, so unrelated art edits keep their cache. */
+  workflowHashFor?(req: ImageRequest): string;
   health(): Promise<boolean>;
-  generate(req: ImageRequest, signal?: AbortSignal): Promise<ImageResult>;
+  generate(req: ImageRequest, signal?: AbortSignal, onProgress?: (p: number) => void): Promise<ImageResult>;
   /** release GPU memory (models stay on disk); called before the LLM needs the card */
   free?(): Promise<void>;
+  /** stop the job currently executing (it is requeued by the caller) */
+  interrupt?(): Promise<void>;
 }

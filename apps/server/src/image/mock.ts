@@ -2,14 +2,16 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
-import { freezePixels, keyColor, locationSvg, pixelsToSvg, portraitPixels, spritePixels, SPRITE_DIRECTIONS, type ImageBackend, type ImageRequest, type ImageResult } from '@shared-roof/shared';
+import { freezePixels, keyColor, locationSvg, pixelsToSvg, portraitPixels, spritePixels, type ImageBackend, type ImageRequest, type ImageResult } from '@shared-roof/shared';
 
 export function placeholderSvg(req: ImageRequest): string {
   const m = req.meta ?? {};
   if (req.kind === 'sprite' && m.appearance) {
-    const frames = SPRITE_DIRECTIONS.map(dir => spritePixels(m.appearance!, dir, 1));
-    return pixelsToSvg(frames[0].map((_, y) => frames.flatMap(frame => frame[y])), 1);
+    // same 4x4 layout as the generated sheets: rows down/left/right/up, walk frames 0-2, then standing
+    const rows = (['down', 'left', 'right', 'up'] as const).map(dir => [0, 1, 2, 1].map(f => spritePixels(m.appearance!, dir, f)));
+    return pixelsToSvg(rows.flatMap(row => row[0].map((_, y) => row.flatMap(frame => frame[y]))), 1);
   }
+  if (req.kind === 'cutout' && m.appearance) return pixelsToSvg(portraitPixels(m.appearance, m.gender ?? 'woman', req.seed), 12);
   if ((req.kind === 'portrait' || req.kind === 'avatar') && m.appearance) {
     return pixelsToSvg(portraitPixels(m.appearance, m.gender ?? 'woman', req.seed), 12, keyColor(req.subjectKey));
   }

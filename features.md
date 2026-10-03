@@ -2,6 +2,84 @@
 
 Everything below exists in the current code. Where a feature only works in one mode, it says so.
 
+## Added in the October 2–3, 2026 updates
+
+**The house, remade like Terrace House Tokyo 2019–2020**
+- An indoor pool behind a floor-to-ceiling glass wall. An upstairs landing opens onto the living room below, with a glass balustrade.
+- A kitchen island with stools, a shaggy sheepskin rug, poufs, brass floor lamps and lanterns.
+- A bright, cream women's room and a cabin-like men's room with dark wood panelling.
+- Everyday clutter: kicked-off sneakers, magazines, a guitar, clothes rails, a washer, weights, floor cushions, and framed prints and shelves on the walls.
+- About 40 furniture sprites and the visual-novel room backgrounds were drawn with ComfyUI (`scripts/assets/house_assets.py`, `comfy_gen.py`). The floors are procedural oak, dark wood and cream carpet.
+- The house view zooms to at least 3× and the camera follows you. Housemates walk real paths around furniture and through doors.
+- Walking through a doorway never freezes input.
+
+**Move-in day**
+- Every season starts with the six arriving one at a time, you included, at a random place in the order.
+- Each arrival is a doorstep scene where everyone already home introduces themselves (name, age, job).
+- Tutorial tips appear when a system first matters: walking and E, the time blocks, talking, the phone, the board, the map, cooking. Skip them in the creator or on any tip; replay them from Settings → "how to play".
+
+**Budget levels instead of money**
+- No shekel balance. Your budget level (tight / modest / comfortable / generous) comes from your job, and a part-time job lifts it one step.
+- Places, gifts and trips have price levels (₪ / ₪₪ / ₪₪₪). You can do anything at or below your level, and stretch one level above now and then: it strains you, and a date notices.
+- You can treat a guest who can't afford a place.
+- Housemates keep to their own budget when they go out, and pick up extra shifts to afford a trip.
+
+**Careers and stays**
+- Housemates change careers mid-season: back to school, starting a business, switching fields. They announce it in the group chat, and their schedule and career arc follow.
+- About 40% of housemates have no fixed stay. They leave only for a reason, or stay until the finale.
+
+**Broadcast lag**
+- Each episode airs on the living-room TV two episodes later, as an evening scene.
+- Housemates learn what was said behind their backs (a new `broadcast` knowledge source), hear the panel's remarks about them, and react: tension, lost trust, embarrassment.
+- "Watch the episode" replays every scene as it aired, with yours highlighted.
+
+**Daily life**
+- **Work and class:** "Go to work" / "go to class" buttons when a shift or lecture is due. Students have a weekday timetable at Tel Aviv University and exam weeks every sixth episode. A missed exam costs more than a missed lecture.
+- **Knocking:** both floors are walkable. Walking into the other bedroom knocks, and you go in only if someone inside answers and lets you in. The house overhears either way.
+- **Sleepwear:** after 23:00, walk sheets and visual-novel figures switch to sleep outfits.
+
+**Romance milestones**
+- First date → "is this a date?" → hand-holding → first kiss.
+- Each step is gated by romance and trust, gets its own scene and freeze-frame, and becomes a fact the house can find out.
+
+**Overnight trips**
+- Galilee campsite, the Dead Sea or Eilat, Friday morning to Saturday morning in the shared car.
+- On Thursday evening, a housemate who likes you texts you an invitation, and Friday's panel opens with it filled in.
+- You pick who comes and who shares your room. Shabbat observers stay home, and budgets apply.
+- The drive and a late-night talk are scenes, and the group comes home on Saturday morning to a return scene at the door.
+- If you don't go, a close pair or a couple may go without you: they are away all night, post from the trip, and text a close friend a photo.
+
+**Life outside the house**
+- Each housemate has a family member, a best friend and an ex, written into their character.
+- They call, turn up at the door, or text out of nowhere.
+
+**The panel**
+- Panelists coin one nickname per housemate from a memorable moment ("Confession Ron") and reuse it all season.
+
+**Images**
+- Freeze-frames, "generate scene", feed photos and selfies show up to six people, each with their own portrait as a reference (Qwen-Image 2.1, `workflows/group_ref.api.json`).
+- Before each freeze-frame, the LLM describes the shot: who stands where, poses, a prop.
+- Feed photos are generated when you open the feed. Ask for a "pic" in a chat and the reply comes with a selfie.
+- Visual-novel figures are sharper: no more nearest-neighbour downscaling, and framed portraits use half the pixel factor.
+- Saved portraits, outfits, expressions and cutouts are reused after a restart, and stay available when ComfyUI is offline.
+
+**Memory and dialogue (SillyTavern ideas)**
+- Housemates who aren't addressed chime in by personality, mood and closeness to the speaker. Busy listeners stay quiet.
+- **Keep listening:** stay quiet and two housemates carry the conversation on their own.
+- At the end of each episode, every housemate writes a diary entry and their own view of each housemate, from only what they know. Dialogue then uses those notes.
+- **Recall:**
+  - Old memories are archived instead of deleted, and come back when someone mentions them.
+  - Places, recurring outsiders and trip spots enter the prompt only when mentioned.
+  - A recalled memory stays in that speaker's context for the scene, then rests for a few episodes.
+  - Recall by meaning (Ollama embeddings) switches on once `nomic-embed-text` is installed.
+- What you type changes the listener's face, from a local keyword emotion reader: a compliment makes them shy, an insult annoyed.
+- Sampler presets per model family (min_p, top_k, repeat penalty), overridable with `OLLAMA_OPTIONS`.
+
+**Performance on one GPU**
+- Each rendered scene gets its own LLM call budget (`LLM_CALLS_PER_SCENE`, default 8). The old block-wide budget of 6 ran dry on the first scene and templated the rest.
+- The idle LLM is unloaded before each image (`FREE_LLM_FOR_IMAGES`). A resident LLM made ComfyUI 20–50× slower on 16 GB.
+- Starting dialogue interrupts a running background image and requeues it.
+
 ## Added in the October 2, 2026 update
 
 - **Expression icons:** scene portraits and the character bible offer neutral, happy, sad, angry, in-love, shy, awkward, annoyed, excited and nervous faces. Click to generate through ComfyUI's reference workflow; variants cache separately, keep the original palette and never advance game time. The original portrait must be ready first. Offline mode keeps the original face and reports that the expression is unavailable. Selection changes the illustration, not the character's feelings.
@@ -13,7 +91,7 @@ Everything below exists in the current code. Where a feature only works in one m
 - **Generated personalities:** real-mode biographies and speech profiles, field validation/fallback, one retry for overly similar voices, saved persona snapshots and exact replay. Generated content preserves identity, traits and job schedules.
 - **Describe your appearance:** free-text appearance mapping, sanitized image prompts and sprite colors sampled from the approved portrait. Sampled colors take priority over provisional model colors.
 - **Generate scene:** illustrate any conversation you join, including phone messages, from its participants, location and recent dialogue. The button opens an image preview without ending the conversation or advancing time; phone scenes show the characters in separate places.
-- **Tel Aviv setting:** local cast and recurring people, city places, shekel prices, local recipes, Sunday–Thursday work, Friday half-days, holidays, seasonal rain and sharav heatwaves.
+- **Tel Aviv setting:** local cast and recurring people, city places, price levels, local recipes, Sunday–Thursday work, Friday half-days, holidays, seasonal rain and sharav heatwaves.
 - **Diet and observance:** strict/style/no kashrut, vegetarian/vegan choices, meat/dairy/parve food, separate pans and a marked shelf. Food acceptance, trust and kitchen disagreements respond to those choices. Shabbat observers stop work, cooking, car use and phone activity at the boundary.
 - **Two-floor house:** ground-floor entrance, living room, kitchen, small bathroom and shared backyard; upstairs bedrooms, private balconies and main bathroom. Visible stair traversal and opening/closing doors; private-room invitations are enforced. Reduced motion skips stair animation, and actions are disabled while walking between rooms.
 - **Plans with consequences:** NPC approaches, shared-calendar invitations, kept/broken promises, impossible-plan cancellation and shared-car availability checks. Car reservations and observance/opening-hour changes are respected when plans are carried out.
@@ -28,28 +106,28 @@ Everything below exists in the current code. Where a feature only works in one m
 
 Verification: 115 tests in the full run, 29 subsequent focused checks, seven browser flows, production build/typecheck/lint, and live dialogue/commentary/image smoke passed. The real structured-generation probe passed all ten checks. See [IMPLEMENTATION.md](IMPLEMENTATION.md), [artwork coverage](docs/ARTWORK.md) and [model evaluation](docs/ROLEPLAY.md).
 
-Known limits: holidays and Friday/Saturday 18:00 Shabbat boundaries are approximations; NPC time advances with game actions. Portrait colors use central-region sampling rather than segmentation; feed pictures are procedural freeze frames. Additional weather/custom-cast images generate at runtime. Testing with both services open does not establish simultaneous full image-model and LLM GPU residency.
+Known limits: holidays and Friday/Saturday 18:00 Shabbat boundaries are approximations; NPC time advances with game actions. Portrait colors use central-region sampling rather than segmentation; feed pictures were procedural freeze frames (generated since October 3). Additional weather/custom-cast images generate at runtime. Testing with both services open does not establish simultaneous full image-model and LLM GPU residency.
 
 ## Start a fresh game on this machine
 
-Keep Ollama and ComfyUI running. The existing `.env` selects real mode, `gemma4:12b` and ComfyUI at port 8188.
+Keep Ollama and ComfyUI running. The existing `.env` selects real mode, `hf.co/Nubinu/Qwen3.5-4B-MiniFantasy-GGUF:Q4_K_M` for planning, `llama3.2:latest` for spoken lines, and ComfyUI at port 8188.
 
 ```powershell
 cd C:\Projects\terrace_house
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173), click **new season**, complete the five creator steps and click **move in**. Leave the season open-ended to try the new wrap-season flow. Keep the default cast for the new portraits, or choose **randomize cast** to try generated housemates. Leave the terminal running while playing. If the game is already running, reload the page and choose **new season**.
+Open [http://localhost:5173](http://localhost:5173), click **new season**, complete the five creator steps and click **move in**. The season opens with move-in day; leave it open-ended to try the wrap-season flow. Keep the default cast for the new portraits, or choose **randomize cast** to try generated housemates. Leave the terminal running while playing. If the game is already running, reload the page and choose **new season**.
 
 Start by walking with **WASD/arrows**, pressing **E** at a person or hotspot, and opening the phone with **P** to check messages and plans. If you want a quick session without waiting for models, use `npm run dev:mock` instead.
 
 ## Modes and setup
 - **Mock mode** (`npm run dev:mock`): fully playable with no external services. Text comes from templates, images from procedural pixel art plus the prebaked asset library.
-- **Real mode** (`npm run dev`): dialogue from Ollama (any chat model; `gemma3:12b` default, tested with `gemma4:12b`), images from ComfyUI.
+- **Real mode** (`npm run dev`): dialogue from Ollama (any chat model; currently MiniFantasy 4B for planning and Llama 3.2 3B for lines, see [docs/ROLEPLAY.md](docs/ROLEPLAY.md)), images from ComfyUI.
 - Automatic per-call fallback: if Ollama or ComfyUI is down or slow, that call uses templates/placeholders and the game keeps going.
 - `/api/health` probe; title screen and top bar show "text: model / templates" and "images offline" badges.
 - Model warm-up request at server start in real mode.
-- Configuration through `.env` (`.env.example` provided): mode, URLs, model, workflow paths, style prefix, season length, LLM calls per slot, seed, port, timeouts, temperatures, optional premise "flavor pass".
+- Configuration through `.env` (`.env.example` provided): mode, URLs, model, workflow paths, style prefix, season length, LLM calls per scene, LLM unloading before images, sampler overrides, embedding model, seed, port, timeouts, temperatures, optional premise "flavor pass".
 
 ## Season and episode structure
 - Open-ended by default (`SEASON_LENGTH=0`); fixed length is optional. After episode 3, announce a finale for the next full episode. Graduations keep rotating the cast until the finale.
@@ -60,7 +138,7 @@ Start by walking with **WASD/arrows**, pressing **E** at a person or hotspot, an
 - Calendar: consecutive days, Sunday–Thursday work, Friday half-days and Saturday openings. Seasonal sun/cloud/rain and sharav heatwaves; no generated snow. Holiday dates are fixed game-calendar approximations.
 - Local events: Purim, Independence Day, Shavuot, Pride, Rosh Hashanah, Sukkot, Hanukkah, Friday dinner and beach days. A sharav heatwave keeps people indoors.
 - Season finale screen: an epilogue for every housemate (including those who left) and the panel's prediction score.
-- **You can graduate too**: leave the house alone at any time, or with your partner (or with a leaver who asked you to come). Your farewell plays at the door, your partner's place is refilled, and then you **create your next character**, who rings the doorbell as a stranger to everyone (blank-slate relationships, fresh money, no job) while the season carries on.
+- **You can graduate too**: leave the house alone at any time, or with your partner (or with a leaver who asked you to come). Your farewell plays at the door, your partner's place is refilled, and then you **create your next character**, who rings the doorbell as a stranger to everyone (blank-slate relationships, no job) while the season carries on.
 
 ## Characters
 - Real mode generates validated persona fields and appearance text, retries an overly similar voice once, and logs complete snapshots for deterministic replay. Mock mode uses seeded archetypes.
@@ -83,13 +161,13 @@ Start by walking with **WASD/arrows**, pressing **E** at a person or hotspot, an
 5. Housemates: preview or randomize the cast; optional seed, open-ended default or fixed season length.
 
 ## The house (top-down pixel view)
-- Two floors from `content/house.json`: ground-floor entrance/living/kitchen/small bathroom/backyard; upstairs bedrooms, private balconies and main bathroom. Stairs change floors; visiting another bedroom's balcony requires an invitation.
+- Two floors from `content/house.json`: ground-floor entrance, living room, kitchen, small bathroom and an indoor pool deck behind glass; upstairs a landing over the living room, an upstairs hall, bedrooms, private balconies and the main bathroom. Stairs change floors; the other bedroom needs a knock and an answer, another bedroom's balcony an invitation.
 - Walk your character with arrow keys/WASD; collision with walls and furniture.
 - Housemates appear as pixel sprites in the room they're actually in, with idle bobbing and walking between rooms. Sprites are shaded (light from the top-left), with per-style hair (bob, braids, ponytail, buzz, messy, long), two-pixel eyes, swinging arms, outfit details (skirts, shorts, aprons, jackets, stripes), build width and accessories (glasses, caps, headphones, scarves, hair clips, ear cuffs).
 - Activity emotes above housemates you can see: asleep, cooking, eating, hobby, working, exercising, texting, tidying, keeping to themselves. Name and mood labels use text plus a symbol, never color alone.
-- Hotspots: press E at the stove (cook), fridge/whiteboard (chores), sofa (hang out), TV (hobby), sink (tidy), backyard table, beds (rest) and front door (city map).
+- Hotspots: press E at the stove (cook), fridge/whiteboard (chores), sofa (hang out), TV (hobby), sink (tidy), pool deck, beds (rest) and front door (city map).
 - Walk up to a housemate and press E to talk.
-- Clock-based light, lamps and rain on the backyard/balconies; dishes, laundry, trash, groceries and living-room mess are visible.
+- Clock-based light, lamps and rain on the pool deck and balconies; dishes, laundry, trash, groceries and living-room mess are visible.
 - Side panel with every action as a button (hang out, cook, backyard, tidy, hobby, rest, go out, skip block, sleep until morning, wrap season) and a confirmation of which slot it uses.
 - "Who's where" panel: each housemate's portrait, room (or "out"), mood word, new/leaving tags and a talk button.
 
@@ -131,7 +209,7 @@ Start by walking with **WASD/arrows**, pressing **E** at a person or hotspot, an
 - Housemates in the same room interact: chat, joke, deep talk, flirt, bicker, awkward silence, gossip, apology, confession.
 - NPC–NPC romances form and break, couples happen, people fight and reconcile, all without the player.
 - Render filter: a moment becomes a full scene if you're there, if it's the most significant of the slot, or if it's an arc beat. Everything else becomes a one-line log entry.
-- LLM budget per slot (default 6 calls). Priority: your scene, then arc beats, then other scenes; the rest use templates.
+- LLM budget per rendered scene (`LLM_CALLS_PER_SCENE`, default 8: beats, lines, voice retries, outcome, commentary); anything beyond uses templates. Unrendered moments never call the LLM.
 
 ## Knowledge, beliefs and gossip
 - Facts are tracked individually. Each character knows a fact through a source: self, witnessed, told, rumor, overheard or group chat, with a confidence level.
@@ -162,8 +240,8 @@ Start by walking with **WASD/arrows**, pressing **E** at a person or hotspot, an
 - Mood drifts back to each person's baseline and spreads between people in the same room. Hunger, tiredness, weather and stress affect it.
 - Cliques form from mutual liking. A hostile clique can make a new group chat without someone.
 - Confessions: anyone can confess. The answer is decided by the other person's real feelings. A yes makes a couple and triggers jealousy in others; a no causes rejection and a grudge.
-- Leaving the house: a couple leaves together, an unanswered confession lingers, a streak of low mood, the end of a stay contract, or an arc decision. Someone leaving gets a farewell scene at the door.
-- Memory: each character keeps their most important memories (importance × recency), a rolling relationship summary per pair, and a "previously" recap.
+- Leaving the house: a couple leaves together, an unanswered confession lingers, a streak of low mood, the end of a planned stay (about 40% of housemates have none), or an arc decision. Someone leaving gets a farewell scene at the door.
+- Memory: each character keeps their 40 most important memories (importance × recency) active and archives the rest for recall, writes an end-of-episode diary (real mode), keeps a relationship note per housemate (LLM-written, template fallback), and the episode gets a "previously" recap.
 
 ## House as shared state
 - Fridge stock that cooking uses up, grocery runs and a shared grocery budget.
@@ -181,12 +259,12 @@ Start by walking with **WASD/arrows**, pressing **E** at a person or hotspot, an
 - Event director scores candidates for expected drama, variety, pacing (confession/farewell budgets, quiet scenes after peaks) and the player's recent choices. It picks with seeded softmax.
 
 ## City
-- Tel Aviv places across Jaffa, Florentin, Neve Tzedek/Rothschild, central/north and beach districts, with weekday opening hours, travel times and shekel prices.
-- Pixel-art map drawn from `city.json` with time-of-day tint. Reachable places blink; unreachable ones are dimmed with a reason (too far, closed, not enough money, needs the car).
+- Tel Aviv places across Jaffa, Florentin, Neve Tzedek/Rothschild, central/north and beach districts, with weekday opening hours, travel times and price levels (₪ / ₪₪ / ₪₪₪).
+- Pixel-art map drawn from `city.json` with time-of-day tint. Reachable places blink; unreachable ones are dimmed with a reason (too far, closed, needs the car); prices show whether they are in, a stretch for, or out of your budget.
 - Shortest-path travel times; outward journey, activity and return journey must fit the minutes remaining, and the venue must be open when you arrive.
 - Shared car: unlocks far places and is faster, but only one person can use it per slot.
-- Activities: date (invite a housemate), wander, work a shift (earns money), shop, karaoke, eat out, invite housemates.
-- **Part-time contracts**: sign on at a work spot for that time slot on three fixed weekdays. Contract shifts pay 25% more than drop-in shifts; the house screen and map remind you when a shift is due; two missed shifts and the manager lets you go (extreme weather excused).
+- Activities: date (invite a housemate), wander, work a shift, attend class (students), shop, karaoke, eat out, invite housemates.
+- **Part-time contracts**: sign on at a work spot for that time slot on three fixed weekdays. A contract lifts your budget a level while you keep it; the house screen offers "go to work" when a shift is due; two missed shifts and the manager lets you go (extreme weather excused).
 - Housemates who went to the same place can run into you. Regular locals (café owner, makolet owner, street musician…) show up on their schedule and remember you.
 - Location backgrounds for every place.
 
@@ -207,7 +285,7 @@ Start by walking with **WASD/arrows**, pressing **E** at a person or hotspot, an
 - Scoring is pure and tested (always between 0 and 1, never lower for more accurate play).
 
 ## Phone
-- Unread notifications update as world minutes advance. Shared plans and a social feed of persisted pixel photos/stories show who posted with whom and who liked them.
+- Unread notifications update as world minutes advance. Shared plans and a social feed of photos/stories (generated with everyone's real face, procedural until ready) show who posted with whom and who liked them. Asking for a picture in a chat gets a selfie back.
 - A photo establishes that people posted together; it does not establish a romance. Public posts enter the existing knowledge system with their source retained.
 - Private chat threads with each housemate, with read/delivered status.
 - House group chat. You can be left out of it; posts carry information to everyone in it.
@@ -225,11 +303,11 @@ Start by walking with **WASD/arrows**, pressing **E** at a person or hotspot, an
 - Default workflow: Qwen-Image + Lightning 8-step LoRA.
 - Priority queue (player portrait > current scene > prefetch), one job at a time, cancellation, disk cache keyed by workflow, prompt, seed and size, indexed in SQLite.
 - Versioned Tel Aviv asset manifest with 84 valid PNGs: 79 newly generated local cast/title/place/room images and five retained panel avatars. All 83 manifest keys resolve. Room viewpoints are shared with live generation; procedural art remains the fallback. See [docs/ARTWORK.md](docs/ARTWORK.md).
-- **Consistent faces**: freeze-frames use the lead character's approved portrait as a reference image through a Qwen-Image-Edit 2511 workflow (`workflows/ref_edit.api.json` + `ref_mapping.json`; swap in an IP-Adapter graph the same way).
-- One GPU for both services: while dialogue streams, the image queue waits and ComfyUI unloads its models so the LLM gets the card.
+- **Consistent faces**: freeze-frames, scene images, feed photos and selfies pass every participant's approved portrait (up to six) to a Qwen-Image 2.1 group workflow (`workflows/group_ref.api.json` + `group_ref_mapping.json`); outfit and expression edits use Qwen-Image-Edit 2511 (`workflows/ref_edit.api.json`).
+- One GPU for both services: while dialogue streams, the image queue waits, a running background image is interrupted and requeued, and ComfyUI unloads its models; before each image the idle LLM is unloaded (`FREE_LLM_FOR_IMAGES`).
 - Prompts are built in one place (`compileAppearancePrompt`): style prefix, an adult tag, a fixed tag order and a fixed seed per character, minors-coded words stripped, and a global safety negative prompt.
 - Placeholders: procedural pixel portraits, locations, and freeze-frames that composite the participants over the location.
-- Generated images are shown pixelated (nearest-neighbour) with a crossfade from the placeholder.
+- Generated images are shown pixelated (nearest-neighbour) with a crossfade from the placeholder; visual-novel figures are scaled smoothly to keep their detail.
 
 ## Saving and replay
 - SQLite: full game state with schema version and a migration stub, memories export, image index, event log.
@@ -239,7 +317,7 @@ Start by walking with **WASD/arrows**, pressing **E** at a person or hotspot, an
 
 ## Settings and accessibility
 - Service status with model and backend names.
-- Toggles: captions, typewriter text, reduced motion, image generation (off = placeholders only), sound, author mode.
+- Toggles: captions, typewriter text, reduced motion, image generation (off = placeholders only), sound, author mode, tutorial tips (plus "how to play" to replay them).
 - Text size from small to extra large.
 - Full keyboard play: walking, hotspots, number keys for choices, shortcuts P/B/I/F/M, Escape closes dialogs, visible focus outlines.
 - Information is never shown by color alone (symbols, words and line styles).
@@ -248,6 +326,6 @@ Start by walking with **WASD/arrows**, pressing **E** at a person or hotspot, an
 
 ## Tooling and tests
 - `npm test`: unit/integration tests, including the 200-seed season simulation (value ranges, knowledge invariant, gossip source chains, NPC romance appearing in some seeds but not all, idle seasons still producing events, departures, arrivals and arc beats), plus determinism, cooking property tests, city tests, prompt budgets, LLM fallback and retry, Ollama streaming, ComfyUI patching, image queue, a full episode with both services down, replay, save/load, and API validation.
-- `npm run test:e2e`: browser end-to-end tests (Playwright, system Edge): creator → a full first episode with both studio intermissions → episode 2, intermission panel lines, typing your own words in a scene, graduating and moving in as someone new, and signing a job contract on the city map.
-- `npm run smoke` (real-service check), `npm run sim` (headless season summary), `scripts/stats.ts` (tuning numbers across seeds).
+- `npm run test:e2e`: browser end-to-end tests (Playwright, system Edge): creator → a full first episode with both studio intermissions → episode 2, intermission panel lines, typing your own words in a scene, graduating and moving in as someone new, signing a job contract on the city map, the visual-novel group scene, activity feedback, a weekend trip end to end, and E-key responsiveness (16 specs).
+- `npx tsx scripts/real-episode.ts [seed]` (one full real-mode move-in episode: scene times, LLM share, sprite gate, prefetch; report in `logs/`), `npm run smoke` (real-service check), `npm run sim` (headless season summary), `scripts/stats.ts` (tuning numbers across seeds).
 - Strict TypeScript everywhere, ESLint, Prettier, `npm run build`.

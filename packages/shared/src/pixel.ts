@@ -491,12 +491,13 @@ export function locationSvg(key: string, timeOfDay: 'morning' | 'day' | 'evening
   return pixelsToSvg(locationPixels(key, timeOfDay, weather), 12);
 }
 
-/** Freeze-frame placeholder: up to two portrait busts composited over the location. */
+/** Freeze-frame placeholder: everyone's portrait bust (up to six, overlapping like a group shot) over the location. */
 export function freezePixels(key: string, timeOfDay: 'morning' | 'day' | 'evening' | 'night', people: { appearance: Appearance; gender: string; seed: number }[]): Pixels {
   const p = locationPixels(key, timeOfDay, 'sunny');
-  people.slice(0, 2).forEach((who, i) => {
+  const group = people.slice(0, 6);
+  group.forEach((who, i) => {
     const bust = portraitPixels(who.appearance, who.gender, who.seed);
-    const ox = people.length === 1 ? 32 : 14 + i * 38;
+    const ox = group.length === 1 ? 32 : group.length === 2 ? 14 + i * 38 : Math.round(((p[0].length - 32) * i) / (group.length - 1));
     for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) if (bust[y][x]) set(p, ox + x, 32 + y, bust[y][x]!);
   });
   // letterbox bars for the "freeze" look

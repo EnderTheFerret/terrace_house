@@ -1,5 +1,6 @@
 // Headless season simulation with the in-process mock pipeline. Used by tests, `npm run sim` and replay checks.
 import type { EventInstance, GameState, Intent, PlayerAction, SceneResponse } from '../model';
+import { playerBudget } from '../engine/budget';
 import { mulberry32 } from '../rng';
 import { autoChoices, createGame, finishSlot, planSlot, proposeOutcome, resolveScene, type NewGameOptions, type PlannedScene } from '../engine/loop';
 import { proposeCondition, recordCommentary } from '../engine/predictions';
@@ -40,7 +41,7 @@ export function activePolicy(seed: number): Policy {
       if (slot === 'evening' || slot === 'lateNight') return rng.chance(0.4) && !isShabbat(s, P) ? { type: 'house', activity: 'cook' } : { type: 'house', activity: 'hangout' };
       if (['heatwave', 'typhoon'].includes(s.world.weather) || isShabbat(s, P)) return { type: 'house', activity: 'hangout' };
       const r = rng.next();
-      const reachable = reachability('house', slot, s.world.money, s.world.carUsedBy === null, s.world.minutes, s.world.weekday).filter((r) => r.reachable);
+      const reachable = reachability('house', slot, playerBudget(s), s.world.carUsedBy === null, s.world.minutes, s.world.weekday).filter((r) => r.reachable && r.afford === 'ok');
       const dates = reachable.filter((r) => ['cafe', 'arcade'].includes(r.node));
       if (r < 0.35 && dates.length && !['work', 'sleep', 'nap', 'shower'].includes(fav.lastAction ?? '') && !isShabbat(s, fav)) return { type: 'goOut', node: rng.pick(dates).node, activity: 'date', invite: fav.id };
       if (r < 0.5 && reachable.some((r) => r.node === 'konbini')) return { type: 'goOut', node: 'konbini', activity: 'work' };

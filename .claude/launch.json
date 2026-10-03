@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "shared-roof-real",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set PORT=8787&& npm run dev"],
+      "port": 5173
+    },
+    {
+      "name": "shared-roof-mock-preview",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set MODE=mock&& set PORT=8795&& set DATA_DIR=.e2e-data/preview&& npm run build -w apps/web && npx tsx apps/server/src/main.ts"],
+      "port": 8795
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 // Player-facing projection: only what the player knows, with reliability tags. Hidden state never leaves the server.
 import type { Appearance, BeliefEntry, Character, GameState, KnowledgeSource, Prediction, Invitation, FeedPost } from '../model';
+import { tripOffer } from './trips';
+import { BUDGETS, playerBudget, type Budget } from './budget';
 import { carPlanNode } from './city';
 import { ROOMS, TRAIT_NAMES } from '../model';
 import { content } from '../content';
@@ -25,6 +27,8 @@ export interface CharView {
   portraitSeed: number;
   isPlayer: boolean;
   status: 'inHouse' | 'left';
+  /** keeps Shabbat (the house knows: phones away Friday night, no driving) */
+  keepsShabbat: boolean;
   leftReason?: string;
   arrivedEp: number;
   mood: string | null;
@@ -93,11 +97,20 @@ export interface PlayerView {
   clock: string;
   minutesLeft: number;
   weekday: number;
+  /** world day (0-based); picks today's outfits */
+  day: number;
   dateLabel: string;
   weather: string;
   season: string;
   cityEvent: { id: string; name: string } | null;
-  money: number;
+  /** what the player can afford: a level from their job (+1 with a part-time job), never a balance */
+  budget: { level: Budget; label: (typeof BUDGETS)[number]; partTime: boolean };
+  /** a housemate's pending invitation to a weekend trip (Thursday text, valid Friday morning) */
+  tripOffer: { from: string; node: string } | null;
+  /** students sit exams this episode */
+  examWeek: boolean;
+  /** latest episode that has aired on TV (replayable in the house), or null */
+  aired: number | null;
   playerId: string;
   playerLocation: string;
   seasonOver: boolean;
@@ -115,7 +128,7 @@ export interface PlayerView {
   board: BoardEdge[];
   bible: BibleEntry[];
   digest: DigestEntry[];
-  chats: { with: string; messages: { from: string; text: string; tick: number; read: boolean }[] }[];
+  chats: { with: string; messages: { from: string; text: string; tick: number; read: boolean; photo?: boolean }[] }[];
   groupChat: { member: boolean; members: string[]; messages: { from: string; text: string; tick: number }[] };
   house: {
     fridge: Record<string, number>;
@@ -152,7 +165,7 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
   const hm = housemates(s);
   const playerHome = isRoom(P.location);
   const kn = s.knowledge[P.id] ?? {};
-  const characters: CharView[] = Object.values(s.characters).map((c) => {
+  const characters: CharView[] = Object.values(s.characters).filter((c) => c.status !== 'arriving').map((c) => {
     const room = content().house.rooms.find((r) => r.id === c.location);
     const visible = c.status === 'inHouse' && (c.isPlayer || (playerHome && isRoom(c.location) && !room?.private) || c.location === P.location);
     const cp = coupleOf(s, c.id);
@@ -160,7 +173,7 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
     const partnerKnown = partner && (c.isPlayer || partner === P.id || Object.keys(kn).some((fid) => s.facts[fid]?.kind === 'couple' && [s.facts[fid].subject, s.facts[fid].about].includes(c.id)));
     return {
       id: c.id, name: c.name, age: c.age, gender: c.gender, occupation: c.occupation, hometown: c.hometown, appearance: c.appearance,
-      appearanceTags: c.appearanceTags, appearanceText: c.appearanceText, portraitSeed: c.portraitSeed, isPlayer: c.isPlayer, status: c.status, leftReason: c.leftReason, arrivedEp: c.arrivedEp,
+      appearanceTags: c.appearanceTags, appearanceText: c.appearanceText, portraitSeed: c.portraitSeed, isPlayer: c.isPlayer, status: c.status as CharView['status'], keepsShabbat: !!c.persona.keepsShabbat, leftReason: c.leftReason, arrivedEp: c.arrivedEp,
       mood: visible ? moodWord(c.mood) : null,
       moodValue: visible ? Math.round(c.mood * 100) / 100 : null,
       location: visible ? c.location : c.status === 'inHouse' && !isRoom(c.location) ? 'out' : null,
@@ -230,7 +243,7 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
     .filter((c) => !c.isPlayer)
     .map((c) => ({
       with: c.id,
-      messages: (s.chats[uk(P.id, c.id)] ?? []).slice(-30).map((m) => ({ from: m.from, text: m.text, tick: m.tick, read: m.readBy.includes(c.id) || m.from === c.id })),
+      messages: (s.chats[uk(P.id, c.id)] ?? []).slice(-30).map((m) => ({ from: m.from, text: m.text, tick: m.tick, read: m.readBy.includes(c.id) || m.from === c.id, ...(m.photo ? { photo: true } : {}) })),
     }))
     .filter((t) => t.messages.length);
   const member = s.house.groupChat.members.includes(P.id);
@@ -256,11 +269,15 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
     clock: clockLabel(s.world.slot, s.world.minutes),
     minutesLeft: SLOT_MINUTES - s.world.minutes,
     weekday: s.world.weekday,
+    day: s.world.day,
     dateLabel: dateLabel(s.world.day),
     weather: s.world.weather,
     season: s.world.season,
     cityEvent: ce ? { id: ce.id, name: ce.name } : null,
-    money: s.world.money,
+    budget: { level: playerBudget(s), label: BUDGETS[playerBudget(s)], partTime: !!s.world.playerJob },
+    tripOffer: tripOffer(s),
+    examWeek: !!s.world.flags.examWeek,
+    aired: typeof s.world.flags.aired === 'number' ? s.world.flags.aired : null,
     playerId: P.id,
     playerLocation: P.location,
     seasonOver: s.seasonOver,

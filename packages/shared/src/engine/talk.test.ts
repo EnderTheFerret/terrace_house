@@ -2,13 +2,33 @@ import { describe, expect, it } from 'vitest';
 import { INTENTS, type Intent } from '../model';
 import { mulberry32 } from '../rng';
 import { mockReply } from '../gen/mock';
-import { classifyIntent, recordChat, recordPlayerWords } from './talk';
+import { classifyIntent, recordChat, recordPlayerWords, typedResponders } from './talk';
 import { blockOver, createGame, finishSlot, joinNewPlayer, passTime, planSlot } from './loop';
 import { DEFAULT_PLAYER } from './castgen';
 import { depart, markLeaving } from './leave';
 import { housemates, MINUTES_PER_LINE } from './core';
 
 const all = [...INTENTS] as Intent[];
+
+describe('group conversations', () => {
+  it('routes typed words to whoever is addressed and lets the group chime in', () => {
+    const s = createGame({ seed: 1 });
+    const group = [s.playerId, 'ren', 'mio', 'kaito'];
+    const name = (id: string) => s.characters[id].name.split(' ')[0];
+    const said = [{ speaker: 'mio' }];
+    expect(typedResponders(s, group, said, 'that sounds fun')[0]).toBe('mio');
+    expect(typedResponders(s, group, said, `${name('kaito')}, what do you think?`)[0]).toBe('kaito');
+    expect(typedResponders(s, group, said, `${name('ren')} and ${name('kaito')}, come with us`)).toEqual(['ren', 'kaito']);
+    const [first, chimer] = typedResponders(s, group, said, 'what are you guys doing tonight?');
+    expect(first).toBe('mio');
+    expect(chimer && chimer !== 'mio' && group.includes(chimer)).toBe(true);
+    expect(typedResponders(s, [s.playerId, 'ren'], [], 'hey everyone')).toEqual(['ren']);
+    expect(typedResponders(s, group, said, `${name('kaito')}, ${name('mio')}, ${name('ren')}: thoughts?`)).toEqual(['kaito', 'mio', 'ren']);
+    expect(new Set(typedResponders(s, group, said, 'hello everyone')).size).toBe(3);
+    s.characters.kaito.lastAction = 'sleep';
+    expect(typedResponders(s, group, said, 'hello everyone')).not.toContain('kaito');
+  });
+});
 
 describe('typed talk', () => {
   it('reads an intent from free text, limited to what the scene offers', () => {
@@ -19,6 +39,7 @@ describe('typed talk', () => {
     expect(classifyIntent('haha you are ridiculous lol', all)).toBe('joke');
     expect(classifyIntent('what happened? tell me', all)).toBe('listen');
     expect(classifyIntent('I like you', ['joke', 'listen'])).toBe('listen'); // confess not offered → a safe offered intent
+    expect(classifyIntent('No, I do not want to go on a date. Please respect that.', all)).toBe('decline');
     expect(classifyIntent('hmm', ['support', 'listen'])).toBe('listen');
   });
 
@@ -105,5 +126,17 @@ describe('graduations and arrivals', () => {
     depart(s, s.characters.kaito);
     expect(s.pendingArrivals).toEqual([{ gender: 'man', ep: 9 }]);
     expect(housemates(s).length).toBe(5);
+  });
+});
+
+describe('local emotion read (S7)', () => {
+  it('reads typed lines and picks the listener face', async () => {
+    const { feltEmotion, reactionTo } = await import('./talk');
+    expect(feltEmotion('I think I like you')).toBe('shy');
+    expect(feltEmotion('you ate my food again? seriously?')).toBe('annoyed');
+    expect(feltEmotion('I miss home so much')).toBe('sad');
+    expect(feltEmotion('what are you doing tonight')).toBeNull();
+    expect(reactionTo('I love you')).toBe('shy');
+    expect(reactionTo('I hate this, liar')).toBe('annoyed');
   });
 });

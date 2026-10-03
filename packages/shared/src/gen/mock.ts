@@ -157,6 +157,8 @@ export interface LineContext {
   outcomeHint?: 'accepted' | 'rejected';
   /** the player's typed words this line answers */
   replyTo?: { text: string; intent: Intent };
+  /** memories recalled by meaning (embeddings) for each speaker, kept for the rest of the scene */
+  recalled?: Record<string, string[]>;
 }
 
 const STOP = new Set(['about', 'actually', 'really', 'there', 'their', 'would', 'could', 'should', 'think', 'thing', 'things', 'something', 'because', 'honestly', 'maybe', 'little', 'today', 'going', 'where', 'which', 'these', 'those', 'being', 'right']);
@@ -349,7 +351,8 @@ export function mockCommentary(
   const key = situationKey(ev, outcome);
   const a = ev.participants[0] ?? ev.roles.a;
   const b = ev.participants[1] ?? ev.roles.b ?? a;
-  const vars = { a: a ? firstName(s, a) : 'they', b: b ? firstName(s, b) : 'them', ep: s.world.episode + 3 };
+  const nick = (id: string) => s.panelNicknames?.[id]?.name ?? firstName(s, id); // the panel's own name for them, once coined
+  const vars = { a: a ? nick(a) : 'they', b: b ? nick(b) : 'them', ep: s.world.episode + 3 };
   const n = 2 + rng.int(0, 3);
   const speakers = rng.shuffle(panel).slice(0, n);
   const lines: Commentary['lines'] = [];

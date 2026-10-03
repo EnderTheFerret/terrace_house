@@ -4,7 +4,7 @@ import { DEFAULT_PLAYER } from './engine/castgen';
 import { depart, processArrivals } from './engine/leave';
 import { mulberry32 } from './rng';
 import { spritePixels } from './pixel';
-import { SPRITE_DIRECTIONS, spriteSheetPixels, spriteWalkPixels } from './sprite-sheet';
+import { SPRITE_DIRECTIONS, spriteSheetPixels } from './sprite-sheet';
 
 it('renders detailed default, randomized, arrival and replacement-player sprites in every direction and walking frame', () => {
   const state = createGame({ seed: 1 });
@@ -28,20 +28,27 @@ it('renders detailed default, randomized, arrival and replacement-player sprites
   expect(spritePixels(a, 'down', 1)).toEqual(spritePixels(a, 'down', 1));
 });
 
-it('extracts transparent detailed sheets without erasing white clothes, mirrors profiles, and animates feet', () => {
-  const w = 160, h = 60;
-  const data = new Uint8ClampedArray(w * h * 4).fill(255);
-  for (let column = 0; column < 4; column++) for (let y = 5; y < 55; y++) for (let x = 10; x < 30; x++) {
-    const k = (y * w + column * 40 + x) * 4;
-    data[k] = 32; data[k + 1] = 48; data[k + 2] = 64;
-    if (x > 13 && x < 25 && y > 15 && y < 30) data[k] = data[k + 1] = data[k + 2] = 255;
+it('slices 4x4 walk sheets into real frames without erasing white clothes, jittering strides or trusting the right row', () => {
+  const s = 4, cell = 32 * s, w = cell * 4; // a 512 sheet drawn at 4x, like the model's
+  const data = new Uint8ClampedArray(w * w * 4).fill(255);
+  const paint = (row: number, col: number, x0: number, x1: number, y0: number, y1: number, rgb: number[]) => {
+    for (let y = y0 * s; y < y1 * s; y++) for (let x = x0 * s; x < x1 * s; x++) data.set([...rgb, 255], ((row * cell + y) * w + col * cell + x) * 4);
+  };
+  for (let row = 0; row < 4; row++) for (let col = 0; col < 4; col++) {
+    paint(row, col, 10, 22, 4, 28, [32, 48, 64]); // body
+    paint(row, col, 13, 19, 10, 18, [255, 255, 255]); // white shirt inside the outline
+    paint(row, col, col === 2 ? 20 : 12, (col === 2 ? 20 : 12) + 2, 28, 31, [200, 40, 40]); // stepping foot
   }
-  const frames = spriteSheetPixels(data, w, h);
-  expect(frames).toHaveLength(4);
-  expect(frames[0][0].every(value => value === null)).toBe(true);
-  expect(frames[0].flat()).toContain('#ffffff');
-  expect(frames[3]).toEqual(frames[2].map(row => row.slice().reverse()));
-  for (const dir of SPRITE_DIRECTIONS) expect(spriteWalkPixels(frames[0], dir, 0)).not.toEqual(spriteWalkPixels(frames[0], dir, 2));
+  paint(2, 0, 2, 5, 2, 5, [0, 200, 0]); // stray mark in the (ignored) right row
+  const frames = spriteSheetPixels(data, w, w);
+  expect(frames.map(d => d.length)).toEqual([3, 3, 3, 3]);
+  for (const f of frames.flat()) expect([f.length, f[0].length]).toEqual([40, 32]);
+  expect(frames[0][1].flat()).toContain('#ffffff');
+  expect(frames[0][0]).not.toEqual(frames[0][2]);
+  // shared crop: body pixels stay put between frames, only the foot moves
+  expect(frames[0][0].slice(0, 30)).toEqual(frames[0][2].slice(0, 30));
+  expect(frames[3]).toEqual(frames[2].map(f => f.map(r => r.slice().reverse())));
+  expect(frames.flat(2)).not.toContain('#00c800');
   expect(() => spriteSheetPixels(new Uint8ClampedArray(0), 0, 0)).toThrow('invalid');
-  expect(() => spriteSheetPixels(new Uint8ClampedArray(16 * 4).fill(255), 4, 4)).toThrow('empty');
+  expect(() => spriteSheetPixels(new Uint8ClampedArray(16 * 16 * 4).fill(255), 16, 16)).toThrow('empty');
 });

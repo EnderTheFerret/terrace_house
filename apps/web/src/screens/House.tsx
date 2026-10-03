@@ -1,12 +1,13 @@
 // House: top-down pixel view of the share house. Walk with arrows/WASD, E/Enter to interact.
 // A full keyboard-accessible action list mirrors everything the map offers.
+import { Tip } from '../components/Tip';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { content, ROOMS, placeName, roomName, shiftToday, type CharView, type PlayerAction, type PlayerView } from '@shared-roof/shared';
+import { classToday, content, priceLabel, ROOMS, placeName, roomName, shiftToday, TRIPS, type CharView, type PlayerAction, type PlayerView } from '@shared-roof/shared';
 import { useGame } from '../store';
 import { TopBar, StudioStrip, DigestModal, slotLabel } from '../components/layout';
 import { Btn, Modal, Panel } from '../components/ui';
-import { hotspots, houseSize, passable, renderHouse, roomAt, solidTiles, spotFor, TILE } from '../pixel/house';
-import { emote, MOOD_ICON, sprite, useCharacterSprites } from '../pixel/sprites';
+import { drawLighting, findPath, hotspots, houseSize, loadHouseAssets, passable, renderHouse, roomAt, seatFor, solidTiles, spotFor, TILE, type Seat } from '../pixel/house';
+import { emote, MOOD_ICON, posedSprite, sprite } from '../pixel/sprites';
 import { Portrait } from '../components/pixel';
 import { api } from '../api';
 import { ambience } from '../audio';
@@ -23,6 +24,11 @@ interface Actor {
   floor: number;
   transfer?: { floor: number; x: number; y: number; tx: number; ty: number };
   finishingStairs?: boolean;
+  /** furniture pose taken on arrival (sofa, bed, stove, table) */
+  seat?: Seat;
+  /** remaining tile steps to (tx, ty), and which goal they were planned for */
+  path?: [number, number][];
+  pathFor?: string;
 }
 
 function takeStairs(a: Actor, nextFloor: number, destination: [number, number]) {
@@ -33,13 +39,7 @@ function takeStairs(a: Actor, nextFloor: number, destination: [number, number]) 
   a.transfer = { floor: nextFloor, x: entry.x, y: entry.y - 1, tx: destination[0], ty: destination[1] };
 }
 
-const clockTint = (clock: string) => {
-  const [h, m] = clock.split(':').map(Number);
-  const hour = h + m / 60;
-  return hour < 6 || hour >= 20 ? 'rgba(30,30,80,0.35)' : hour >= 16 ? `rgba(255,140,80,${((hour - 16) / 4) * 0.24})` : hour < 10 ? 'rgba(255,214,170,0.10)' : 'rgba(0,0,0,0)';
-};
-
-function drawHouseLife(ctx: CanvasRenderingContext2D, house: PlayerView['house'], floor: number, clock: string) {
+function drawHouseLife(ctx: CanvasRenderingContext2D, house: PlayerView['house'], floor: number) {
   const furn = content().house.furniture.filter((f) => f.floor === floor);
   const sink = furn.find((f) => f.type === 'sink');
   if (sink) for (let i = 0; i < Math.ceil(house.dishes / 15); i++) { ctx.fillStyle = i % 2 ? '#f5f0df' : '#9fd3e6'; ctx.fillRect(sink.x * TILE + 3, sink.y * TILE + 13 - i * 2, 10, 2); }
@@ -52,15 +52,13 @@ function drawHouseLife(ctx: CanvasRenderingContext2D, house: PlayerView['house']
     for (let i = 0; i < Math.min(6, stock); i++) { ctx.fillStyle = ['#5fa86b', '#e07a6a', '#fffaf3'][i % 3]; ctx.fillRect(fridge.x * TILE + 4 + (i % 3) * 2, fridge.y * TILE + 10 + Math.floor(i / 3) * 4, 2, 3); }
     for (let i = 0; i < Math.ceil(house.trash / 25); i++) { ctx.fillStyle = '#6a6a76'; ctx.fillRect((fridge.x - 1) * TILE + i * 3, (fridge.y + 2) * TILE, 5, 5); }
   }
-  if (Number(clock.split(':')[0]) >= 19 || Number(clock.split(':')[0]) < 6) for (const f of furn.filter((f) => ['sofa', 'diningtable', 'bench'].includes(f.type))) {
-    ctx.fillStyle = 'rgba(255,220,130,0.14)'; ctx.fillRect((f.x - 1) * TILE, (f.y - 1) * TILE, (f.w + 2) * TILE, (f.h + 2) * TILE);
-  }
 }
 
 export function House() {
   const { view, act, busy, setScreen, settings, setView } = useGame();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(2);
   const [prompt, setPrompt] = useState<{ label: string; run: () => void } | null>(null);
   const [confirm, setConfirm] = useState<{ title: string; action: PlayerAction } | null>(null);
@@ -70,8 +68,12 @@ export function House() {
   const [walking, setWalking] = useState(false);
   const [balcony, setBalcony] = useState('');
   const [invite, setInvite] = useState('');
-  const base = useMemo(() => renderHouse(floor), [floor]);
+  const [assetsReady, setAssetsReady] = useState(false);
+  useEffect(() => { void loadHouseAssets().then(() => setAssetsReady(true)); }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-render once the baked furniture has loaded
+  const base = useMemo(() => renderHouse(floor), [floor, assetsReady]);
   const solid = useMemo(() => solidTiles(floor), [floor]);
+  const solids = useMemo(() => [solidTiles(0), solidTiles(1)], []);
   const actors = useRef<Map<string, Actor>>(new Map());
   const doorAngles = useRef<Map<string, number>>(new Map());
   const keys = useRef<Set<string>>(new Set());
@@ -79,7 +81,6 @@ export function House() {
 
   const chars = useMemo(() => (view ? view.characters.filter((c) => c.status === 'inHouse') : []), [view]);
   const byId = useMemo(() => Object.fromEntries(chars.map((c) => [c.id, c])), [chars]);
-  useCharacterSprites(chars);
   const currentRoom = view?.playerLocation;
   const weather = view?.weather;
   const music = chars.some((c) => c.location === 'living' && c.activity === 'hobby');
@@ -108,6 +109,20 @@ export function House() {
     } catch (e) { setToast((e as Error).message); }
     finally { if (!traversing) setWalking(false); }
   };
+  /** The other bedroom is closed: knock, and go in only if someone inside answers and lets you in. */
+  const knockOn = async (room: string, position: [number, number]) => {
+    if (walking || busy || !view) return;
+    setWalking(true);
+    setToast(`knock knock… (${roomName(room)})`);
+    try {
+      const r = await api.act({ type: 'visit', room, knock: true });
+      const a = actors.current.get(view.playerId);
+      if (r.view.playerLocation === room && a) Object.assign(a, { tx: position[0], ty: position[1] });
+      setView(r.view);
+      setToast(r.view.playerLocation === room ? 'come in.' : (r.view.log.at(-1)?.text ?? 'no answer.'));
+    } catch (e) { setToast((e as Error).message); }
+    finally { setWalking(false); }
+  };
   const stairs = () => {
     const next = floor === 0 ? 1 : 0;
     const h = hotspots(next).find((h) => h.action.startsWith('stairs'));
@@ -119,12 +134,18 @@ export function House() {
     if (!view?.occupancy) return;
     const seen = new Set<string>();
     for (const room of ROOMS) {
+      const taken = new Map<string, number>();
       (view.occupancy[room] ?? []).forEach((id, i) => {
         seen.add(id);
-        const [sx, sy] = spotFor(room, i);
+        const activity = view.characters.find((c) => c.id === id)?.activity ?? null;
+        const n = taken.get(String(activity)) ?? 0;
+        taken.set(String(activity), n + 1);
+        const seat = id === view.playerId ? null : seatFor(room, activity, n);
+        const [sx, sy] = seat ? [seat.x, seat.y] : spotFor(room, i);
         const a = actors.current.get(id);
+        if (a) a.seat = seat ?? undefined;
         const level = content().house.rooms.find((r) => r.id === room)?.floor ?? 0;
-        if (!a) { actors.current.set(id, { id, x: sx, y: sy, tx: sx, ty: sy, dir: 'down', moving: 0, floor: level }); if (id === view.playerId) setFloor(level); }
+        if (!a) { actors.current.set(id, { id, x: sx, y: sy, tx: sx, ty: sy, dir: 'down', moving: 0, floor: level, seat: seat ?? undefined }); if (id === view.playerId) setFloor(level); }
         else if (id !== view.playerId) {
           if (a.transfer?.floor === level) Object.assign(a.transfer, { tx: sx, ty: sy });
           else if (level !== a.floor && !settings.reducedMotion) takeStairs(a, level, [sx, sy]);
@@ -146,7 +167,8 @@ export function House() {
       const el = wrapRef.current;
       if (!el) return;
       const [w, h] = houseSize();
-      setScale(Math.max(1, Math.floor(Math.min(el.clientWidth / w, el.clientHeight / h) * 2) / 2));
+      // at least 3x (characters about 1.5 tiles tall read clearly); a bigger house than the window pans with the player
+      setScale(Math.max(3, Math.floor(Math.min(el.clientWidth / w, el.clientHeight / h) * 2) / 2));
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -200,7 +222,9 @@ export function House() {
         keys.current.add(k);
         if (document.activeElement === canvasRef.current) e.preventDefault();
       }
-      if ((k === 'e' || k === 'enter') && document.activeElement === canvasRef.current) {
+      // E works wherever focus is (after clicking a side button too); Enter only on the canvas, where it can't press a button
+      if (k === 'e' || (k === 'enter' && document.activeElement === canvasRef.current)) {
+        if (e.repeat) return; // holding E must not stack prompts
         const p = nearestInteraction();
         if (p) p.run();
       }
@@ -249,16 +273,22 @@ export function House() {
           const occupied = [...actors.current.values()].some((a) => a.id !== me.id && a.floor === floor && Math.round(a.tx) === me.tx + dx && Math.round(a.ty) === me.ty + dy);
           if (!occupied && passable(me.tx, me.ty, me.tx + dx, me.ty + dy, solid, floor)) {
             const room = roomAt(me.tx + dx, me.ty + dy, floor);
+            const own = view.characters.find((c) => c.id === view.playerId)?.gender === 'man' ? 'bedroomM' : 'bedroomW';
             if (room && room !== roomAt(me.tx, me.ty, floor)) {
-              if (room.startsWith('balcony')) { setBalcony(room); keys.current.clear(); }
-              else void visit(room, floor, undefined, [me.tx + dx, me.ty + dy]);
+              if (room.startsWith('balcony') && room !== own.replace('bedroom', 'balcony')) { setBalcony(room); keys.current.clear(); }
+              else if (room.startsWith('bedroom') && room !== own) { keys.current.clear(); void knockOn(room, [me.tx + dx, me.ty + dy]); }
+              else {
+                // step through at once; the server catches up in the background (no input lock on every doorway)
+                me.tx += dx; me.ty += dy;
+                void api.act({ type: 'visit', room }).then((r) => setView(r.view), (e: Error) => setToast(e.message));
+              }
             } else { me.tx += dx; me.ty += dy; }
           }
           stepCd = 0.13;
         }
       }
-      ctx.drawImage(base, 0, 0);
-      drawHouseLife(ctx, view.house, floor, view.clock);
+      ctx.drawImage(base, 0, 0, base.width / 2, base.height / 2);
+      drawHouseLife(ctx, view.house, floor);
       for (const [x, y, level] of content().house.doors) {
         if (level !== floor) continue;
         const horizontal = roomAt(x, y, floor) !== roomAt(x, y - 1, floor);
@@ -276,8 +306,16 @@ export function House() {
       const list = [...actors.current.values()].sort((a, b) => a.y - b.y);
       for (const a of list) {
         const speed = a.id === view.playerId ? 7.5 : 3;
-        const ddx = a.tx - a.x;
-        const ddy = a.ty - a.y;
+        // housemates walk a tile path around furniture and through doors (the player steps tile by tile already)
+        let [gx, gy] = [a.tx, a.ty];
+        if (a.id !== view.playerId) {
+          const goal = `${a.floor}:${a.tx},${a.ty}`;
+          if (a.pathFor !== goal) { a.pathFor = goal; a.path = findPath([Math.round(a.x), Math.round(a.y)], [a.tx, a.ty], solids[a.floor] ?? solid, a.floor) ?? undefined; }
+          while (a.path?.length && Math.hypot(a.path[0][0] - a.x, a.path[0][1] - a.y) < 0.01) a.path.shift();
+          if (a.path?.length) [gx, gy] = a.path[0];
+        }
+        const ddx = gx - a.x;
+        const ddy = gy - a.y;
         const dist = Math.hypot(ddx, ddy);
         if (dist > 0.01) {
           const st = Math.min(dist, speed * dt);
@@ -302,22 +340,42 @@ export function House() {
         if (a.floor !== floor) continue;
         const ch = byId[a.id];
         if (!ch) continue;
-        const frame = a.moving > 0 ? (Math.floor(a.moving * 8) % 2 ? 0 : 2) : 1;
-        const bob = a.moving === 0 && Math.floor(t / 600 + a.x) % 2 === 0 ? 1 : 0;
-        const X = Math.round(a.x * TILE);
-        const Y = Math.round(a.y * TILE) - 6 - bob;
-        ctx.fillStyle = 'rgba(58,46,63,0.25)';
-        ctx.fillRect(X + 3, Math.round(a.y * TILE) + 12, 10, 3);
-        ctx.drawImage(sprite(a.id, ch.appearance, a.dir, frame, ch.portraitSeed, ch.appearanceText), X, Y, 16, 20);
+        const frame = a.moving > 0 ? [0, 1, 2, 1][Math.floor(a.moving * 8) % 4] : 1;
+        const pose = a.moving === 0 ? a.seat : undefined;
+        // idle breathing; the cook stirs faster
+        const bob = a.moving === 0 && pose?.pose !== 'sleep' && Math.floor(t / (pose?.pose === 'cook' ? 220 : 600) + a.x) % 2 === 0 ? 1 : 0;
+        // 32x40 frames at 1:1 (about 1.5 tiles tall, like a handheld overworld): centred on the tile, feet on its bottom edge
+        const tx = Math.round(a.x * TILE), ty = Math.round(a.y * TILE);
+        const X = tx - 8;
+        const Y = ty - 23 - bob + (pose?.pose === 'sleep' ? 9 : 0);
+        const head = Y + 12; // top of the hair in a generated frame
+        if (pose?.pose !== 'sleep') {
+          ctx.fillStyle = 'rgba(58,46,63,0.25)';
+          ctx.fillRect(tx + 1, ty + 13, 14, 3);
+        }
+        if (pose) a.dir = pose.dir;
+        ctx.drawImage(pose ? posedSprite(ch, pose.pose, pose.dir) : sprite(ch, a.dir, frame), X, Y, 32, 40);
+        if (pose?.pose === 'cook') for (let k = 0; k < 2; k++) { // steam off the pan
+          const s = (t / 900 + k / 2) % 1;
+          ctx.fillStyle = `rgba(255,255,255,${0.6 * (1 - s)})`;
+          ctx.fillRect(tx + 4 + k * 6 + Math.round(Math.sin(t / 300 + k) * 1.5), ty - 18 - Math.round(s * 10), 2, 2);
+        }
         const em = a.moving === 0 ? emote(ch.activity) : null;
-        if (em) ctx.drawImage(em, X + 11, Y - 3 - (Math.floor(t / 500) % 2));
+        if (em) ctx.drawImage(em, tx + 13, head - 6 - (Math.floor(t / 500) % 2));
         if (a.id === view.playerId) {
           ctx.fillStyle = '#e07a6a';
-          ctx.fillRect(X + 7, Y - 4, 2, 2);
+          ctx.fillRect(tx + 7, head - 5, 2, 2);
         }
       }
-      ctx.fillStyle = clockTint(view.clock);
-      ctx.fillRect(0, 0, c.width, c.height);
+      // camera: keep the player centred when the zoomed house is bigger than the window (clamped to the house edges)
+      const stage = stageRef.current, wrap = wrapRef.current;
+      if (stage && wrap && me) {
+        const [hw, hh2] = houseSize();
+        const pan = (inner: number, outer: number, at: number) => (inner <= outer ? 0 : Math.max(-(inner - outer) / 2, Math.min((inner - outer) / 2, inner / 2 - at)));
+        stage.style.transform = `translate(${pan(hw * scale, wrap.clientWidth, (me.x + 0.5) * TILE * scale)}px, ${pan(hh2 * scale, wrap.clientHeight, (me.y + 0.5) * TILE * scale)}px)`;
+      }
+      const [hh, mm] = view.clock.split(':').map(Number);
+      drawLighting(ctx, floor, hh + mm / 60);
       if (view.weather === 'rain') {
         ctx.fillStyle = 'rgba(200,220,240,0.6)';
         for (let i = 0; i < 40; i++) {
@@ -338,11 +396,12 @@ export function House() {
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, base, solid, byId, floor, walking, busy, confirm, balcony, settings.reducedMotion]);
+  }, [view, base, solid, byId, floor, walking, busy, confirm, balcony, settings.reducedMotion, scale]);
 
   if (!view) return null;
   const [W, H] = houseSize();
   const npcsHere = chars.filter((c) => !c.isPlayer);
+  const me = chars.find((c) => c.isPlayer);
   const out = npcsHere.filter((c) => c.location === 'out');
   const doAct = (a: PlayerAction) => {
     if (walking || busy) return;
@@ -352,10 +411,10 @@ export function House() {
 
   return (
     <div className="flex h-full flex-col">
-      <TopBar />
+      <TopBar />{settings.tipsSeen.includes('walk') ? <Tip id="blocks" /> : <Tip id="walk" />}
       <main className="flex min-h-0 flex-1 gap-3 p-3">
         <div ref={wrapRef} className="relative flex min-w-0 flex-1 items-center justify-center overflow-hidden">
-          <div className="relative" style={{ width: W * scale, height: H * scale }}>
+          <div ref={stageRef} className="relative shrink-0" style={{ width: W * scale, height: H * scale }}>
             <canvas
               ref={canvasRef}
               width={W * 2}
@@ -372,7 +431,7 @@ export function House() {
               if (!c || c.isPlayer || a.floor !== floor) return null;
               const m = c.mood ? MOOD_ICON[c.mood] : null;
               return (
-                <div key={a.id} className="pointer-events-none absolute -translate-x-1/2 text-center text-[0.65rem] leading-none" style={{ left: (a.tx * TILE + 8) * scale, top: (a.ty * TILE - 16) * scale - 4, transition: 'left 600ms linear, top 600ms linear' }}>
+                <div key={a.id} className="pointer-events-none absolute -translate-x-1/2 text-center text-[0.65rem] leading-none" style={{ left: (a.tx * TILE + 8) * scale, top: (a.ty * TILE - 24) * scale - 4, transition: 'left 600ms linear, top 600ms linear' }}>
                   <span className="bg-paper/85 px-1" style={{ boxShadow: '0 0 0 1px var(--color-ink)' }}>
                     {m && <span style={{ color: m.color }} aria-hidden>{m.glyph} </span>}
                     {c.name.split(' ')[0]}
@@ -381,20 +440,21 @@ export function House() {
                 </div>
               );
             })}
-            {prompt && (
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-panel px-3 py-1 text-sm" aria-live="polite">
-                <kbd>E</kbd> {prompt.label}
-              </div>
-            )}
-            {toast && (
-              <div className="absolute left-1/2 top-2 -translate-x-1/2 px-panel px-3 py-1 text-sm" role="status" onAnimationEnd={() => setToast(null)}>
-                {toast}{' '}
-                <button className="underline" onClick={() => setToast(null)}>
-                  ok
-                </button>
-              </div>
-            )}
           </div>
+          {/* pinned to the viewport, not the zoomed stage, so they stay on screen while the camera pans */}
+          {prompt && (
+            <div className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 px-panel px-3 py-1 text-sm" aria-live="polite">
+              <kbd>E</kbd> {prompt.label}
+            </div>
+          )}
+          {toast && (
+            <div className="absolute left-1/2 top-2 z-10 -translate-x-1/2 px-panel px-3 py-1 text-sm" role="status" onAnimationEnd={() => setToast(null)}>
+              {toast}{' '}
+              <button className="underline" onClick={() => setToast(null)}>
+                ok
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex w-80 shrink-0 flex-col gap-3 overflow-y-auto scroll-thin pr-1">
           <Panel title="your life in the house"><p className="text-sm">{view.goals.short}</p><p className="caption mt-1 text-xs">long term: {view.goals.long}</p>{view.goals.career && <p className="mt-2 text-xs">work: {view.goals.career.title} · {view.goals.career.completed ? 'resolved' : `chapter ${view.goals.career.act + 1}`}</p>}</Panel>
@@ -421,9 +481,16 @@ export function House() {
               <Btn disabled={busy || walking} onClick={() => setConfirm({ title: 'sleep until morning? (plans and shifts still happen)', action: { type: 'sleep' } })}>sleep until morning</Btn>
             </div>
             {shiftToday(view.job, view.weekday, view.slot) && (
-              <p className="mt-3 text-sm" role="status">
-                ⚑ you have a shift at {placeName(view.job!.nodeId)} now. skipping it twice gets you let go.
-              </p>
+              <div className="mt-3 text-sm" role="status">
+                <p>⚑ you have a shift at {placeName(view.job!.nodeId)} now. skipping it twice gets you let go.</p>
+                <Btn primary className="mt-2" disabled={busy || walking} onClick={() => doAct({ type: 'goOut', node: view.job!.nodeId, activity: 'work' })}>go to work (back after the shift)</Btn>
+              </div>
+            )}
+            {classToday(me?.occupation ?? '', view.weekday, view.slot) && (
+              <div className="mt-3 text-sm" role="status">
+                <p>⚑ {view.examWeek ? 'exam today' : 'you have lectures'} at {placeName('university')}. {view.examWeek ? 'missing it costs more than a lecture.' : 'skipped classes add up.'}</p>
+                <Btn primary className="mt-2" disabled={busy || walking} onClick={() => doAct({ type: 'goOut', node: 'university', activity: 'class' })}>go to class (back after lectures)</Btn>
+              </div>
             )}
             <div className="mt-3 flex flex-wrap gap-2">
               {view.canGraduate && byId[view.canGraduate] && (
@@ -441,6 +508,10 @@ export function House() {
               <Btn disabled={busy || walking || view.episode < 3 || !!view.finaleEpisode} onClick={() => setConfirm({ title: 'announce the final episode? everyone gets one last chance before the season wraps.', action: { type: 'endSeason' } })}>{view.finaleEpisode ? 'finale announced' : 'wrap the season'}</Btn>
             </div>
           </Panel>
+          {view.aired !== null && view.aired >= view.episode - 2 && <BroadcastPanel episode={view.aired} />}
+          {view.weekday === 5 && ['morning', 'slot1', 'slot2'].includes(view.slot) && (
+            <TripPanel chars={npcsHere.filter((c) => c.location !== 'out')} offer={view.tripOffer} disabled={busy || walking} onGo={(node, withIds, roommate) => setConfirm({ title: `leave for ${TRIPS[node].name} with ${withIds.map((id) => byId[id]?.name.split(' ')[0]).join(', ')}? (back tomorrow morning)`, action: { type: 'trip', node, with: withIds, roommate } })} />
+          )}
           <Panel title="who's where">
             <ul className="flex flex-col gap-2 text-sm">
               {npcsHere.map((c) => (
@@ -486,6 +557,57 @@ export function House() {
         <div className="flex gap-2"><Btn primary disabled={busy || walking} onClick={() => void visit(balcony, 1, invite || undefined)}>visit balcony</Btn><Btn onClick={() => setBalcony('')}>cancel</Btn></div>
       </Modal>}
     </div>
+  );
+}
+
+/** The latest aired episode on the living-room TV: every scene as it was broadcast, yours highlighted. */
+function BroadcastPanel({ episode }: { episode: number }) {
+  const [data, setData] = useState<Awaited<ReturnType<typeof api.broadcast>> | null>(null);
+  return (
+    <Panel title={`📺 episode ${episode} has aired`}>
+      <p className="caption text-xs">The house watched it on TV. See what they saw, including the moments you weren't there for.</p>
+      <Btn className="mt-2 text-xs" onClick={() => void api.broadcast().then(setData)}>watch the episode</Btn>
+      {data && (
+        <Modal title={`episode ${data.episode ?? episode}, as aired`} onClose={() => setData(null)}>
+          <div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto scroll-thin text-sm">
+            {data.scenes.length === 0 && <p className="caption">a quiet episode: nothing made the cut.</p>}
+            {data.scenes.map((sc, i) => (
+              <section key={i} className={sc.mine ? 'px-panel-soft p-2' : 'p-2'}>
+                <h3 className="text-xs">{sc.title} · {sc.location}{sc.mine ? ' · you' : ''}</h3>
+                {sc.lines.map((l, j) => <p key={j}><span className="caption">{l.name}:</span> {l.text}</p>)}
+              </section>
+            ))}
+          </div>
+        </Modal>
+      )}
+    </Panel>
+  );
+}
+
+/** Friday: plan an overnight trip in the shared car (Shabbat observers and budgets are checked by the engine). */
+function TripPanel({ chars, offer, disabled, onGo }: { chars: CharView[]; offer: PlayerView['tripOffer']; disabled: boolean; onGo: (node: string, withIds: string[], roommate?: string) => void }) {
+  const [node, setNode] = useState(offer?.node ?? 'galilee');
+  const [picked, setPicked] = useState<string[]>(offer && chars.some((c) => c.id === offer.from) ? [offer.from] : []);
+  const host = offer && chars.find((c) => c.id === offer.from);
+  const [roommate, setRoommate] = useState('');
+  const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length < 3 ? [...p, id] : p));
+  return (
+    <Panel title="weekend trip">
+      {host && <p className="mb-2 text-sm" role="status">✉ {host.name.split(' ')[0]} invited you to {TRIPS[offer!.node].name}.</p>}
+      <label className="flex items-center gap-2 text-sm">to
+        <select aria-label="trip destination" className="px-panel-soft px-2 py-1" value={node} onChange={(e) => setNode(e.target.value)}>
+          {Object.entries(TRIPS).map(([id, t]) => <option key={id} value={id}>{t.name} · {priceLabel(t.price)}</option>)}
+        </select>
+      </label>
+      <fieldset className="mt-2 flex flex-wrap gap-2 text-xs"><legend className="caption">who comes (up to 3)</legend>
+        {chars.map((c) => <label key={c.id} className={`flex items-center gap-1 ${c.keepsShabbat ? 'caption' : ''}`} title={c.keepsShabbat ? 'keeps Shabbat: stays home' : undefined}><input type="checkbox" disabled={c.keepsShabbat} checked={picked.includes(c.id)} onChange={() => toggle(c.id)} />{c.name.split(' ')[0]}{c.keepsShabbat ? ' (Shabbat)' : ''}</label>)}
+      </fieldset>
+      {picked.length > 0 && <label className="mt-2 flex items-center gap-2 text-xs">share a room with
+        <select aria-label="trip roommate" className="px-panel-soft px-1 py-0.5" value={roommate} onChange={(e) => setRoommate(e.target.value)}><option value="">decide there</option>{picked.map((id) => <option key={id} value={id}>{chars.find((c) => c.id === id)?.name.split(' ')[0]}</option>)}</select>
+      </label>}
+      <Btn className="mt-2" disabled={disabled || !picked.length} onClick={() => onGo(node, picked, picked.includes(roommate) ? roommate : undefined)}>leave in the shared car</Btn>
+      <p className="caption mt-1 text-xs">Friday to Saturday morning. Anyone who keeps Shabbat stays home.</p>
+    </Panel>
   );
 }
 

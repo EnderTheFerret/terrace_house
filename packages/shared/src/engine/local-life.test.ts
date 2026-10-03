@@ -68,9 +68,9 @@ describe('Tel Aviv house life', () => {
     }
   });
   it('counts the journey home, remaining time, arrival hours and Saturday closures', () => {
-    expect(reachability('house','slot1',500,false,160).every((r)=>!r.reachable)).toBe(true);
+    expect(reachability('house','slot1',3,false,160).every((r)=>!r.reachable)).toBe(true);
     expect(isOpen(node('cafe'),'slot1',0,6)).toBe(false);
-    const reaches=reachability('house','slot3',500,true,150);
+    const reaches=reachability('house','slot3',3,true,150);
     expect(reaches.find((r)=>r.node==='lighthouse')!.reachable).toBe(false);
   });
   it('applies each career shift once and never forces the player to leave', () => {

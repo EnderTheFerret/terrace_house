@@ -1,7 +1,7 @@
 // Scene prompts: beat sheet (stage 1), line realization (stage 2), delta proposal.
 import { firstName, type Beat, type EventInstance, type GameState, type Intent } from '@shared-roof/shared';
 import { content } from '@shared-roof/shared';
-import { RULES, TOKEN_BUDGET, assemble, knowledgeBlock, memoriesBlock, personaCard, relationshipLine, sceneHeader, type Section } from './common';
+import { RULES, TOKEN_BUDGET, assemble, knowledgeBlock, loreBlock, memoriesBlock, personaCard, relationshipLine, sceneHeader, type Section } from './common';
 
 /** What each player intent means, so the LLM realizes it faithfully. */
 export const INTENT_GUIDE: Record<Intent, string> = {
@@ -27,18 +27,16 @@ function outsiderCards(ev: EventInstance): string {
   return npcs.map((n) => `## ${n.name} (id: ${n.id}), ${n.role}; ${n.traits.join(', ')}. Example: "${n.lines[0]}"`).join('\n');
 }
 
-function contextSections(s: GameState, ev: EventInstance, lastLines: Record<string, string[]> = {}): Section[] {
-  const cs = speakers(s, ev);
+function contextSections(s: GameState, ev: EventInstance, lastLines: Record<string, string[]> = {}, speakerIds?: string[], query = ev.premise, recalled: Record<string, string[]> = {}): Section[] {
+  const cs = speakers(s, ev).filter(c => !speakerIds || speakerIds.includes(c.id));
   const out: Section[] = [{ text: RULES, priority: 100, required: true }];
   for (const c of cs) out.push({ text: personaCard(s, c, { compact: cs.length > 2, lastLines: lastLines[c.id] }), priority: 90, required: true });
   const oc = outsiderCards(ev);
   if (oc) out.push({ text: oc, priority: 85 });
-  if (cs.length >= 2) {
-    const [a, b] = cs;
-    out.push({ text: `${relationshipLine(s, a.id, b.id)}\n${relationshipLine(s, b.id, a.id)}`, priority: 70 });
-  }
+  for (const c of cs) out.push({ text: ev.participants.filter(id => id !== c.id && s.characters[id]).map(id => relationshipLine(s, c.id, id)).join('\n'), priority: 70 });
   for (const c of cs) out.push({ text: knowledgeBlock(s, c.id, ev), priority: 65 });
-  for (const c of cs) out.push({ text: memoriesBlock(s, c.id, ev.participants), priority: 40 });
+  for (const c of cs) out.push({ text: memoriesBlock(s, c.id, ev.participants, 3, query, recalled[c.id]), priority: 75 });
+  out.push({ text: loreBlock(query), priority: 55 });
   out.push({ text: sceneHeader(s, ev), priority: 95, required: true });
   return out;
 }
@@ -73,6 +71,8 @@ export function linesPrompt(
   intents: (Intent | undefined)[],
   /** the player's own typed words that line 1 answers */
   replyTo?: string,
+  /** memories recalled by meaning per speaker (embeddings), sticky for the scene */
+  recalled: Record<string, string[]> = {},
 ): string {
   const last: Record<string, string[]> = {};
   for (const l of transcript) (last[l.speaker] ??= []).push(l.text);
@@ -85,7 +85,7 @@ export function linesPrompt(
   const sofar = transcript.slice(-6).map((l) => `${l.speaker}: ${l.text}`).join('\n');
   return assemble(
     [
-      ...contextSections(s, ev, last),
+      ...contextSections(s, ev, last, beats.map(b => b.speaker), [ev.premise, ...transcript.slice(-4).map(l => l.text), replyTo ?? ''].join(' '), recalled),
       { text: sofar ? `Conversation so far:\n${sofar}` : '', priority: replyTo ? 99 : 60, required: !!replyTo },
       {
         text: replyTo
@@ -97,9 +97,12 @@ export function linesPrompt(
       {
         text: [
           'Write exactly one line per beat, in order, each on its own line formatted as `speaker_id: text`.',
+          `Allowed speaker ids: ${[...new Set(beats.map(b => b.speaker))].join(', ')}. Use these exact ids, never display names. No extra turns or narration.`,
+          beats.some(b => b.speaker === s.playerId) ? '' : `Never write ${s.playerId}'s speech, actions, thoughts or agreement. The player speaks for themselves.`,
           'Each line 1–3 short sentences in that speaker\'s voice. Silence beats can be "..." or a tiny action in parentheses.',
           'Beats:',
           ...beatLines,
+          replyTo ? `Return all ${beats.length} required lines. In the first line, explicitly acknowledge the player's request or boundary: ${JSON.stringify(replyTo)}. Then write the remaining listed beats.` : '',
         ].join('\n'),
         priority: 100,
         required: true,

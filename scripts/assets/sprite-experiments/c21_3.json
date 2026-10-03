@@ -1,0 +1,76 @@
+﻿{
+    "tag":  "s3",
+    "refs":  [
+                 "C:\\Users\\User\\AppData\\Local\\Temp\\claude\\C--Projects-terrace-house\\0c555bcd-65ad-4b17-8eca-60684b16b781\\scratchpad\\ref8x.png"
+             ],
+    "steps":  8,
+    "res":  0,
+    "chars":  [
+                  {
+                      "id":  "kaito",
+                      "seed":  1202,
+                      "who":  "24-year-old adult man, wavy shoulder-length sun-bleached brown hair, brown eyes, athletic build, tan skin, wearing oversized graphic tee and board shorts, shell necklace"
+                  },
+                  {
+                      "id":  "tamar",
+                      "seed":  2306,
+                      "who":  "24-year-old adult woman, long wavy dark brown hair, brown eyes, slim build, brown skin, wearing olive utility jacket over cream shirt and rust trousers, gold hoop earrings"
+                  }
+              ],
+    "passes":  [
+                   {
+                       "res":  1024,
+                       "key":  "front",
+                       "prompt":  "\u003cimage1\u003e shows Pokemon Black and White (Gen 5 Nintendo DS) overworld trainer sprites. Use it only as the art style guide; do not copy that character, his hair, visor or outfit. Draw ONE new overworld trainer sprite in exactly that Gen 5 style: {who}. Super-deformed chibi: the head with big hair is about 60 percent of the total height and wider than the body, small face low on the head with two tiny dark eyes, tiny stubby body, very short legs, small hands. Bold black outline, saturated colors, 2-3 tone flat shading, chunky square pixels like a 32 pixel sprite scaled up. Full body, standing idle, facing the viewer, centered with margins. Plain white background, no text, no other characters.",
+                       "size":  [
+                                    768,
+                                    960
+                                ],
+                       "refs":  [
+                                    "ref0"
+                                ]
+                   },
+                   {
+                       "key":  "side",
+                       "prompt":  "Turn the character in \u003cimage1\u003e 90 degrees so they face LEFT: a strict left side profile, nose pointing to the left edge of the image, one eye visible. Keep the identical character design, hair, face, clothing, colors, Pokemon Black and White overworld pixel art style, outline, size and position on the canvas. Plain white background.",
+                       "refs":  [
+                                    "front"
+                                ]
+                   },
+                   {
+                       "key":  "back",
+                       "prompt":  "Show the character in \u003cimage1\u003e from directly behind: back view, face completely hidden, back of the head and hair and back of the clothes only, no necklace or shirt print. Keep the identical character design, hair, face, clothing, colors, Pokemon Black and White overworld pixel art style, outline, size and position on the canvas. Plain white background.",
+                       "refs":  [
+                                    "front"
+                                ]
+                   },
+                   {
+                       "key":  "wfront",
+                       "prompt":  "The character in \u003cimage1\u003e walking toward the viewer, left foot stepping forward. Same facing direction and camera angle, do not turn, do not run: a small RPG overworld walk-cycle frame, the stepping foot stays under the body, the body bobs slightly, arms swing a little. Keep the identical character design, hair, face, clothing, colors, Pokemon Black and White overworld pixel art style, outline, size and position on the canvas. Plain white background.",
+                       "refs":  [
+                                    "front"
+                                ]
+                   },
+                   {
+                       "key":  "wback",
+                       "prompt":  "The character in \u003cimage1\u003e walking away from the viewer, seen from behind, left foot stepping forward. Same facing direction and camera angle, do not turn, do not run: a small RPG overworld walk-cycle frame, the stepping foot stays under the body, the body bobs slightly, arms swing a little. Keep the identical character design, hair, face, clothing, colors, Pokemon Black and White overworld pixel art style, outline, size and position on the canvas. Plain white background.",
+                       "refs":  [
+                                    "back"
+                                ]
+                   },
+                   {
+                       "key":  "wside",
+                       "prompt":  "The character in \u003cimage1\u003e walking to the left, front leg forward and back leg behind. Same facing direction and camera angle, do not turn, do not run: a small RPG overworld walk-cycle frame, the stepping foot stays under the body, the body bobs slightly, arms swing a little. Keep the identical character design, hair, face, clothing, colors, Pokemon Black and White overworld pixel art style, outline, size and position on the canvas. Plain white background.",
+                       "refs":  [
+                                    "side"
+                                ]
+                   },
+                   {
+                       "key":  "wside2",
+                       "prompt":  "The character in \u003cimage1\u003e walking to the left, mid-step with the legs passing each other, opposite arm swing. Same facing direction and camera angle, do not turn, do not run: a small RPG overworld walk-cycle frame, the stepping foot stays under the body, the body bobs slightly, arms swing a little. Keep the identical character design, hair, face, clothing, colors, Pokemon Black and White overworld pixel art style, outline, size and position on the canvas. Plain white background.",
+                       "refs":  [
+                                    "side"
+                                ]
+                   }
+               ]
+}

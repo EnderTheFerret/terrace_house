@@ -1,0 +1,211 @@
+{
+  "unet": {
+    "class_type": "UnetLoaderGGUF",
+    "inputs": {
+      "unet_name": "qwen_image_2.1_turbo_Q8_0.gguf"
+    },
+    "_meta": {
+      "title": "Qwen-Image 2.1 turbo"
+    }
+  },
+  "clip": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Text encoder"
+    }
+  },
+  "vae": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+    },
+    "_meta": {
+      "title": "VAE"
+    }
+  },
+  "ref1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "reference.png"
+    },
+    "_meta": {
+      "title": "Participant 1 portrait (patched; unused slots are removed)"
+    }
+  },
+  "ref2": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "reference.png"
+    },
+    "_meta": {
+      "title": "Participant 2 portrait (patched; unused slots are removed)"
+    }
+  },
+  "ref3": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "reference.png"
+    },
+    "_meta": {
+      "title": "Participant 3 portrait (patched; unused slots are removed)"
+    }
+  },
+  "ref4": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "reference.png"
+    },
+    "_meta": {
+      "title": "Participant 4 portrait (patched; unused slots are removed)"
+    }
+  },
+  "ref5": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "reference.png"
+    },
+    "_meta": {
+      "title": "Participant 5 portrait (patched; unused slots are removed)"
+    }
+  },
+  "ref6": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "reference.png"
+    },
+    "_meta": {
+      "title": "Participant 6 portrait (patched; unused slots are removed)"
+    }
+  },
+  "enc": {
+    "class_type": "TextEncodeQwenImage21",
+    "inputs": {
+      "clip": [
+        "clip",
+        0
+      ],
+      "vae": [
+        "vae",
+        0
+      ],
+      "prompt": "positive prompt",
+      "negative_prompt": "",
+      "resolution": 768,
+      "images.image_1": [
+        "ref1",
+        0
+      ],
+      "images.image_2": [
+        "ref2",
+        0
+      ],
+      "images.image_3": [
+        "ref3",
+        0
+      ],
+      "images.image_4": [
+        "ref4",
+        0
+      ],
+      "images.image_5": [
+        "ref5",
+        0
+      ],
+      "images.image_6": [
+        "ref6",
+        0
+      ],
+      "images.image_7": [
+        "ref7",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Prompt + participant references"
+    }
+  },
+  "lat": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 768,
+      "batch_size": 1
+    },
+    "_meta": {
+      "title": "Latent size"
+    }
+  },
+  "k": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "unet",
+        0
+      ],
+      "positive": [
+        "enc",
+        0
+      ],
+      "negative": [
+        "enc",
+        1
+      ],
+      "latent_image": [
+        "lat",
+        0
+      ],
+      "seed": 1,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "img": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "k",
+        0
+      ],
+      "vae": [
+        "vae",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Decode"
+    }
+  },
+  "save": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "img",
+        0
+      ],
+      "filename_prefix": "shared_roof_group"
+    },
+    "_meta": {
+      "title": "Save"
+    }
+  },
+  "ref7": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "reference.png"
+    },
+    "_meta": {
+      "title": "Room background (patched; removed when the location has none)"
+    }
+  }
+}

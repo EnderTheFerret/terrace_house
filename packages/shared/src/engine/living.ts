@@ -12,9 +12,9 @@ import { consume, postGroupChat, workCareerTick } from './house';
 import { ACTIVITY_MINUTES, reachability } from './city';
 import { npcRecipe } from './cooking';
 
-export const GIFT_ITEMS: Record<string, { price: number; hobby?: string }> = {
-  flowers: { price: 45, hobby: 'gardening' }, book: { price: 65, hobby: 'reading' },
-  vinyl: { price: 90, hobby: 'music' }, coffee: { price: 15 }, plant: { price: 40, hobby: 'plants' }, snacks: { price: 20 },
+/** Gifts and the hobby that makes them land; price levels are in budget.ts (GIFT_PRICE). */
+export const GIFT_ITEMS: Record<string, { hobby?: string }> = {
+  flowers: { hobby: 'gardening' }, book: { hobby: 'reading' }, vinyl: { hobby: 'music' }, coffee: {}, plant: { hobby: 'plants' }, snacks: {},
 };
 
 export function recordActivity(s: GameState, text: string) {
@@ -26,9 +26,9 @@ export function observeRoutines(s: GameState) {
   const P = player(s);
   for (const c of npcs(s)) {
     if (c.location !== P.location) continue;
-    const seen = s.observedRoutines[c.id] ??= [];
     for (const h of c.persona.routine.habits) {
       if (h.slot !== s.world.slot || h.action !== c.lastAction || (h.weekdaysOnly && s.world.weekday >= 5)) continue;
+      const seen = s.observedRoutines[c.id] ??= [];
       const text = `${h.action} in ${c.location}, ${h.slot}${h.weekdaysOnly ? ' on workdays' : ''}`;
       if (!seen.includes(text)) seen.push(text);
     }
@@ -96,7 +96,7 @@ export function startPlans(s: GameState) {
       continue;
     }
     const sharedPlayerTrip = s.world.carUsedBy === s.playerId && [p.from, p.to].includes(s.playerId) && player(s).location === p.node;
-    const route = !isRoom(p.node) ? reachability('house', p.slot, 99999, s.world.carUsedBy === null || sharedPlayerTrip, s.world.minutes, s.world.weekday).find((r) => r.node === p.node) : undefined;
+    const route = !isRoom(p.node) ? reachability('house', p.slot, 3, s.world.carUsedBy === null || sharedPlayerTrip, s.world.minutes, s.world.weekday).find((r) => r.node === p.node) : undefined;
     if (!isRoom(p.node) && !route?.reachable) {
       p.status = 'declined';
       addLog(s, { kind: 'system', text: `The plan was postponed: ${content().city.nodes.find((n) => n.id === p.node)?.name ?? p.node} is closed or too far to reach and return.`, participants: [p.from, p.to], salience: 0.3 });
@@ -191,7 +191,8 @@ export function advanceLiving(s: GameState, rng: Rng, to: number, protectedIds: 
     }
     if (s.world.minutes < SLOT_MINUTES) reschedule();
     if (s.world.minutes % 60 === 0) hourlyLife(s, rng);
-    observeRoutines(s);
+    // only at stops every chunking shares (expiries, hours), so a split conversation sees what an unsplit one does
+    if (s.world.minutes === expiry || s.world.minutes % 60 === 0) observeRoutines(s);
   }
 }
 
@@ -250,6 +251,39 @@ export function relationshipUpkeep(s: GameState) {
   for (const c of housemates(s)) if (s.world.weather === 'heatwave') c.mood = clamp(c.mood - 0.05, -1, 1);
 }
 
+/**
+ * The player knocks on the other bedroom's door. Whoever inside is awake and trusts them most answers; they let the
+ * player in for this block, or say not now. Nobody (or only sleepers) inside = no answer. The house hears about it.
+ */
+export function knock(s: GameState, room: string): 'in' | 'refused' | 'nobody' {
+  const P = player(s);
+  const inside = npcs(s).filter((c) => c.location === room && !['sleep', 'nap', 'shower'].includes(c.lastAction ?? ''))
+    .sort((a, b) => rel(s, b.id, P.id).trust - rel(s, a.id, P.id).trust);
+  const who = inside[0];
+  const name = content().house.rooms.find((r) => r.id === room)?.name ?? room;
+  if (!who) {
+    addLog(s, { kind: 'domestic', text: `${P.name.split(' ')[0]} knocked on the ${name} door. Nobody answered.`, participants: [P.id], salience: 0.15 });
+    return 'nobody';
+  }
+  const r = rel(s, who.id, P.id);
+  const ok = r.trust + r.affinity * 0.6 + r.romance * 0.4 - r.tension * 0.5 >= 38;
+  if (ok) {
+    s.world.flags[`knockOk_${room}`] = `${s.world.episode}:${s.world.slot}`;
+    addRel(s, who.id, P.id, 'closeness', 2);
+    addMemory(s, who.id, `let ${P.name.split(' ')[0]} into the ${name}`, [who.id, P.id], 0.35);
+    // the rest of the house notices: who went into whose room is exactly what the house talks about
+    const f = addFact(s, { subject: P.id, about: who.id, kind: 'event', content: `${P.name.split(' ')[0]} was let into the ${name} by ${firstName(s, who.id)}`, truth: true, sensitivity: 0.35 });
+    learn(s, who.id, f.id, 'witnessed');
+    learn(s, P.id, f.id, 'self');
+    for (const c of npcs(s)) if (c.id !== who.id && isRoom(c.location) && content().house.rooms.find((x) => x.id === c.location)?.floor === 1) learn(s, c.id, f.id, 'overheard', who.id);
+  } else {
+    addRel(s, P.id, who.id, 'tension', 1);
+    addMemory(s, who.id, `told ${P.name.split(' ')[0]} "not now" through the ${name} door`, [who.id, P.id], 0.3);
+  }
+  addLog(s, { kind: 'domestic', text: ok ? `${firstName(s, who.id)} opened the ${name} door and let ${P.name.split(' ')[0]} in.` : `${firstName(s, who.id)} answered the knock: "not now."`, participants: [P.id, who.id], salience: 0.3 });
+  return ok ? 'in' : 'refused';
+}
+
 export function canVisit(s: GameState, room: string, invite?: string) {
   const r = content().house.rooms.find((r) => r.id === room);
   if (!r) return false;
@@ -257,5 +291,6 @@ export function canVisit(s: GameState, room: string, invite?: string) {
   const own = bedroomOf(player(s));
   if (room === own || room === (own === 'bedroomM' ? 'balconyM' : 'balconyW')) return true;
   if (['bathroom', 'smallBathroom'].includes(room)) return !npcs(s).some((c) => c.location === room);
+  if (s.world.flags[`knockOk_${room}`] === `${s.world.episode}:${s.world.slot}`) return true;
   return !!invite && s.characters[invite]?.location === room && s.invitations.some((p) => p.node === room && p.episode === s.world.episode && p.slot === s.world.slot && p.status === 'accepted' && [p.from, p.to].includes(s.playerId) && [p.from, p.to].includes(invite));
 }

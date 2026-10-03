@@ -25,7 +25,7 @@ export function Title() {
           <Btn primary onClick={() => setScreen('creator')} autoFocus>
             new season
           </Btn>
-          <Btn disabled={!view} onClick={() => setScreen(view?.seasonOver ? 'summary' : 'house')}>
+          <Btn disabled={!view} onClick={() => { if (!view?.seasonOver) useGame.setState({ episodeCard: 'start' }); setScreen(view?.seasonOver ? 'summary' : 'episode'); }}>
             continue{view ? ` · episode ${view.episode}` : ''}
           </Btn>
           <Btn onClick={() => setScreen('saves')}>load</Btn>

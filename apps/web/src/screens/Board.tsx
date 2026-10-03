@@ -1,5 +1,6 @@
 // Relationship board: directed graph of what the player knows (affinity / romance / trust), asymmetry highlighted,
 // reliability shown by line style AND text (never colour alone). Table view for screen readers.
+import { Tip } from '../components/Tip';
 import { useState } from 'react';
 import { useGame } from '../store';
 import { TopBar } from '../components/layout';
@@ -23,7 +24,7 @@ export function Board() {
   const name = (id: string) => (id === view.playerId ? 'you' : (people.find((c) => c.id === id)?.name.split(' ')[0] ?? id));
   return (
     <div className="flex h-full flex-col">
-      <TopBar />
+      <TopBar /><Tip id="board" />
       <main className="flex min-h-0 flex-1 gap-4 overflow-auto p-4 scroll-thin">
         <Panel title="relationship board · only what you know" className="flex-1">
           <div className="mb-3 flex flex-wrap gap-2" role="radiogroup" aria-label="metric">

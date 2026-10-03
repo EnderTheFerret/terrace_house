@@ -1,0 +1,9 @@
+{
+  "tag": "o1",
+  "chars": [
+    {"id": "mio_date", "seeds": [2306], "portrait": "C:/Projects/terrace_house/apps/web/public/assets/portraits/mio.png", "extra": "The character has long straight chestnut-brown hair and fair skin. Ignore the clothes in the image: the character wears a red knee-length summer dress and sandals."},
+    {"id": "mio_beach", "seeds": [2306], "portrait": "C:/Projects/terrace_house/apps/web/public/assets/portraits/mio.png", "extra": "The character has long straight chestnut-brown hair and fair skin. Ignore the clothes in the image: the character wears a coral two-piece bikini and is barefoot."},
+    {"id": "kaito_beach", "seeds": [1202], "portrait": "C:/Projects/terrace_house/apps/web/public/assets/portraits/kaito.png", "extra": "The character has wavy sun-bleached brown hair and tan skin. Ignore the clothes in the image: the character is shirtless and wears blue swim trunks and is barefoot."},
+    {"id": "kaito_camp", "seeds": [1202], "portrait": "C:/Projects/terrace_house/apps/web/public/assets/portraits/kaito.png", "extra": "The character has wavy sun-bleached brown hair and tan skin. Ignore the clothes in the image: the character wears a green hiking jacket, cargo pants and hiking boots."}
+  ]
+}

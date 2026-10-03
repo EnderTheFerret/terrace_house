@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { BeatSheet, createGame, makeEvent, eventTemplate, passTime, stableStringify, type ImageBackend, type ImageRequest, type LlmClient, type LlmRequest } from '@shared-roof/shared';
+import { BeatSheet, createGame, makeEvent, outfitFor, eventTemplate, passTime, stableStringify, type ImageBackend, type ImageRequest, type LlmClient, type LlmRequest } from '@shared-roof/shared';
 import { openDb, Store, migrateState } from './db';
 import { MockLlm } from './llm/mock';
 import { OllamaClient } from './llm/ollama';
@@ -17,7 +17,7 @@ import { GameSession } from './game/session';
 import { Generator } from './game/generate';
 import { replayEvents } from './game/replay';
 import { ROOT } from './config';
-import { freezeRequest, locationRequest } from './image/requests';
+import { cutoutRequest, expressionRequest, freezeRequest, locationRequest, outfitPortraitRequest, portraitRequest } from './image/requests';
 
 class DownLlm implements LlmClient {
   readonly name = 'ollama';
@@ -53,12 +53,12 @@ describe('prompt builder', () => {
   const ev = makeEvent(s, eventTemplate('late-night-kitchen'), { a: 'ren', b: 'mio' }, 'kitchen');
   it('keeps room viewpoints grounded in both location art and freeze frames', () => {
     const room = locationRequest('kitchen', 'lateNight', 'rain');
-    expect(room.prompt).toContain('interior of a shared kitchen');
+    expect(room.prompt).toContain('interior of a modern open kitchen');
     expect(room.prompt).not.toContain('reality show still');
     expect(room.prompt).toContain('night lighting, rain weather');
     expect(room.subjectKey).toBe('location:kitchen:night:rain');
-    expect(freezeRequest(s, ev).prompt).toContain('interior of a shared kitchen');
-    expect(locationRequest('backyard', 'evening', 'sunny').prompt).toContain('entire ground covered by lawn');
+    expect(freezeRequest(s, ev).prompt).toContain('interior of a modern open kitchen');
+    expect(locationRequest('backyard', 'evening', 'sunny').prompt).toContain('glass wall separating it from the living room');
   });
   it('respects the hard token budget per call type', () => {
     expect(approxTokens(beatSheetPrompt(s, ev))).toBeLessThanOrEqual(TOKEN_BUDGET.beats);
@@ -135,6 +135,18 @@ describe('structured LLM calls', () => {
     expect(r.source).toBe('llm');
     expect(n).toBe(2);
   });
+  it('answers an explicit refusal with a boundary-respecting template without an LLM call', async () => {
+    const down = new DownLlm();
+    const gen = new Generator(down);
+    const budget = new Budget(6);
+    const beat = { speaker: 'shun', intent: 'respect the boundary', emotion: 'neutral' as const, beatType: 'comfort' as const, subtext: '', depth: 'smalltalk' as const, topic: '' };
+    const lines = await gen.lines(s, ev, [beat], [], ['decline'], { place: ev.location, catchphraseUses: {}, lineCounts: {}, replyTo: { text: 'No, I do not want to go on a date.', intent: 'decline' } }, budget, () => {}, () => {});
+    expect(down.calls).toBe(0);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ speaker: 'shun', source: 'mock' });
+    expect(lines[0].text).toMatch(/Oh|understand|Sorry/);
+    expect(lines[0].text).not.toMatch(/try again|say.*real|why not|change.*mind/i);
+  });
   it('budget exhaustion routes to templates without calling the LLM', async () => {
     const down = new DownLlm();
     const b = new Budget(0);
@@ -164,6 +176,7 @@ describe('OllamaClient', () => {
     expect(body.messages[0].role).toBe('user');
     expect(body.format).toEqual({ type: 'object' });
     expect(body.options.temperature).toBe(0.9);
+    expect(body.options.top_k).toBe(64); // gemma preset
   });
 });
 
@@ -178,6 +191,16 @@ describe('ComfyUI workflow patching', () => {
     expect(out[map.seed.node].inputs[map.seed.input]).toBe(42);
     expect(out[map.width.node].inputs.width).toBe(832);
     expect(wf[map.positive.node].inputs.text).toBe('positive prompt');
+  });
+  it('group workflow: fills one reference per participant and removes the unused slots', () => {
+    const wf = JSON.parse(readFileSync(resolve(ROOT, 'workflows/group_ref.api.json'), 'utf8'));
+    const map = JSON.parse(readFileSync(resolve(ROOT, 'workflows/group_ref_mapping.json'), 'utf8'));
+    const req: ImageRequest = { kind: 'freeze', prompt: 'p', negative: 'n', seed: 3, width: 1024, height: 768, subjectKey: 'freeze:x' };
+    const out = patchWorkflow(wf, map, req, undefined, 'a.png', undefined, ['a.png', 'b.png']);
+    expect([out.ref1.inputs.image, out.ref2.inputs.image]).toEqual(['a.png', 'b.png']);
+    expect(out.ref3).toBeUndefined();
+    expect(Object.keys(out.enc.inputs).filter((k) => k.startsWith('images.'))).toEqual(['images.image_1', 'images.image_2']);
+    expect(wf.ref3).toBeDefined(); // template untouched
   });
   it('rejects mappings that point at missing nodes', () => {
     expect(() => patchWorkflow(wf, { positive: { node: '999', input: 'text' } }, req)).toThrow(/missing node/);
@@ -227,6 +250,48 @@ describe('image queue', () => {
     expect(cacheKey('w', req('a'))).not.toBe(cacheKey('w', req('a', 2)));
     expect(cacheKey('w', req('a'))).not.toBe(cacheKey('w2', req('a')));
   });
+  it('migrates legacy cached images and reuses them after an unrelated workflow changes', () => {
+    const dir = tmp();
+    const store = new Store(openDb(':memory:'));
+    const image = req('existing');
+    writeFileSync(join(dir, 'existing.png'), Buffer.from([1, 2, 3]));
+    store.imagePut(cacheKey('old-combined', image), 'existing.png', image.kind, image.prompt, image.seed, false);
+    const backend: ImageBackend = { name: 'comfyui', health: async () => true, workflowHashFor: () => 'location-only', generate: async () => { throw new Error('must reuse cache'); } };
+    const first = new ImageQueue(backend, new MockImageBackend(dir), store, 'old-combined', dir, null);
+    expect(first.request(image, PRIORITY.location)).toMatchObject({ status: 'ready', placeholder: false, url: '/images/existing.png' });
+    const afterHouseChange = new ImageQueue(backend, new MockImageBackend(dir), store, 'changed-sprite-workflow', dir, null);
+    expect(afterHouseChange.request(image, PRIORITY.location)).toMatchObject({ status: 'ready', placeholder: false });
+    expect(afterHouseChange.localFile(image)).toBe(join(dir, 'existing.png'));
+    expect(afterHouseChange.generated).toBe(0);
+  });
+  it('reuses the whole portrait → outfit → expression → cutout chain after a restart, and offline', async () => {
+    const dir = tmp();
+    let made = 0;
+    const real: ImageBackend = { name: 'comfyui', health: async () => true, generate: async () => { const path = `${++made}.png`; writeFileSync(join(dir, path), Buffer.from([made])); return { id: path, path, mime: 'image/png', placeholder: false }; } };
+    const c = createGame({ seed: 3 }).characters.ren;
+    const outfit = outfitFor(c, 'daily', 1);
+    const chain = async (q: ImageQueue) => {
+      const keys: string[] = [];
+      const step = async (r: ImageRequest) => { const st = q.request(r, PRIORITY.currentScene); keys.push((await q.settle(st.key)).status); return q.localFile(r)!; };
+      const base = await step(portraitRequest(c));
+      const dressedReq = outfitPortraitRequest(c, outfit, base);
+      const dressed = await step(dressedReq);
+      const happy = expressionRequest({ ...c, appearance: { ...c.appearance, outfit } }, 'happy', dressed);
+      await step(cutoutRequest(await step(happy), happy));
+      return keys;
+    };
+    expect(await chain(new ImageQueue(real, new MockImageBackend(dir), new Store(openDb(join(dir, 'db.sqlite'))), 'w', dir, null))).toEqual(['ready', 'ready', 'ready', 'ready']);
+    expect(made).toBe(4);
+    // server restart: a new queue over the same database and cache folder enqueues nothing
+    const restarted = new ImageQueue(real, new MockImageBackend(dir), new Store(openDb(join(dir, 'db.sqlite'))), 'w', dir, null);
+    expect(await chain(restarted)).toEqual(['ready', 'ready', 'ready', 'ready']);
+    expect(made).toBe(4);
+    expect(restarted.pending().queued).toBe(0);
+    // ComfyUI offline: saved art still comes back real, not placeholders
+    const offline = new ImageQueue(new DownImages(), new MockImageBackend(dir), new Store(openDb(join(dir, 'db.sqlite'))), 'w', dir, null);
+    const happy = expressionRequest({ ...c, appearance: { ...c.appearance, outfit } }, 'happy', offline.localFile(outfitPortraitRequest(c, outfit, offline.localFile(portraitRequest(c))!)));
+    expect(offline.request(cutoutRequest(offline.localFile(happy)!, happy), PRIORITY.currentScene)).toMatchObject({ status: 'ready', placeholder: false });
+  });
   it('processes by priority with concurrency 1 and falls back to placeholders when the backend is down', async () => {
     const dir = tmp();
     const order: string[] = [];
@@ -262,12 +327,60 @@ describe('image queue', () => {
     const bg = q.request(req('bg'), PRIORITY.prefetch);
     await new Promise((r) => setTimeout(r, 20));
     expect(ran).toEqual([]);
+    expect(q.activity()).toMatchObject({ label: 'Generating scenery', waiting: 'Waiting for dialogue to finish', queued: 1, estimatedMs: 45000 });
     const me = q.request(req('me'), PRIORITY.playerPortrait);
     await q.settle(me.key);
     expect(ran).toEqual(['me']);
     release();
     await q.settle(bg.key);
     expect(ran).toEqual(['me', 'bg']);
+    expect(q.activity()).toBeNull();
+  });
+  it('dialogue preempts a running background job, which is requeued and finishes afterwards', async () => {
+    const dir = tmp();
+    let interrupted = 0, attempts = 0, freed = 0;
+    let stop: (() => void) | undefined;
+    const backend: ImageBackend = {
+      name: 'comfyui', health: async () => true,
+      free: async () => { freed++; },
+      interrupt: async () => { interrupted++; stop?.(); },
+      generate: (r) => new Promise((res, rej) => {
+        attempts++;
+        if (attempts > 1) return res(new MockImageBackend(dir).generate(r));
+        stop = () => rej(new Error('comfy reported an error')); // ComfyUI's interrupted prompt fails on its own
+      }),
+    };
+    const q = new ImageQueue(backend, new MockImageBackend(dir), new Store(openDb(':memory:')), 'w', dir, null);
+    const bg = q.request(req('sheet-tomorrow'), PRIORITY.prefetch);
+    await new Promise((r) => setTimeout(r, 10));
+    const release = await q.holdClear(); // a model call starts: waits for the interrupted job to stop
+    expect(interrupted).toBe(1);
+    expect(freed).toBe(1); // the half-run job's models are unloaded before the LLM loads
+    expect(q.status(bg.key).status).toBe('queued');
+    release();
+    expect((await q.settle(bg.key)).status).toBe('ready');
+    expect(attempts).toBe(2);
+  });
+  it('a model call lets a scene image the player asked for finish instead of interrupting it', async () => {
+    const dir = tmp();
+    let interrupted = 0, freed = 0;
+    let finish: (() => void) | undefined;
+    const backend: ImageBackend = {
+      name: 'comfyui', health: async () => true,
+      free: async () => { freed++; },
+      interrupt: async () => { interrupted++; },
+      generate: (r) => new Promise((res) => { finish = () => res(new MockImageBackend(dir).generate(r)); }),
+    };
+    const q = new ImageQueue(backend, new MockImageBackend(dir), new Store(openDb(':memory:')), 'w', dir, null);
+    const photo = q.request(req('scene'), PRIORITY.currentScene);
+    await new Promise((r) => setTimeout(r, 10));
+    const claim = q.holdClear();
+    setTimeout(() => finish!(), 50);
+    const release = await claim;
+    expect(interrupted).toBe(0);
+    expect(q.status(photo.key).status).toBe('ready');
+    expect(freed).toBe(1);
+    release();
   });
   it('cancels queued jobs', () => {
     const dir = tmp();
@@ -366,7 +479,7 @@ describe('game session (mock + failing adapters)', () => {
     const store = new Store(openDb(join(dir, 'db.sqlite')));
     const queue = new ImageQueue(new MockImageBackend(dir), new MockImageBackend(dir), store, 'mock', dir, null);
     const session = new GameSession(store, new Generator(new MockLlm()), queue);
-    await session.newGame({ seed: 21 });
+    await session.newGame({ seed: 21, moveInDay: false });
     await playEpisode(session);
     await playEpisode(session);
     const replayed = replayEvents(store.events(session.state!.gameId));
@@ -378,7 +491,7 @@ describe('game session (mock + failing adapters)', () => {
     const store = new Store(openDb(join(dir, 'db.sqlite')));
     const queue = new ImageQueue(new MockImageBackend(dir), new MockImageBackend(dir), store, 'mock', dir, null);
     const session = new GameSession(store, new Generator(new MockLlm()), queue);
-    await session.newGame({ seed: 21 });
+    await session.newGame({ seed: 21, moveInDay: false });
     const drive = async (action: unknown, typed?: string) => {
       const events: { e: string; d: any }[] = [];
       const { scenes } = await session.act(action);
@@ -424,6 +537,30 @@ describe('game session (mock + failing adapters)', () => {
     expect(stableStringify(replayed)).toBe(stableStringify(session.state));
   });
 
+  it('keep listening: two housemates carry on without the player, then the player can end the talk', async () => {
+    const dir = tmp();
+    const store = new Store(openDb(join(dir, 'db.sqlite')));
+    const queue = new ImageQueue(new MockImageBackend(dir), new MockImageBackend(dir), store, 'mock', dir, null);
+    const session = new GameSession(store, new Generator(new MockLlm()), queue);
+    await session.newGame({ seed: 21, moveInDay: false });
+    const { scenes } = await session.act({ type: 'talk', target: 'ren' });
+    const run = session.runs.get(scenes[0].id)!;
+    const extra = Object.values(session.state!.characters).find((c) => !c.isPlayer && !run.ev.participants.includes(c.id))!;
+    run.ev.participants.push(extra.id); // make it a group
+    const events: { e: string; d: any }[] = [];
+    while (run.phase !== 'awaiting-choice' && run.phase !== 'done') await session.stream(run.id, (e, d) => events.push({ e, d }));
+    expect(events.filter((x) => x.e === 'choice').at(-1)?.d.canListen).toBe(true);
+    const before = run.transcript.length;
+    session.choose(run.id, { listen: true });
+    await session.stream(run.id, (e, d) => events.push({ e, d }));
+    const said = run.transcript.slice(before);
+    expect(said).toHaveLength(2);
+    expect(said.every((l) => l.speaker !== session.state!.playerId)).toBe(true);
+    expect(said[0].speaker).not.toBe(said[1].speaker);
+    expect(events.at(-1)).toMatchObject({ e: 'choice', d: { canEnd: true } });
+    session.choose(run.id, { done: true });
+    while (run.phase !== 'done') await session.stream(run.id, () => {});
+  });
   it('saves and loads through SQLite with schema validation', async () => {
     const dir = tmp();
     const store = new Store(openDb(join(dir, 'db.sqlite')));

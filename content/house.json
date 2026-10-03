@@ -24,7 +24,7 @@
           4
         ]
       ],
-      "material": "carpet-rose",
+      "material": "carpet-cream",
       "floor": 1
     },
     {
@@ -70,7 +70,7 @@
           4
         ]
       ],
-      "material": "carpet-slate",
+      "material": "wood-dark",
       "floor": 1
     },
     {
@@ -157,7 +157,7 @@
           9
         ]
       ],
-      "material": "wood",
+      "material": "oak",
       "floor": 0
     },
     {
@@ -170,8 +170,8 @@
       "private": false,
       "spots": [
         [
-          18,
-          9
+          17,
+          10
         ],
         [
           21,
@@ -216,30 +216,30 @@
     },
     {
       "id": "backyard",
-      "name": "backyard",
+      "name": "pool deck",
       "x": 5,
       "y": 0,
       "w": 18,
       "h": 6,
       "floor": 0,
-      "material": "deck",
+      "material": "pooldeck",
       "private": false,
       "spots": [
         [
-          7,
-          3
+          6,
+          4
         ],
         [
-          10,
-          3
+          12,
+          5
         ],
         [
-          14,
-          3
+          17,
+          4
         ],
         [
-          18,
-          3
+          20,
+          4
         ]
       ]
     },
@@ -248,7 +248,7 @@
       "name": "women's balcony",
       "x": 0,
       "y": 6,
-      "w": 8,
+      "w": 5,
       "h": 5,
       "floor": 1,
       "material": "deck",
@@ -259,7 +259,24 @@
           8
         ],
         [
-          5,
+          3,
+          9
+        ]
+      ]
+    },
+    {
+      "id": "hallW",
+      "name": "upstairs hall",
+      "x": 5,
+      "y": 6,
+      "w": 3,
+      "h": 5,
+      "floor": 1,
+      "material": "oak",
+      "private": false,
+      "spots": [
+        [
+          6,
           8
         ]
       ]
@@ -289,12 +306,12 @@
       "w": 20,
       "h": 10,
       "floor": 1,
-      "material": "wood",
+      "material": "oak",
       "private": false,
       "spots": [
         [
-          10,
-          9
+          8,
+          10
         ],
         [
           16,
@@ -303,6 +320,10 @@
         [
           25,
           9
+        ],
+        [
+          15,
+          12
         ]
       ]
     }
@@ -387,6 +408,11 @@
       4,
       6,
       1
+    ],
+    [
+      8,
+      8,
+      1
     ]
   ],
   "furniture": [
@@ -423,6 +449,31 @@
       "floor": 1
     },
     {
+      "type": "clothesrack",
+      "x": 7,
+      "y": 3,
+      "w": 1,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "floorcushions",
+      "x": 3,
+      "y": 4,
+      "w": 2,
+      "h": 1,
+      "floor": 1,
+      "solid": false
+    },
+    {
+      "type": "plant",
+      "x": 0,
+      "y": 4,
+      "w": 1,
+      "h": 1,
+      "floor": 1
+    },
+    {
       "type": "bath",
       "x": 9,
       "y": 1,
@@ -434,6 +485,14 @@
       "type": "washbasin",
       "x": 12,
       "y": 1,
+      "w": 1,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "washer",
+      "x": 12,
+      "y": 4,
       "w": 1,
       "h": 1,
       "floor": 1
@@ -471,6 +530,31 @@
       "floor": 1
     },
     {
+      "type": "clothesrack",
+      "x": 20,
+      "y": 3,
+      "w": 1,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "weights",
+      "x": 13,
+      "y": 4,
+      "w": 1,
+      "h": 1,
+      "floor": 1,
+      "solid": false
+    },
+    {
+      "type": "guitar",
+      "x": 20,
+      "y": 4,
+      "w": 1,
+      "h": 1,
+      "floor": 1
+    },
+    {
       "type": "bench",
       "x": 22,
       "y": 2,
@@ -500,8 +584,162 @@
       "y": 0,
       "w": 7,
       "h": 1,
-      "solid": true,
       "floor": 1
+    },
+    {
+      "type": "lantern",
+      "x": 26,
+      "y": 4,
+      "w": 1,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "beanbag",
+      "x": 25,
+      "y": 2,
+      "w": 1,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "bench",
+      "x": 1,
+      "y": 7,
+      "w": 2,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "plant",
+      "x": 5,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "lantern",
+      "x": 0,
+      "y": 9,
+      "w": 1,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "beanbag",
+      "x": 4,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "void",
+      "x": 9,
+      "y": 9,
+      "w": 5,
+      "h": 6,
+      "floor": 1
+    },
+    {
+      "type": "sheepskin",
+      "x": 16,
+      "y": 11,
+      "w": 7,
+      "h": 4,
+      "floor": 1,
+      "solid": false
+    },
+    {
+      "type": "lowtable",
+      "x": 18,
+      "y": 12,
+      "w": 2,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "sofa",
+      "x": 17,
+      "y": 14,
+      "w": 4,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "bookshelf",
+      "x": 18,
+      "y": 7,
+      "w": 2,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "plant",
+      "x": 14,
+      "y": 7,
+      "w": 1,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "bigplant",
+      "x": 8,
+      "y": 15,
+      "w": 1,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "plant",
+      "x": 27,
+      "y": 14,
+      "w": 1,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "floorlamp",
+      "x": 22,
+      "y": 14,
+      "w": 1,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "desk",
+      "x": 26,
+      "y": 12,
+      "w": 1,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "chair",
+      "x": 26,
+      "y": 13,
+      "w": 1,
+      "h": 1,
+      "floor": 1
+    },
+    {
+      "type": "magazines",
+      "x": 21,
+      "y": 12,
+      "w": 1,
+      "h": 1,
+      "floor": 1,
+      "solid": false
+    },
+    {
+      "type": "stairs",
+      "x": 24,
+      "y": 8,
+      "w": 2,
+      "h": 2,
+      "floor": 1,
+      "solid": false
     },
     {
       "type": "shoerack",
@@ -525,17 +763,50 @@
       "y": 13,
       "w": 1,
       "h": 2,
-      "solid": false,
+      "floor": 0,
+      "solid": false
+    },
+    {
+      "type": "bench",
+      "x": 1,
+      "y": 10,
+      "w": 2,
+      "h": 1,
       "floor": 0
     },
     {
-      "type": "rug",
+      "type": "coatrack",
+      "x": 4,
+      "y": 7,
+      "w": 1,
+      "h": 1,
+      "floor": 0
+    },
+    {
+      "type": "sneakers",
+      "x": 1,
+      "y": 12,
+      "w": 1,
+      "h": 1,
+      "floor": 0,
+      "solid": false
+    },
+    {
+      "type": "bigplant",
+      "x": 3,
+      "y": 15,
+      "w": 1,
+      "h": 1,
+      "floor": 0
+    },
+    {
+      "type": "sheepskin",
       "x": 6,
       "y": 9,
       "w": 7,
       "h": 4,
-      "solid": false,
-      "floor": 0
+      "floor": 0,
+      "solid": false
     },
     {
       "type": "tv",
@@ -578,10 +849,75 @@
       "floor": 0
     },
     {
+      "type": "pouf",
+      "x": 6,
+      "y": 11,
+      "w": 1,
+      "h": 1,
+      "floor": 0
+    },
+    {
+      "type": "pouf",
+      "x": 11,
+      "y": 11,
+      "w": 1,
+      "h": 1,
+      "floor": 0
+    },
+    {
+      "type": "floorlamp",
+      "x": 6,
+      "y": 13,
+      "w": 1,
+      "h": 1,
+      "floor": 0
+    },
+    {
+      "type": "sidetable",
+      "x": 11,
+      "y": 13,
+      "w": 1,
+      "h": 1,
+      "floor": 0
+    },
+    {
+      "type": "bigplant",
+      "x": 13,
+      "y": 15,
+      "w": 1,
+      "h": 1,
+      "floor": 0
+    },
+    {
+      "type": "guitar",
+      "x": 5,
+      "y": 8,
+      "w": 1,
+      "h": 1,
+      "floor": 0
+    },
+    {
+      "type": "magazines",
+      "x": 13,
+      "y": 9,
+      "w": 1,
+      "h": 1,
+      "floor": 0,
+      "solid": false
+    },
+    {
       "type": "counter",
       "x": 16,
       "y": 7,
-      "w": 4,
+      "w": 2,
+      "h": 1,
+      "floor": 0
+    },
+    {
+      "type": "counter",
+      "x": 18,
+      "y": 7,
+      "w": 2,
       "h": 1,
       "floor": 0
     },
@@ -618,6 +954,41 @@
       "floor": 0
     },
     {
+      "type": "island",
+      "x": 16,
+      "y": 9,
+      "w": 3,
+      "h": 1,
+      "floor": 0
+    },
+    {
+      "type": "stool",
+      "x": 16,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "floor": 0,
+      "solid": false
+    },
+    {
+      "type": "stool",
+      "x": 17,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "floor": 0,
+      "solid": false
+    },
+    {
+      "type": "stool",
+      "x": 18,
+      "y": 10,
+      "w": 1,
+      "h": 1,
+      "floor": 0,
+      "solid": false
+    },
+    {
       "type": "diningtable",
       "x": 18,
       "y": 11,
@@ -631,8 +1002,8 @@
       "y": 11,
       "w": 1,
       "h": 1,
-      "solid": false,
-      "floor": 0
+      "floor": 0,
+      "solid": false
     },
     {
       "type": "chair",
@@ -640,8 +1011,8 @@
       "y": 11,
       "w": 1,
       "h": 1,
-      "solid": false,
-      "floor": 0
+      "floor": 0,
+      "solid": false
     },
     {
       "type": "plant",
@@ -660,30 +1031,75 @@
       "floor": 0
     },
     {
-      "type": "table",
-      "x": 10,
-      "y": 2,
-      "w": 3,
+      "type": "trashbin",
+      "x": 27,
+      "y": 11,
+      "w": 1,
       "h": 1,
-      "floor": 0,
-      "solid": true
+      "floor": 0
     },
     {
-      "type": "plant",
-      "x": 6,
+      "type": "pool",
+      "x": 7,
       "y": 1,
+      "w": 8,
+      "h": 3,
+      "floor": 0
+    },
+    {
+      "type": "lounger",
+      "x": 16,
+      "y": 1,
+      "w": 1,
+      "h": 2,
+      "floor": 0
+    },
+    {
+      "type": "lounger",
+      "x": 18,
+      "y": 1,
+      "w": 1,
+      "h": 2,
       "floor": 0
     },
     {
       "type": "plant",
-      "x": 19,
+      "x": 5,
       "y": 1,
+      "w": 1,
+      "h": 1,
+      "floor": 0
+    },
+    {
+      "type": "bigplant",
+      "x": 21,
+      "y": 1,
+      "w": 1,
+      "h": 1,
+      "floor": 0
+    },
+    {
+      "type": "lantern",
+      "x": 22,
+      "y": 4,
+      "w": 1,
+      "h": 1,
+      "floor": 0
+    },
+    {
+      "type": "lantern",
+      "x": 5,
+      "y": 4,
+      "w": 1,
+      "h": 1,
       "floor": 0
     },
     {
       "type": "washbasin",
       "x": 3,
       "y": 1,
+      "w": 1,
+      "h": 1,
       "floor": 0
     },
     {
@@ -694,28 +1110,6 @@
       "h": 2,
       "floor": 0,
       "solid": false
-    },
-    {
-      "type": "stairs",
-      "x": 24,
-      "y": 8,
-      "w": 2,
-      "h": 2,
-      "floor": 1,
-      "solid": false
-    },
-    {
-      "type": "bench",
-      "x": 1,
-      "y": 7,
-      "w": 2,
-      "floor": 1
-    },
-    {
-      "type": "plant",
-      "x": 6,
-      "y": 7,
-      "floor": 1
     }
   ],
   "hotspots": [
@@ -769,9 +1163,9 @@
     },
     {
       "id": "backyard",
-      "label": "backyard",
-      "x": 10,
-      "y": 3,
+      "label": "pool deck",
+      "x": 11,
+      "y": 4,
       "action": "backyard",
       "floor": 0
     },

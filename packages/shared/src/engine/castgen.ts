@@ -266,7 +266,8 @@ export function fromArchetype(s: Pick<GameState, 'counters'> | null, rng: Rng, a
       appearance,
       voiceNotes: a.voiceNotes.slice(0, 200),
       portraitSeed: hashSeed(id) % 100000,
-      contractEp: Math.min(seasonLength, 12 + rng.int(0, 10)),
+      // some housemates have no fixed stay: they leave only for a reason, or stay until the finale
+      contractEp: ((planned: number) => (hashSeed(`stay:${id}`) % 5 < 2 ? 999 : planned))(Math.min(seasonLength, 12 + rng.int(0, 10))),
       persona,
     },
     { arrivedEp, archetypeId: a.id },

@@ -351,6 +351,26 @@
       "description": "Maya's ward is on the fourth floor. Visiting hours are quieter than her shifts."
     },
     {
+      "id": "university",
+      "name": "Tel Aviv University",
+      "type": "campus",
+      "district": "hillside",
+      "x": 30,
+      "y": 8,
+      "open": [
+        8,
+        21
+      ],
+      "activities": [
+        "class",
+        "wander",
+        "eat"
+      ],
+      "cost": 0,
+      "romantic": 0.2,
+      "description": "Ramat Aviv lawns, lecture halls and a cafeteria that is always out of the good sandwiches."
+    },
+    {
       "id": "onsen",
       "name": "Sarona Gardens",
       "type": "garden",
@@ -425,7 +445,7 @@
         "wander"
       ],
       "cost": 0,
-      "romantic": 1.0,
+      "romantic": 1,
       "description": "A wooden boardwalk over the sea. The place to confess, if you can find the words."
     }
   ],
@@ -585,6 +605,16 @@
       "a": "riverside",
       "b": "onsen",
       "minutes": 70
+    },
+    {
+      "a": "station",
+      "b": "university",
+      "minutes": 18
+    },
+    {
+      "a": "park",
+      "b": "university",
+      "minutes": 14
     }
   ]
 }

@@ -1,7 +1,7 @@
 // Deterministic replay of an events_log: re-applies engine steps in the same order the session used.
 import {
   autoChoices, createGame, finishSlot, panelPrediction, planSlot, proposeOutcome, recordCommentary, resolveScene, applyCooking,
-  joinNewPlayer, recordChat, recordPlayerWords, passTime,
+  joinNewPlayer, recordChat, recordPlayerWords, passTime, recordDiary,
   type EventInstance, type GameState,
 } from '@shared-roof/shared';
 import { applyCharacterSnapshot } from './personas';
@@ -37,9 +37,12 @@ export function replayEvents(events: LoggedEvent[]): GameState {
         s = resolveScene(s, ev, p.proposal, p.choices, p.response).state;
         break;
       }
+      case 'diary':
+        s = recordDiary(s!, p.id, p.episode, p.diary, p.pairs ?? {});
+        break;
       case 'commentary':
         s = panelPrediction(s!).state;
-        s = recordCommentary(s, { prediction: p.prediction, calledBack: p.calledBack ?? [] });
+        s = recordCommentary(s, { prediction: p.prediction, calledBack: p.calledBack ?? [], remarks: p.remarks });
         break;
       case 'cooking':
         s = applyCooking(s!, p).state;
@@ -51,7 +54,7 @@ export function replayEvents(events: LoggedEvent[]): GameState {
         s = recordPlayerWords(s!, p.listeners, p.words);
         break;
       case 'chat':
-        s = recordChat(s!, p.a, p.b, p.lines);
+        s = recordChat(s!, p.a, p.b, p.lines, p.photoFrom);
         break;
       case 'time':
         s = passTime(s!, p.lines);

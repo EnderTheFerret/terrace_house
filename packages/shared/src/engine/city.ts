@@ -1,12 +1,11 @@
-// City graph: shortest paths, opening hours, reachability under time + money + car constraints (Section 7).
+// City graph: shortest paths, opening hours, reachability under time + car constraints, plus price levels (Section 7).
 import type { CityNode } from '../contentSchema';
 import type { GameState, Slot } from '../model';
 import { content } from '../content';
 import { SLOT_MINUTES, SLOT_START } from './core';
+import { afford, nodePrice, type Budget, type Price } from './budget';
 
 export const ACTIVITY_MINUTES = 60;
-export const TRAIN_FARE = 8;
-export const CAR_FUEL = 14;
 
 /** A player may share the car already booked for their accepted meeting. */
 export const carPlanNode = (s: GameState) => s.invitations.find((p) => p.status === 'accepted' && p.episode === s.world.episode && p.slot === s.world.slot && [p.from, p.to].includes(s.playerId) && [p.from, p.to].includes(s.world.carUsedBy ?? ''))?.node ?? null;
@@ -53,7 +52,9 @@ export interface Reach {
   node: string;
   name: string;
   minutes: number;
-  cost: number;
+  /** price level of going there (₪ … ₪₪₪) and whether your budget covers it */
+  price: Price;
+  afford: 'ok' | 'stretch' | 'out';
   open: boolean;
   reachable: boolean;
   needsCar: boolean;
@@ -61,9 +62,10 @@ export interface Reach {
 }
 
 /**
- * Outward journey + activity + return journey must fit the remaining block. Money covers entry + fare.
+ * Outward journey + activity + return journey must fit the remaining block. Affordability is reported separately
+ * (working somewhere never needs the budget for it).
  */
-export function reachability(from: string, slot: Slot, money: number, carAvailable: boolean, elapsed = 0, weekday = 3, forceCar = false): Reach[] {
+export function reachability(from: string, slot: Slot, budget: Budget, carAvailable: boolean, elapsed = 0, weekday = 3, forceCar = false): Reach[] {
   const walk = shortestTimes(from, false);
   const drive = carAvailable ? shortestTimes(from, true) : null;
   return content()
@@ -74,8 +76,7 @@ export function reachability(from: string, slot: Slot, money: number, carAvailab
       const left = Math.max(0, SLOT_MINUTES - elapsed);
       const needsCar = forceCar || !Number.isFinite(wm) || wm * 2 + ACTIVITY_MINUTES > left;
       const minutes = needsCar ? dm : wm;
-      const fare = needsCar ? CAR_FUEL : minutes > 20 ? TRAIN_FARE : 0;
-      const cost = n.cost + fare;
+      const price = nodePrice(n);
       const arrival = SLOT_START[slot] + (elapsed + minutes) / 60;
       const [o, c] = n.openDays?.[String(weekday)] ?? n.open;
       const fits = (a: number, b: number) => arrival >= a && arrival + ACTIVITY_MINUTES / 60 <= b;
@@ -84,8 +85,7 @@ export function reachability(from: string, slot: Slot, money: number, carAvailab
       if (!Number.isFinite(minutes)) reason = carAvailable ? 'no route' : 'needs the car';
       else if (minutes * 2 + ACTIVITY_MINUTES > left) reason = 'too far for this slot';
       else if (!open) reason = 'closed now';
-      else if (cost > money) reason = 'not enough money';
-      return { node: n.id, name: n.name, minutes, cost, open, reachable: !reason, needsCar, reason };
+      return { node: n.id, name: n.name, minutes, price, afford: afford(budget, price), open, reachable: !reason, needsCar, reason };
     });
 }
 
@@ -98,4 +98,6 @@ export const MISSES_BEFORE_FIRED = 2;
 export type PlayerJob = { nodeId: string; slot: Slot; weekdays: number[]; wage: number };
 /** Three fixed weekdays from the signing day, spread across the week (episodes advance the weekday by one). */
 export const contractDays = (weekday: number) => [...new Set([weekday % 5, (weekday + 2) % 5, (weekday + 4) % 5])].sort((a, b) => a - b);
+/** Students have lectures on weekday late mornings at the university (instead of shifts). */
+export const classToday = (occupation: string, weekday: number, slot: string) => /student/i.test(occupation) && weekday < 5 && slot === 'slot1';
 export const shiftToday = (job: PlayerJob | null, weekday: number, slot: string) => !!job && job.slot === slot && job.weekdays.includes(weekday);

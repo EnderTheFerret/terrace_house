@@ -2210,6 +2210,819 @@
           }
         }
       ]
+    },
+    {
+      "id": "broadcast-watch",
+      "type": "broadcast",
+      "title": "the episode airs",
+      "tags": [
+        "broadcast",
+        "group",
+        "house-meeting"
+      ],
+      "system": true,
+      "slots": [
+        "evening"
+      ],
+      "location": "living",
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "weight": 1,
+      "drama": {
+        "tension": [
+          [
+            "b",
+            "a",
+            1
+          ]
+        ],
+        "mood": [
+          [
+            "a",
+            -0.02
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "reveal",
+        "probe",
+        "choice",
+        "joke",
+        "close"
+      ],
+      "intents": [
+        "honest",
+        "joke",
+        "support",
+        "confront"
+      ],
+      "premise": "The house gathers on the living-room sofa as the latest episode airs. {a} and {b} watch moments they were not there for.",
+      "freeze": false
+    },
+    {
+      "roles": {
+        "a": {},
+        "b": {
+          "gender": "attractedTo:a"
+        }
+      },
+      "peak": true,
+      "freeze": true,
+      "location": "player-node",
+      "id": "first-date",
+      "type": "date",
+      "title": "their first date",
+      "tags": [
+        "date",
+        "romance",
+        "milestone"
+      ],
+      "slots": [
+        "slot1",
+        "slot2",
+        "slot3",
+        "evening"
+      ],
+      "activity": [
+        "date",
+        "eat"
+      ],
+      "pre": [
+        {
+          "milestone": [
+            "a",
+            "b"
+          ],
+          "is": 0
+        },
+        {
+          "rel": "romance",
+          "from": "a",
+          "to": "b",
+          "min": 30
+        },
+        {
+          "rel": "romance",
+          "from": "b",
+          "to": "a",
+          "min": 25
+        }
+      ],
+      "weight": 5,
+      "drama": {
+        "romance": [
+          [
+            "a",
+            "b",
+            9
+          ],
+          [
+            "b",
+            "a",
+            8
+          ]
+        ],
+        "affinity": [
+          [
+            "a",
+            "b",
+            4
+          ],
+          [
+            "b",
+            "a",
+            4
+          ]
+        ],
+        "trust": [
+          [
+            "a",
+            "b",
+            3
+          ],
+          [
+            "b",
+            "a",
+            3
+          ]
+        ],
+        "mood": [
+          [
+            "a",
+            0.08
+          ],
+          [
+            "b",
+            0.08
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "probe",
+        "choice",
+        "flirt",
+        "reveal",
+        "close"
+      ],
+      "intents": [
+        "flirt",
+        "honest",
+        "joke",
+        "listen"
+      ],
+      "premise": "{a} and {b} on their first one-on-one date at {place}, both dressed up a little more than they would admit. Nobody else from the house is here.",
+      "effects": [
+        {
+          "date": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "milestone": [
+            "a",
+            "b"
+          ]
+        }
+      ]
+    },
+    {
+      "roles": {
+        "a": {},
+        "b": {
+          "gender": "attractedTo:a"
+        }
+      },
+      "peak": true,
+      "freeze": true,
+      "location": "player-node",
+      "id": "second-date",
+      "type": "date",
+      "title": "is this a date?",
+      "tags": [
+        "date",
+        "romance",
+        "milestone"
+      ],
+      "slots": [
+        "slot1",
+        "slot2",
+        "slot3",
+        "evening"
+      ],
+      "activity": [
+        "date",
+        "eat",
+        "wander"
+      ],
+      "pre": [
+        {
+          "milestone": [
+            "a",
+            "b"
+          ],
+          "is": 1
+        },
+        {
+          "rel": "romance",
+          "from": "a",
+          "to": "b",
+          "min": 40
+        },
+        {
+          "rel": "romance",
+          "from": "b",
+          "to": "a",
+          "min": 35
+        },
+        {
+          "rel": "trust",
+          "from": "b",
+          "to": "a",
+          "min": 35
+        }
+      ],
+      "weight": 5,
+      "drama": {
+        "romance": [
+          [
+            "a",
+            "b",
+            8
+          ],
+          [
+            "b",
+            "a",
+            8
+          ]
+        ],
+        "trust": [
+          [
+            "a",
+            "b",
+            4
+          ],
+          [
+            "b",
+            "a",
+            4
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "tease",
+        "probe",
+        "choice",
+        "flirt",
+        "close"
+      ],
+      "intents": [
+        "flirt",
+        "honest",
+        "deflect",
+        "joke"
+      ],
+      "premise": "A second time out, just {a} and {b} at {place}. Halfway through, one of them asks the question the whole house is asking: \"so... is this a date?\"",
+      "effects": [
+        {
+          "date": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "milestone": [
+            "a",
+            "b"
+          ]
+        }
+      ]
+    },
+    {
+      "roles": {
+        "a": {},
+        "b": {
+          "gender": "attractedTo:a"
+        }
+      },
+      "peak": true,
+      "freeze": true,
+      "location": "player-node",
+      "id": "hand-holding",
+      "type": "date",
+      "title": "hands",
+      "tags": [
+        "date",
+        "romance",
+        "milestone"
+      ],
+      "slots": [
+        "slot2",
+        "slot3",
+        "evening"
+      ],
+      "activity": [
+        "date",
+        "wander"
+      ],
+      "pre": [
+        {
+          "milestone": [
+            "a",
+            "b"
+          ],
+          "is": 2
+        },
+        {
+          "rel": "romance",
+          "from": "a",
+          "to": "b",
+          "min": 50
+        },
+        {
+          "rel": "romance",
+          "from": "b",
+          "to": "a",
+          "min": 45
+        },
+        {
+          "rel": "trust",
+          "from": "b",
+          "to": "a",
+          "min": 45
+        }
+      ],
+      "weight": 6,
+      "drama": {
+        "romance": [
+          [
+            "a",
+            "b",
+            8
+          ],
+          [
+            "b",
+            "a",
+            9
+          ]
+        ],
+        "affinity": [
+          [
+            "a",
+            "b",
+            3
+          ],
+          [
+            "b",
+            "a",
+            3
+          ]
+        ],
+        "mood": [
+          [
+            "a",
+            0.1
+          ],
+          [
+            "b",
+            0.1
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "silence",
+        "choice",
+        "flirt",
+        "accept",
+        "close"
+      ],
+      "intents": [
+        "flirt",
+        "honest",
+        "listen",
+        "decline"
+      ],
+      "premise": "Walking back from {place}, {a} and {b} fall quiet. Their hands brush once, then again, and this time {a} doesn't move away.",
+      "effects": [
+        {
+          "date": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "milestone": [
+            "a",
+            "b"
+          ]
+        }
+      ]
+    },
+    {
+      "roles": {
+        "a": {},
+        "b": {
+          "gender": "attractedTo:a"
+        }
+      },
+      "peak": true,
+      "freeze": true,
+      "location": "player-node",
+      "id": "first-kiss",
+      "type": "date",
+      "title": "the first kiss",
+      "tags": [
+        "date",
+        "romance",
+        "milestone",
+        "kiss"
+      ],
+      "slots": [
+        "slot3",
+        "evening"
+      ],
+      "activity": [
+        "date",
+        "wander"
+      ],
+      "pre": [
+        {
+          "milestone": [
+            "a",
+            "b"
+          ],
+          "is": 3
+        },
+        {
+          "rel": "romance",
+          "from": "a",
+          "to": "b",
+          "min": 60
+        },
+        {
+          "rel": "romance",
+          "from": "b",
+          "to": "a",
+          "min": 55
+        },
+        {
+          "rel": "trust",
+          "from": "b",
+          "to": "a",
+          "min": 55
+        }
+      ],
+      "weight": 7,
+      "drama": {
+        "romance": [
+          [
+            "a",
+            "b",
+            10
+          ],
+          [
+            "b",
+            "a",
+            10
+          ]
+        ],
+        "trust": [
+          [
+            "a",
+            "b",
+            4
+          ],
+          [
+            "b",
+            "a",
+            4
+          ]
+        ],
+        "mood": [
+          [
+            "a",
+            0.15
+          ],
+          [
+            "b",
+            0.15
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "silence",
+        "confess",
+        "choice",
+        "accept",
+        "close"
+      ],
+      "intents": [
+        "flirt",
+        "honest",
+        "confess",
+        "decline"
+      ],
+      "premise": "{a} and {b} at {place} as the light goes. A long pause, a nervous laugh, and a first kiss, brief and a little clumsy. Keep it PG-13: one kiss, nothing more.",
+      "effects": [
+        {
+          "date": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "milestone": [
+            "a",
+            "b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trip-travel",
+      "type": "trip",
+      "title": "road trip",
+      "tags": [
+        "trip",
+        "overnight",
+        "group",
+        "light"
+      ],
+      "system": true,
+      "slots": [
+        "slot2",
+        "slot3"
+      ],
+      "location": "player-node",
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "weight": 1,
+      "drama": {
+        "affinity": [
+          [
+            "a",
+            "b",
+            4
+          ],
+          [
+            "b",
+            "a",
+            4
+          ]
+        ],
+        "trust": [
+          [
+            "a",
+            "b",
+            2
+          ],
+          [
+            "b",
+            "a",
+            2
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "joke",
+        "tease",
+        "choice",
+        "close"
+      ],
+      "intents": [
+        "joke",
+        "honest",
+        "flirt",
+        "listen"
+      ],
+      "premise": "The shared car, a playlist argument, snacks from a gas station: the trip to {place} begins."
+    },
+    {
+      "id": "trip-night",
+      "type": "trip",
+      "title": "late night, far from the house",
+      "tags": [
+        "trip",
+        "overnight",
+        "romance",
+        "peak"
+      ],
+      "system": true,
+      "slots": [
+        "evening",
+        "lateNight"
+      ],
+      "location": "player-node",
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "weight": 1,
+      "peak": true,
+      "drama": {
+        "romance": [
+          [
+            "a",
+            "b",
+            5
+          ],
+          [
+            "b",
+            "a",
+            5
+          ]
+        ],
+        "trust": [
+          [
+            "a",
+            "b",
+            5
+          ],
+          [
+            "b",
+            "a",
+            5
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "silence",
+        "probe",
+        "reveal",
+        "choice",
+        "comfort",
+        "close"
+      ],
+      "intents": [
+        "honest",
+        "flirt",
+        "listen",
+        "confess"
+      ],
+      "premise": "Night at {place}. Someone has to decide who shares which room. Later, two of them are still awake, talking about things they would never say in the house."
+    },
+    {
+      "id": "trip-return",
+      "type": "trip",
+      "title": "back from the trip",
+      "tags": [
+        "trip",
+        "group",
+        "light"
+      ],
+      "system": true,
+      "slots": [
+        "morning"
+      ],
+      "location": "entrance",
+      "roles": {
+        "a": {},
+        "b": {}
+      },
+      "weight": 1,
+      "freeze": true,
+      "drama": {
+        "affinity": [
+          [
+            "a",
+            "b",
+            2
+          ],
+          [
+            "b",
+            "a",
+            2
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "tease",
+        "choice",
+        "close"
+      ],
+      "intents": [
+        "joke",
+        "honest",
+        "deflect",
+        "listen"
+      ],
+      "premise": "The trip group comes back through the door, sunburnt and smelling of campfire. The ones who stayed home want details, especially about who shared a room with whom."
+    },
+    {
+      "id": "class-day",
+      "type": "class",
+      "title": "at class",
+      "tags": [
+        "class",
+        "quiet"
+      ],
+      "slots": [
+        "slot1",
+        "slot2"
+      ],
+      "location": "player-node",
+      "activity": [
+        "class"
+      ],
+      "roles": {
+        "a": {
+          "player": true
+        }
+      },
+      "pre": [
+        {
+          "notFlag": "examWeek"
+        }
+      ],
+      "weight": 1,
+      "drama": {
+        "mood": [
+          [
+            "a",
+            0.05
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "choice",
+        "close"
+      ],
+      "intents": [
+        "honest",
+        "joke",
+        "listen"
+      ],
+      "premise": "{a} sits through lectures at {place}. A classmate who always borrows notes slides in next to them with questions about the share house."
+    },
+    {
+      "id": "exam-day",
+      "type": "class",
+      "title": "exam week",
+      "tags": [
+        "class",
+        "exam",
+        "tense"
+      ],
+      "slots": [
+        "slot1",
+        "slot2"
+      ],
+      "location": "player-node",
+      "activity": [
+        "class"
+      ],
+      "roles": {
+        "a": {
+          "player": true
+        }
+      },
+      "pre": [
+        {
+          "flag": "examWeek"
+        }
+      ],
+      "weight": 1,
+      "drama": {
+        "mood": [
+          [
+            "a",
+            -0.05
+          ]
+        ]
+      },
+      "beats": [
+        "open",
+        "smalltalk",
+        "silence",
+        "choice",
+        "close"
+      ],
+      "intents": [
+        "honest",
+        "joke",
+        "listen"
+      ],
+      "premise": "Exam week at {place}. {a} and a classmate cram on the lawn before the exam, comparing how little sleep they got in the house."
     }
   ]
 }

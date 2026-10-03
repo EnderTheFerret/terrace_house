@@ -1,12 +1,13 @@
 // Agent tick (Section 5.5D): needs, utility-based action choice with Gumbel sampling, movement.
 import type { Character, GameState, Need, NeedVec, Slot } from '../model';
+import { budgetOf } from './budget';
 import type { Job } from '../contentSchema';
 import { NEEDS } from '../model';
 import type { Rng } from '../rng';
 import { softmaxSample } from '../rng';
 import { clamp } from '../util';
 import { content } from '../content';
-import { attracted, belief, coupleOf, flag, housemates, isCouple, isDaySlot, rel, traitsOf, SLOT_START } from './core';
+import { attracted, belief, coupleOf, flag, housemates, isCouple, isDaySlot, rel, traitsOf, SLOT_MINUTES, SLOT_START } from './core';
 import { fridgeTotal } from './conditions';
 import { gossipCandidate } from './knowledge';
 import { ACTIVITY_MINUTES, isOpen, reachability } from './city';
@@ -194,7 +195,7 @@ export function candidateActions(s: GameState, c: Character): AgentAction[] {
   if (fridgeTotal(s) >= 3 && !shabbat) acts.push({ kind: 'cook' });
   if (hasJobNow(s, c) && !typhoon) acts.push({ kind: 'work', node: jobNode(c) });
   if (day && !typhoon) {
-    const reach = reachability('house', slot, 99999, !shabbat && s.world.carUsedBy === null, s.world.minutes, s.world.weekday).filter((r) => r.reachable);
+    const reach = reachability('house', slot, budgetOf(c), !shabbat && s.world.carUsedBy === null, s.world.minutes, s.world.weekday).filter((r) => r.reachable && r.afford !== 'out');
     const liked = reach.filter((r) => {
       const n = content().city.nodes.find((x) => x.id === r.node)!;
       return (!shabbat || (r.minutes <= 20 && !r.needsCar && ['park','riverside','beach','shrine'].includes(r.node))) && n.activities.some((a) => ['wander', 'date', 'eat', 'shop', 'karaoke'].includes(a)) && isOpen(n, slot, s.world.minutes, s.world.weekday);
@@ -276,6 +277,9 @@ export const AGENT_TEMPERATURE = 0.35;
 
 /** Choose an action for one agent: Gumbel-max over U/τ. */
 export function chooseAction(s: GameState, rng: Rng, c: Character): AgentAction {
+  // away on an overnight trip: stays at the trip spot until the group comes home
+  const away = s.world.flags[`away_${c.id}`];
+  if (typeof away === 'string') return { kind: 'goOut', node: away, duration: SLOT_MINUTES, utility: 1 };
   const acts = candidateActions(s, c);
   const scores = acts.map((a) => utility(s, c, a));
   const i = softmaxSample(rng, scores, AGENT_TEMPERATURE);

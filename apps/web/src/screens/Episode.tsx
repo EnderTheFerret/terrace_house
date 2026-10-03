@@ -2,8 +2,9 @@
 import { useGame } from '../store';
 import { Btn } from '../components/ui';
 
-export function EpisodeCard() {
+export function EpisodeCard({ pending = 0 }: { pending?: number } = {}) {
   const { view, episodeCard, setScreen } = useGame();
+  // every housemate's walk sheet (new game, loaded save, arrivals) is ready before the episode starts
   if (!view) return null;
   if (episodeCard === 'end') {
     return (
@@ -30,12 +31,13 @@ export function EpisodeCard() {
       <Btn
         primary
         autoFocus
+        disabled={pending > 0}
         onClick={() => {
           useGame.setState({ episodeCard: null, showDigest: false });
           setScreen('house');
         }}
       >
-        begin
+        {pending > 0 ? `drawing housemates… ${view.characters.length - pending}/${view.characters.length}` : 'begin'}
       </Btn>
     </div>
   );

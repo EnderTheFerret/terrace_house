@@ -1,0 +1,7 @@
+{
+  "img": { "class_type": "LoadImage", "inputs": { "image": "portrait.png" } },
+  "rembg": { "class_type": "easy imageRemBg", "inputs": { "images": ["img", 0], "rem_mode": "BEN2", "image_output": "Hide", "save_prefix": "rembg", "torchscript_jit": false, "add_background": "none", "refine_foreground": false } },
+  "alpha": { "class_type": "InvertMask", "inputs": { "mask": ["rembg", 1] } },
+  "cut": { "class_type": "JoinImageWithAlpha", "inputs": { "image": ["img", 0], "alpha": ["alpha", 0] } },
+  "cut_save": { "class_type": "SaveImage", "inputs": { "images": ["cut", 0], "filename_prefix": "shared_roof_cutout" } }
+}

@@ -2,7 +2,7 @@
 // so subject keys always match. Then run: python scripts/assets/comfy_gen.py scripts/assets/jobs.json
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { content, defaultCast, playerFromSetup, DEFAULT_PLAYER, type ImageRequest } from '@shared-roof/shared';
+import { content, defaultCast, playerFromSetup, DEFAULT_PLAYER, TRIPS, type ImageRequest } from '@shared-roof/shared';
 import { avatarRequest, locationRequest, portraitRequest } from '../../apps/server/src/image/requests';
 import { config, ROOT } from '../../apps/server/src/config';
 
@@ -32,6 +32,8 @@ for (const n of content().city.nodes) {
   if (n.id === 'house') continue;
   for (const tod of ['day', 'evening'] as const) add(locationRequest(n.id, slotFor[tod], 'sunny'), `locations/tel-aviv-${n.id}-${tod}.png`, 6, 40);
 }
+// overnight-trip destinations (engine/trips.ts) are not city nodes but still need scenery
+for (const id of Object.keys(TRIPS)) for (const tod of ['day', 'evening', 'night'] as const) add(locationRequest(id, slotFor[tod], 'sunny'), `locations/tel-aviv-${id}-${tod}.png`, 6, 40);
 for (const r of content().house.rooms) for (const tod of ['morning', 'day', 'night'] as const) add(locationRequest(r.id, slotFor[tod], 'sunny'), `locations/tel-aviv-${r.id}-${tod}.png`, 6, 40);
 
 jobs.push({

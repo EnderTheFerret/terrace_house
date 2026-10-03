@@ -3,7 +3,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { extname, resolve } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import type { ImageBackend, ImageRequest, ImageResult } from '@shared-roof/shared';
+import type { ImageBackend, ImageKind, ImageRequest, ImageResult } from '@shared-roof/shared';
 
 export interface Mapping {
   positive?: { node: string; input: string };
@@ -16,13 +16,15 @@ export interface Mapping {
   /** LoadImage input that receives the uploaded reference portrait (reference workflows only) */
   reference?: { node: string; input: string };
   reference2?: { node: string; input: string };
+  /** group workflows: one LoadImage per participant; slots beyond the request's references are removed */
+  references?: { node: string; input: string }[];
   output?: { node: string };
 }
 
 type Workflow = Record<string, { class_type: string; inputs: Record<string, unknown> }>;
 
 /** Pure: patch a workflow copy with request values according to the mapping. */
-export function patchWorkflow(wf: Workflow, map: Mapping, req: ImageRequest, checkpoint?: string, referenceName?: string, reference2Name?: string): Workflow {
+export function patchWorkflow(wf: Workflow, map: Mapping, req: ImageRequest, checkpoint?: string, referenceName?: string, reference2Name?: string, referenceNames: string[] = []): Workflow {
   const out: Workflow = structuredClone(wf);
   const put = (m: { node: string; input: string } | undefined, v: unknown) => {
     if (!m) return;
@@ -38,6 +40,14 @@ export function patchWorkflow(wf: Workflow, map: Mapping, req: ImageRequest, che
   if (checkpoint) put(map.checkpoint, checkpoint);
   if (referenceName) put(map.reference, referenceName);
   if (reference2Name) put(map.reference2, reference2Name);
+  if (referenceNames.length && map.references) {
+    map.references.forEach((m, i) => {
+      if (i < referenceNames.length) return put(m, referenceNames[i]);
+      // drop the unused LoadImage and every input wired to it
+      delete out[m.node];
+      for (const n of Object.values(out)) for (const [k, v] of Object.entries(n.inputs)) if (Array.isArray(v) && v[0] === m.node) delete n.inputs[k];
+    });
+  }
   return out;
 }
 
@@ -54,9 +64,13 @@ export class ComfyBackend implements ImageBackend {
   private wf: Workflow;
   private map: Mapping;
   /** optional reference-image workflow (e.g. Qwen-Image-Edit or IP-Adapter) for requests that carry a reference */
-  private ref: { wf: Workflow; map: Mapping } | null = null;
-  private sprites: { wf: Workflow; map: Mapping } | null = null;
+  private ref: { wf: Workflow; map: Mapping; hash: string } | null = null;
+  /** dedicated image-to-image workflows per kind (walk sheets, cutouts); each needs the request's reference image */
+  private kinds = new Map<string, { wf: Workflow; map: Mapping; hash: string }>();
+  private baseHash: string;
   readonly workflowHash: string;
+  /** runs before every job, e.g. unloading a resident LLM that shares the GPU */
+  beforeJob: (() => Promise<unknown>) | null = null;
 
   constructor(
     private url: string,
@@ -66,11 +80,12 @@ export class ComfyBackend implements ImageBackend {
     private timeoutMs: number,
     private fetchImpl: typeof fetch = fetch,
     reference?: { workflowPath: string; mappingPath: string },
-    sprites?: { workflowPath: string; mappingPath: string },
+    kinds: Partial<Record<ImageKind, { workflowPath: string; mappingPath: string }>> = {},
   ) {
     const base = loadPair(workflowPath, mappingPath);
     this.wf = base.wf;
     this.map = base.map;
+    this.baseHash = base.hash;
     let hash = base.hash;
     if (reference) {
       const r = loadPair(reference.workflowPath, reference.mappingPath);
@@ -78,19 +93,27 @@ export class ComfyBackend implements ImageBackend {
       this.ref = r;
       hash = createHash('sha256').update(hash).update(r.hash).digest('hex');
     }
-    if (sprites) {
-      const r = loadPair(sprites.workflowPath, sprites.mappingPath);
-      if (!r.map.reference || !r.map.reference2) throw new Error('sprite mapping needs both references');
-      this.sprites = r;
+    for (const [kind, p] of Object.entries(kinds)) {
+      const r = loadPair(p.workflowPath, p.mappingPath);
+      if (!r.map.reference) throw new Error(`${kind} mapping needs a "reference" entry`);
+      this.kinds.set(kind, r);
       hash = createHash('sha256').update(hash).update(r.hash).digest('hex');
     }
     this.workflowHash = hash;
     mkdirSync(outDir, { recursive: true });
   }
 
+  workflowHashFor(req: ImageRequest): string {
+    return req.reference || req.references?.length ? (this.kinds.get(req.kind) ?? this.ref)?.hash ?? this.baseHash : this.baseHash;
+  }
+
   /** Unload ComfyUI's models from VRAM so Ollama can keep the whole card (one consumer GPU). */
   async free(): Promise<void> {
     await this.fetchImpl(`${this.url}/free`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ unload_models: true, free_memory: true }), signal: AbortSignal.timeout(5000) }).catch(() => {});
+  }
+
+  async interrupt(): Promise<void> {
+    await this.fetchImpl(`${this.url}/interrupt`, { method: 'POST', signal: AbortSignal.timeout(5000) }).catch(() => {});
   }
 
   /** Upload a local image to ComfyUI's input folder; returns the name LoadImage expects. */
@@ -146,11 +169,16 @@ export class ComfyBackend implements ImageBackend {
 
   async generate(req: ImageRequest, signal?: AbortSignal, onProgress?: (p: number) => void): Promise<ImageResult> {
     const sig = signal ? AbortSignal.any([signal, AbortSignal.timeout(this.timeoutMs)]) : AbortSignal.timeout(this.timeoutMs);
+    await this.beforeJob?.();
     const clientId = randomUUID();
-    const reference = req.kind === 'sprite' && this.sprites ? this.sprites : this.ref;
-    const useRef = !!(reference && req.reference);
+    const own = this.kinds.get(req.kind);
+    const reference = own ?? this.ref;
+    const useRef = !!(reference && (req.reference || (own?.map.references && req.references?.length)));
+    // txt2img cannot draw a sheet or a cutout; let the queue fall back instead
+    if ((req.kind === 'sprite' || req.kind === 'cutout') && !(own && req.reference)) throw new Error(`${req.kind} needs its workflow and a reference image`);
     const map = useRef ? reference!.map : this.map;
-    const wf = useRef ? patchWorkflow(reference!.wf, map, req, undefined, await this.upload(req.reference!, sig), req.reference2 ? await this.upload(req.reference2, sig) : undefined) : patchWorkflow(this.wf, map, req);
+    const refs = useRef && map.references && req.references?.length ? await Promise.all(req.references.slice(0, map.references.length).map((f) => this.upload(f, sig))) : [];
+    const wf = useRef ? patchWorkflow(reference!.wf, map, req, undefined, req.reference ? await this.upload(req.reference, sig) : refs[0], req.reference2 ? await this.upload(req.reference2, sig) : undefined, refs) : patchWorkflow(this.wf, map, req);
     let pid: string | null = null;
     let wsSettled = false;
     // ws is best effort (it only shortens the wait); history polling is authoritative

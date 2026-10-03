@@ -1,10 +1,11 @@
 // City map: pixel-art canvas rendered from content/city.json, reachable nodes highlighted by remaining slot cost.
+import { Tip } from '../components/Tip';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { content, reachability, shiftToday, WAGE, CONTRACT_BONUS, ACTIVITY_MINUTES, GIFT_ITEMS, type PlayerAction, type CityNode } from '@shared-roof/shared';
+import { afford, content, reachability, shiftToday, ACTIVITY_MINUTES, GIFT_ITEMS, GIFT_PRICE, priceLabel, type PlayerAction, type CityNode } from '@shared-roof/shared';
 import { useGame } from '../store';
 import { TopBar, StudioStrip, slotLabel } from '../components/layout';
 import { Btn, Modal, Panel } from '../components/ui';
-import { sprite, useCharacterSprites } from '../pixel/sprites';
+import { sprite } from '../pixel/sprites';
 
 const DAY = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const W = 320;
@@ -97,11 +98,10 @@ export function CityMap() {
   const [contract, setContract] = useState(false);
   const [item, setItem] = useState('flowers');
   const [scale, setScale] = useState(3);
-  useCharacterSprites(view?.characters.filter(c => c.isPlayer) ?? []);
   const reach = useMemo(() => {
     if (!view) return [];
-    const booked = view.carPlanNode ? reachability('house', view.slot as never, view.money, true, 180 - view.minutesLeft, view.weekday).find((r) => r.node === view.carPlanNode) : undefined;
-    return reachability('house', view.slot as never, view.money, view.carFree, 180 - view.minutesLeft, view.weekday).map((r) => booked?.node === r.node ? booked : r);
+    const booked = view.carPlanNode ? reachability('house', view.slot as never, view.budget.level, true, 180 - view.minutesLeft, view.weekday).find((r) => r.node === view.carPlanNode) : undefined;
+    return reachability('house', view.slot as never, view.budget.level, view.carFree, 180 - view.minutesLeft, view.weekday).map((r) => booked?.node === r.node ? booked : r);
   }, [view]);
   const byNode = Object.fromEntries(reach.map((r) => [r.node, r]));
 
@@ -142,7 +142,7 @@ export function CityMap() {
         }
       }
       const home = content().city.nodes.find((n) => n.id === 'house')!;
-      ctx.drawImage(sprite(me.id, me.appearance, 'down', Math.floor(t / 400) % 2 ? 0 : 1, me.portraitSeed, me.appearanceText), mx(home.x) - 8, my(home.y) - 26, 16, 20);
+      ctx.drawImage(sprite(me, 'down', Math.floor(t / 400) % 2 ? 0 : 1), mx(home.x) - 8, my(home.y) - 26, 16, 20);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -176,7 +176,7 @@ export function CityMap() {
 
   return (
     <div className="flex h-full flex-col">
-      <TopBar />
+      <TopBar /><Tip id="map" />
       <main className="flex min-h-0 flex-1 gap-4 p-3">
         <div className="relative flex flex-1 items-center justify-center overflow-hidden">
           <div className="relative" style={{ width: W * scale, height: H * scale }}>
@@ -199,7 +199,7 @@ export function CityMap() {
                     className={`mb-1 flex w-full items-center gap-2 px-2 py-1 text-left ${sel?.id === n.id ? 'bg-[#fde4dc]' : 'hover:bg-[#fff1dd]'} ${r?.reachable ? '' : 'opacity-60'}`}
                     disabled={!r?.reachable}
                     onClick={() => pick(n)}
-                    aria-label={`${n.name}, ${Number.isFinite(r?.minutes) ? `${r!.minutes} minutes${r!.needsCar ? ' by car' : ''}` : 'no route'}, ${r?.reason ?? (r && r.cost ? `${r.cost} shekels` : 'free')}`}
+                    aria-label={`${n.name}, ${Number.isFinite(r?.minutes) ? `${r!.minutes} minutes${r!.needsCar ? ' by car' : ''}` : 'no route'}, ${r?.reason ?? (r ? `${priceLabel(r.price)}${r.afford === 'ok' ? '' : r.afford === 'stretch' ? ', a stretch for your budget' : ', out of your budget'}` : '')}`}
                   >
                     <span className="flex-1">
                       {n.name}
@@ -208,7 +208,7 @@ export function CityMap() {
                     <span className="text-right text-xs">
                       {Number.isFinite(r?.minutes) ? `${r!.minutes} min` : '—'}
                       {r?.needsCar ? ' 🚗' : ''}
-                      <span className="caption block">{r?.reason ?? (r && r.cost ? `₪${r.cost}` : 'free')}</span>
+                      <span className="caption block">{r?.reason ?? (r ? `${priceLabel(r.price)}${r.afford === 'stretch' ? ' · stretch' : r.afford === 'out' ? ' · out of budget' : ''}` : '')}</span>
                     </span>
                   </button>
                 </li>
@@ -237,7 +237,7 @@ export function CityMap() {
               {[...sel.activities, ...(sel.activities.includes('shop') && !sel.activities.includes('gift') ? ['gift'] : [])].map((a) => (
                 <button key={a} aria-pressed={activity === a} className={`px-btn text-xs ${activity === a ? 'px-btn-primary' : ''}`} onClick={() => setActivity(a)}>
                   {ACT_LABEL[a] ?? a}
-                  {a === 'work' ? ` (+₪${WAGE[sel.id] ?? 2500})` : ''}
+                  
                 </button>
               ))}
             </div>
@@ -246,8 +246,8 @@ export function CityMap() {
             <label className="mb-3 flex items-center gap-2 text-sm">
               <input type="checkbox" checked={contract} disabled={view.job?.nodeId === sel.id} onChange={(e) => setContract(e.target.checked)} />
               {view.job?.nodeId === sel.id
-                ? `you work here: ${slotLabel(view.job.slot)}, ${view.job.weekdays.map((d) => DAY[d]).join('/')} (₪${view.job.wage})`
-                : `sign a contract: this time slot, 3 fixed days a week, ₪${Math.round((WAGE[sel.id] ?? 2500) * CONTRACT_BONUS)} a shift${view.job ? ' (replaces your current job)' : ''}`}
+                ? `you work here: ${slotLabel(view.job.slot)}, ${view.job.weekdays.map((d) => DAY[d]).join('/')} (budget +1 level while you keep it)`
+                : `sign a contract: this time slot, 3 fixed days a week; a part-time job lifts your budget a level${view.job ? ' (replaces your current job)' : ''}`}
             </label>
           )}
           {needsInvite && (
@@ -262,10 +262,10 @@ export function CityMap() {
             </label>
           )}
           {activity === 'gift' && <label className="mb-3 flex items-center gap-2 text-sm">gift
-            <select aria-label="buy gift" className="px-panel-soft px-2 py-1" value={item} onChange={(e) => setItem(e.target.value)}>{Object.entries(GIFT_ITEMS).map(([id, g]) => <option key={id} value={id}>{id} · ₪{g.price}</option>)}</select>
+            <select aria-label="buy gift" className="px-panel-soft px-2 py-1" value={item} onChange={(e) => setItem(e.target.value)}>{Object.keys(GIFT_ITEMS).map((id) => <option key={id} value={id} disabled={afford(view.budget.level, GIFT_PRICE[id] ?? 1) === 'out'}>{id} · {priceLabel(GIFT_PRICE[id] ?? 1)}</option>)}</select>
           </label>}
           <p className="caption mb-3 text-xs">
-            {byNode[sel.id]?.minutes} min away{byNode[sel.id]?.needsCar ? ' by car' : ''} · costs ₪{byNode[sel.id]?.cost ?? 0}
+            {byNode[sel.id]?.minutes} min away{byNode[sel.id]?.needsCar ? ' by car' : ''} · {byNode[sel.id] ? priceLabel(byNode[sel.id].price) : ''} (your budget: {view.budget.label})
           </p>
           <div className="flex gap-3">
             <Btn primary disabled={busy || (needsInvite && !invite)} onClick={go} autoFocus>

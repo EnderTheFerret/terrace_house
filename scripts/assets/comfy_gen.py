@@ -31,7 +31,17 @@ def get(path):
     return urllib.request.urlopen(COMFY + path).read()
 
 
+def free_ollama():
+    """Unload the game server's warm LLM so the image model is not pushed into slow offloading on a 16 GB card."""
+    try:
+        for m in json.load(urllib.request.urlopen('http://127.0.0.1:11434/api/ps', timeout=3)).get('models', []):
+            urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:11434/api/generate', data=json.dumps({'model': m['name'], 'keep_alive': 0}).encode(), headers={'Content-Type': 'application/json'}), timeout=10).read()
+    except OSError:
+        pass
+
+
 def generate(job):
+    free_ollama()
     wf = json.loads(json.dumps(WF))
     patch(wf, 'positive', job['prompt'])
     patch(wf, 'negative', job.get('negative', ''))

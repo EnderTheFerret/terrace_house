@@ -1,0 +1,21 @@
+{
+  "tag": "rnd",
+  "chars": [
+    {
+      "id": "343098_hila-1",
+      "seeds": [
+        66295
+      ],
+      "portrait": "C:\\Projects\\terrace_house\\cache\\images\\cf-157d8176127eb9d8ab95cb7d.png",
+      "extra": "The character is 27-year-old adult woman, neat side part auburn hair, amber eyes, tall build, brown skin, wearing denim jacket, glasses."
+    },
+    {
+      "id": "343098_eyal-1",
+      "seeds": [
+        76608
+      ],
+      "portrait": "C:\\Projects\\terrace_house\\cache\\images\\cf-042c7f02144583e294f18784.png",
+      "extra": "The character is 28-year-old adult man, neat side part pink-dyed hair, grey eyes, broad build, deep tan skin, wearing blazer, glasses."
+    }
+  ]
+}

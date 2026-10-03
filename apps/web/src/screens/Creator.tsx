@@ -49,14 +49,14 @@ function CreatorPortrait({ id, age, gender, appearance, appearanceText, seed, on
       <div className="absolute inset-0 flex items-end justify-center">
         <ProcPortrait appearance={appearance} gender={gender} seed={seed} size={160} />
       </div>
-      {ready && <PixelImage url={st!.url!} factor={8} alt="portrait" className="absolute inset-0" style={{ width: 160, height: 200, objectFit: 'cover' }} />}
+      {ready && <PixelImage url={st!.url!} factor={4} alt="portrait" className="absolute inset-0" style={{ width: 160, height: 200, objectFit: 'cover' }} />}
       <span role="status" className="caption absolute bottom-1 right-1 bg-paper px-1 text-[0.65rem]">{painting ? 'generating portrait…' : ready ? 'portrait ready' : 'temporary preview'}</span>
     </div>
   );
 }
 
 export function Creator() {
-  const { newGame, joinAsNewPlayer, busy, setScreen, health, view } = useGame();
+  const { newGame, joinAsNewPlayer, busy, setScreen, health, view, settings, setSettings } = useGame();
   // after your character graduates you create the next one; the cast is already there
   const next = !!view?.awaitingPlayer;
   const [step, setStep] = useState(0);
@@ -265,6 +265,9 @@ export function Creator() {
                 {seasonLength > 0 && <label className="ml-3">episodes <input aria-label="season episodes" type="number" min={3} max={365} className="px-panel-soft w-20 px-2 py-1" value={seasonLength} onChange={(e) => setSeasonLength(Math.max(3, Math.min(365, Number(e.target.value) || 3)))} /></label>}
                 <p className="caption mt-1 text-xs">After episode 3, you can announce the final episode whenever you are ready.</p>
               </fieldset>
+              <label className="mb-3 flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={!settings.tutorial} onChange={(e) => setSettings({ tutorial: !e.target.checked, tipsSeen: [] })} /> skip tutorial tips (move-in day still happens: everyone arrives one at a time)
+              </label>
               <label className="mb-3 flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={randomCast} onChange={(e) => setRandomCast(e.target.checked)} /> randomize cast (generated from archetypes)
               </label>

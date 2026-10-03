@@ -1,7 +1,7 @@
 // Pixel rendering primitives: procedural pixels → canvas, generated images → pixelated canvas, portraits with crossfade.
 import { useEffect, useRef, useState } from 'react';
 import { EMOTIONS, portraitPixels, spritePixels, SPRITE_DIRECTIONS, type Appearance, type Emotion, type Pixels } from '@shared-roof/shared';
-import { api, waitImage, type ImageStatus } from '../api';
+import { api, waitImage, type ImageStatus, type OutfitRef } from '../api';
 import { useGame } from '../store';
 
 const canvasCache = new Map<string, HTMLCanvasElement>();
@@ -137,17 +137,40 @@ export function useImage(request: (() => Promise<ImageStatus>) | null, deps: unk
   return st;
 }
 
+/**
+ * Visual-novel standing figure: the character cut out of their portrait, dressed for the occasion, showing `emotion`.
+ * Keeps the last finished figure up while the next expression is drawn; a framed portrait stands in until the first.
+ */
+export function Stand({ char, outfit, emotion, height }: { char: { id: string; name: string; appearance: Appearance; gender: string; portraitSeed: number }; outfit: OutfitRef; emotion: Emotion; height: string }) {
+  const [tick, setTick] = useState(0);
+  const [shown, setShown] = useState<{ url: string; emotion: Emotion } | null>(null);
+  // neutral is the base layer; the line's expression replaces it once drawn
+  const base = useImage(() => api.stand(char.id, outfit, 'neutral'), [char.id, char.portraitSeed, outfit.occasion, outfit.day, tick]);
+  const face = useImage(emotion !== 'neutral' ? () => api.stand(char.id, outfit, emotion) : null, [char.id, char.portraitSeed, outfit.occasion, outfit.day, emotion, tick]);
+  const ok = (s: ImageStatus | null) => (s?.status === 'ready' && s.url ? s.url : null);
+  const want = emotion === 'neutral' ? ok(base) : ok(face);
+  useEffect(() => { if (want) setShown({ url: want, emotion }); else if (!shown && ok(base)) setShown({ url: ok(base)!, emotion: 'neutral' }); }, [want, base?.url, base?.status, emotion]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 409 while the outfit or expression portrait is being drawn: ask again shortly
+  const waiting = base?.status === 'failed' || face?.status === 'failed';
+  useEffect(() => { if (!waiting) return; const t = setTimeout(() => setTick((n) => n + 1), 1500); return () => clearTimeout(t); }, [waiting, tick]);
+  if (!shown) return <div className="px-panel mb-48 bg-paper p-1"><Portrait charId={char.id} appearance={char.appearance} gender={char.gender} seed={char.portraitSeed} size={180} label={char.name} outfit={outfit} /></div>;
+  return <img src={shown.url} alt={`${char.name}${shown.emotion === 'neutral' ? '' : `, ${expressionLabel(shown.emotion)}`}`} className="pointer-events-none block select-none" style={{ height, width: 'auto', imageRendering: 'auto' /* the figure is already pixel art at 832x1216; nearest-neighbour downscaling only adds jaggies */, filter: 'drop-shadow(0 6px 10px rgb(0 0 0 / 0.35))' }} />;
+}
+
 /** Character portrait: procedural pixel portrait immediately, crossfades to the generated one when ready. */
 const EXPRESSION_ICONS: Record<Emotion, string> = { neutral: '😐', happy: '😊', shy: '😳', awkward: '😅', annoyed: '😒', sad: '😢', excited: '🤩', nervous: '😰', tender: '🥰', angry: '😠' };
 const expressionLabel = (emotion: Emotion) => emotion === 'tender' ? 'in love' : emotion;
 
-export function Portrait({ charId, appearance, gender, seed, size = 128, label, expressions = false }: { charId: string; appearance: Appearance; gender: string; seed: number; size?: number; label: string; expressions?: boolean }) {
+export function Portrait({ charId, appearance, gender, seed, size = 128, label, expressions = false, outfit }: { charId: string; appearance: Appearance; gender: string; seed: number; size?: number; label: string; expressions?: boolean; outfit?: OutfitRef }) {
   const [emotion, setEmotion] = useState<Emotion>('neutral');
   const [retry, setRetry] = useState(0);
   const enabled = useGame((s) => s.settings.images);
   const base = useImage(() => api.charPortrait(charId), [charId, seed]);
-  const variant = useImage(expressions && emotion !== 'neutral' ? () => api.expression(charId, emotion) : null, [charId, seed, emotion, retry, expressions]);
-  const st = variant?.status === 'ready' && !variant.placeholder ? variant : base;
+  // the occasion's outfit replaces the base portrait once drawn (it needs the base first, so retry with it)
+  const dressed = useImage(outfit && base?.status === 'ready' && !base.placeholder ? () => api.outfitPortrait(charId, outfit) : null, [charId, seed, outfit?.occasion, outfit?.day, base?.status]);
+  const variant = useImage(expressions && emotion !== 'neutral' ? () => api.expression(charId, emotion, outfit) : null, [charId, seed, emotion, retry, expressions, outfit?.occasion, outfit?.day]);
+  const shown = dressed?.status === 'ready' && !dressed.placeholder ? dressed : base;
+  const st = variant?.status === 'ready' && !variant.placeholder ? variant : shown;
   const busy = emotion !== 'neutral' && (!variant || variant.status === 'queued' || variant.status === 'running');
   const ready = st?.status === 'ready' && st.url && !st.url.endsWith('.svg');
   useEffect(() => {
@@ -166,7 +189,7 @@ export function Portrait({ charId, appearance, gender, seed, size = 128, label, 
       <div className="absolute inset-0 flex items-end justify-center" style={{ opacity: ready ? 0 : 1, transition: 'opacity 600ms' }}>
         <ProcPortrait appearance={appearance} gender={gender} seed={seed} size={size} />
       </div>
-      {ready && <PixelImage url={st!.url!} factor={8} alt={label} className="absolute inset-0 h-full w-full object-cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+      {ready && <PixelImage url={st!.url!} factor={4} alt={label} className="absolute inset-0 h-full w-full object-cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
     </div>
     {expressions && <>
       <div className="mt-1 grid grid-cols-5 gap-1" role="group" aria-label={`expressions for ${label}`} onClick={(e) => e.stopPropagation()}>

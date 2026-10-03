@@ -32,6 +32,9 @@ export function openDb(file = resolve(config.dataDir, 'shared-roof.sqlite')): DB
       key TEXT PRIMARY KEY, path TEXT NOT NULL, kind TEXT, prompt TEXT, seed INTEGER, placeholder INTEGER DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+    CREATE TABLE IF NOT EXISTS embeddings (
+      key TEXT PRIMARY KEY, model TEXT NOT NULL, vec TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS events_log (
       game_id TEXT NOT NULL, seq INTEGER NOT NULL, kind TEXT NOT NULL, payload_json TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY (game_id, seq)
@@ -123,5 +126,15 @@ export class Store {
 
   imagePut(key: string, path: string, kind: string, prompt: string, seed: number, placeholder: boolean) {
     this.db.prepare('INSERT OR REPLACE INTO images(key, path, kind, prompt, seed, placeholder) VALUES (?,?,?,?,?,?)').run(key, path, kind, prompt, seed, placeholder ? 1 : 0);
+  }
+
+  /** Cached memory embedding (key = model + text hash). */
+  embeddingGet(key: string): number[] | undefined {
+    const r = this.db.prepare('SELECT vec FROM embeddings WHERE key = ?').get(key) as { vec: string } | undefined;
+    return r ? (JSON.parse(r.vec) as number[]) : undefined;
+  }
+
+  embeddingPut(key: string, model: string, vec: number[]) {
+    this.db.prepare('INSERT OR REPLACE INTO embeddings(key, model, vec) VALUES (?,?,?)').run(key, model, JSON.stringify(vec));
   }
 }

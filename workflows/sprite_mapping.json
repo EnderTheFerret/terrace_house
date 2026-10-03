@@ -1,11 +1,6 @@
 {
-  "positive": { "node": "7", "input": "prompt" },
-  "negative": { "node": "8", "input": "prompt" },
-  "seed": { "node": "10", "input": "seed" },
-  "width": { "node": "9", "input": "width" },
-  "height": { "node": "9", "input": "height" },
-  "batch": { "node": "9", "input": "batch_size" },
-  "reference": { "node": "12", "input": "image" },
-  "reference2": { "node": "17", "input": "image" },
-  "output": { "node": "16" }
+  "positive": { "node": "p", "input": "text" },
+  "seed": { "node": "noise", "input": "noise_seed" },
+  "reference": { "node": "ref", "input": "image" },
+  "output": { "node": "sheet_save" }
 }

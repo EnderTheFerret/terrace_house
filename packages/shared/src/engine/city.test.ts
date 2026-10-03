@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { content } from '../content';
-import { isOpen, node, reachability, shiftToday, shortestTimes, ACTIVITY_MINUTES, WAGE } from './city';
+import { isOpen, node, reachability, shiftToday, shortestTimes, ACTIVITY_MINUTES } from './city';
+import { afford, playerBudget } from './budget';
 import { SLOT_MINUTES } from './core';
 import { createGame, finishSlot, planSlot } from './loop';
 
@@ -23,44 +24,45 @@ describe('city exploration', () => {
     expect(isOpen(node('bar'), 'slot3')).toBe(true);
     expect(isOpen(node('karaoke'), 'evening')).toBe(true); // open until 5 a.m.
   });
-  it('reachability: time budget, money and car constraints', () => {
-    const r = Object.fromEntries(reachability('house', 'slot1', 20000, false).map((x) => [x.node, x]));
+  it('reachability: time budget, price levels and car constraints', () => {
+    const r = Object.fromEntries(reachability('house', 'slot1', 3, false).map((x) => [x.node, x]));
     expect(r.cafe.reachable).toBe(true);
     expect(r.lighthouse.reachable).toBe(false);
     expect(r.lighthouse.reason).toBe('needs the car');
     expect(r.bar.reason).toBe('closed now');
-    const car = Object.fromEntries(reachability('house', 'slot1', 20000, true).map((x) => [x.node, x]));
+    const car = Object.fromEntries(reachability('house', 'slot1', 3, true).map((x) => [x.node, x]));
     expect(car.lighthouse.reachable).toBe(true);
     expect(car.lighthouse.needsCar).toBe(true);
     for (const x of Object.values(car)) if (x.reachable) expect(x.minutes * 2 + ACTIVITY_MINUTES).toBeLessThanOrEqual(SLOT_MINUTES);
-    const broke = Object.fromEntries(reachability('house', 'slot1', 1, false).map((x) => [x.node, x]));
-    expect(broke.cafe.reason).toBe('not enough money');
-    expect(broke.riverside.reachable).toBe(true);
+    const tight = reachability('house', 'slot1', 0, true);
+    expect(tight.find((x) => x.node === 'riverside')!.afford).toBe('ok');
+    expect(tight.filter((x) => x.price === 3).every((x) => x.afford === 'out')).toBe(true);
+    expect(tight.filter((x) => x.price === 2).every((x) => x.afford === 'stretch')).toBe(true);
+    expect(afford(2, 3)).toBe('ok');
   });
-  it('going out charges money, uses the car for far trips and moves the player', () => {
+  it('going out uses the car for far trips and moves the player', () => {
     const s0 = createGame({ seed: 7 });
     s0.world.slot = 'slot1';
     const { state } = planSlot(s0, { type: 'goOut', node: 'lighthouse', activity: 'date', invite: 'ren' });
     expect(state.characters.player.location).toBe('lighthouse');
     expect(state.world.carUsedBy).toBe('player');
-    expect(state.world.money).toBeLessThan(s0.world.money);
     expect(state.characters.ren.location).toBe('lighthouse');
   });
-  it('part-time contract: fixed weekly shifts pay more; two missed shifts and you are let go', () => {
+  it('part-time contract: fixed weekly shifts lift the budget a level; two missed shifts and you are let go', () => {
     const s0 = createGame({ seed: 7 });
     s0.world.slot = 'slot1';
     const { state: signed } = planSlot(s0, { type: 'goOut', node: 'konbini', activity: 'work', contract: true });
     const job = signed.world.playerJob!;
     expect(job).toMatchObject({ nodeId: 'konbini', slot: 'slot1' });
     expect(job.weekdays).toHaveLength(3);
-    expect(signed.world.money - s0.world.money).toBeGreaterThan(WAGE.konbini - 300); // contract wage minus fare
+    expect(playerBudget(signed)).toBe(Math.min(3, playerBudget(s0) + 1));
     // a later scheduled shift: working pays the contract wage, skipping counts as a miss
     const onShift = finishSlot(signed);
     onShift.world.slot = 'slot1';
     onShift.world.weekday = job.weekdays[1];
     expect(shiftToday(job, onShift.world.weekday, 'slot1')).toBe(true);
     const worked = planSlot(onShift, { type: 'goOut', node: 'konbini', activity: 'work' }).state;
-    expect(worked.world.money - onShift.world.money).toBeGreaterThanOrEqual(job.wage - 300);
+    expect(worked.world.flags.workedShift).toBe(true);
     // a shift counts as missed when the block ends without the player working it
     const miss1 = finishSlot(planSlot(onShift, { type: 'idle' }).state);
     expect(miss1.world.flags.jobMissed).toBe(1);
@@ -72,8 +74,7 @@ describe('city exploration', () => {
   it('unreachable destinations are refused (player stays home)', () => {
     const s0 = createGame({ seed: 7 });
     s0.world.slot = 'slot1';
-    s0.world.money = 0;
-    expect(() => planSlot(s0, { type: 'goOut', node: 'bar', activity: 'date' })).toThrow(/closed|money/);
+    expect(() => planSlot(s0, { type: 'goOut', node: 'bar', activity: 'date' })).toThrow(/closed|budget/);
     expect(s0.characters.player.location).toBe('living');
   });
 });

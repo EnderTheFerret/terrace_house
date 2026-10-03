@@ -1,0 +1,13 @@
+{
+  "tag": "w1",
+  "dirs": {
+    "down": "facing the viewer",
+    "up": "seen from behind, facing away from the viewer, only the back of the head visible",
+    "left": "in side profile facing screen-left"
+  },
+  "prompt": "Image 1 shows four pixel art walking sprites of one character, {dir}. Redraw Image 1 with a different character: {who}. Keep the four sprites in exactly the same positions, poses, legs, arm swing, facing direction and size as Image 1, with the same chibi proportions, thick black outline and pixel size. Change only the hair, skin and clothing. Remove the red headband and cap. If Image 2 is given, the character must look exactly like the character in Image 2. White background, no text.",
+  "chars": [
+    {"id": "kaito", "seed": 1202, "who": "a young man with wavy shoulder-length sun-bleached brown hair, tan skin, white t-shirt, dark navy board shorts, bare legs, sandals"},
+    {"id": "mio", "seed": 2306, "who": "a young woman with long straight chestnut-brown hair down to her back, fair skin, pink cardigan over a white top, mauve knee-length skirt"}
+  ]
+}

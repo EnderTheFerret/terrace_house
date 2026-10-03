@@ -3,7 +3,7 @@ import type { Cond } from '../contentSchema';
 import type { GameState } from '../model';
 import type { Rng } from '../rng';
 import { birthdayDay, isWeekend } from './calendar';
-import { asym, departing, flag, isCouple, knows, rel } from './core';
+import { asym, departing, flag, isCouple, knows, milestoneOf, rel } from './core';
 import { fill } from '../util';
 
 export type Binding = Record<string, string>;
@@ -88,6 +88,10 @@ export function evalCond(s: GameState, c: Cond, b: Binding, rng: Rng | null, hou
   if (c.mood) {
     const x = r(c.mood);
     if (!x || !inRange(s.characters[x].mood, c)) return false;
+  }
+  if (c.milestone) {
+    const [x, y] = c.milestone.map(r);
+    if (!x || !y || milestoneOf(s, x, y) !== (c.is ?? 0)) return false;
   }
   if (c.lastDate) {
     const [x, y] = c.lastDate.map(r);

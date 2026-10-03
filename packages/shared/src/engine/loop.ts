@@ -7,14 +7,14 @@ import { mulberry32, type Rng } from '../rng';
 import { clamp, fill } from '../util';
 import { content } from '../content';
 import {
-  addFact, addLog, attracted, ch, cloneState, coupleOf, departing, isCouple, depthCeiling, firstName, flag, housemates, isRoom, knows, learn,
+  addFact, addLog, addMemory, attracted, ch, cloneState, coupleOf, departing, isCouple, depthCeiling, firstName, flag, housemates, isRoom, knows, learn,
   nextId, npcs, placeName, player, rel, withRng, MINUTES_PER_LINE, SLOT_MINUTES, clockLabel,
 } from './core';
 import { applyCalendar, chooseTyphoonDay } from './calendar';
 import { bedroomOf, chooseAction, decayNeeds, isShabbat, resolveLocations, satisfy, type AgentAction } from './agents';
 import { candidates, expectedDrama, housemateRoles, sample, type Candidate } from './director';
 import { logInteraction, resolveColocation, resolveRemote, type Interaction } from './interactions';
-import { arcCandidates, initArc, refreshJobArc } from './arcs';
+import { arcCandidates, careerChanges, initArc, refreshJobArc } from './arcs';
 import { applySceneOutcome, engineProposal, npcIntent, type SceneChoices, type SceneResolution } from './outcome';
 import { applyProposal, sanitizeProposal } from './relationships';
 import { autoGroceries, consume, houseTick, initHouse, rotateChores, workCareerTick } from './house';
@@ -25,10 +25,20 @@ import { compactAll, previouslyRecap, updatePairSummaries } from './memory';
 import { pruneFacts } from './knowledge';
 import { defaultCast, DEFAULT_PLAYER, generateCast, initRelationships, playerFromSetup, type PlayerSetup } from './castgen';
 import { fridgeTotal } from './conditions';
-import { ACTIVITY_MINUTES, canUseCar, CONTRACT_BONUS, contractDays, MISSES_BEFORE_FIRED, reachability, shiftToday, WAGE } from './city';
+import { ACTIVITY_MINUTES, canUseCar, classToday, CONTRACT_BONUS, contractDays, MISSES_BEFORE_FIRED, reachability, shiftToday, WAGE } from './city';
 import { epilogueFor } from './epilogue';
+import { afford, budgetFor, canStretch, GIFT_PRICE, playerBudget } from './budget';
+
+/** How the player's budget meets an outing (work and class never cost; a gift is priced by the gift). */
+function spendFit(s: GameState, a: Extract<PlayerAction, { type: 'goOut' }>, price: 1 | 2 | 3) {
+  if (a.activity === 'work' || a.activity === 'class') return 'ok';
+  return afford(playerBudget(s), a.activity === 'gift' && a.item ? GIFT_PRICE[a.item] ?? 1 : price);
+}
+import { airEpisode, airingTonight } from './broadcast';
+import { outsiderMoment } from './outsiders';
+import { leaveOnTrip, maybeNpcTrip, maybeOfferTrip, returningFromTrip, tripProblem, TRIPS } from './trips';
 import { npcRecipe } from './cooking';
-import { advanceLiving, canVisit, GIFT_ITEMS, observeRoutines, recordActivity, relationshipUpkeep, scheduleActivity, settlePlans, socialAction, startPlans, validPlanPlace } from './living';
+import { advanceLiving, canVisit, GIFT_ITEMS, knock, observeRoutines, recordActivity, relationshipUpkeep, scheduleActivity, settlePlans, socialAction, startPlans, validPlanPlace } from './living';
 
 export interface NewGameOptions {
   seed: number;
@@ -36,6 +46,25 @@ export interface NewGameOptions {
   randomizeCast?: boolean;
   seasonLength?: number;
   gameId?: string;
+  /** episode 1 is move-in day: the six arrive one at a time (the player in a random place in the order) */
+  moveInDay?: boolean;
+}
+
+/** Move-in day: which block each arrival (by order) comes through the door. */
+const MOVE_IN_BLOCK = [0, 1, 2, 3, 4, 4];
+
+/** Move-in day arrivals due by the current block come through the door. Returns who arrived. */
+function moveInArrivals(s: GameState): Character[] {
+  const order = String(s.world.flags.moveIn ?? '').split(',').filter(Boolean);
+  const due = order.filter((id, i) => MOVE_IN_BLOCK[i] <= SLOTS.indexOf(s.world.slot) && s.characters[id]?.status === 'arriving');
+  for (const id of due) {
+    const c = s.characters[id];
+    c.status = 'inHouse';
+    c.location = 'entrance';
+    s.world.flags[`new_${id}`] = s.world.episode;
+    addLog(s, { kind: 'arrival', text: `${c.name}, ${c.age}, ${c.occupation}, arrived at the house with a suitcase.`, participants: [id], salience: 0.7 });
+  }
+  return due.map((id) => s.characters[id]);
 }
 
 export function createGame(o: NewGameOptions): GameState {
@@ -54,7 +83,7 @@ export function createGame(o: NewGameOptions): GameState {
     playerId: P.id,
     world: {
       day: 0, episode: 1, slot: 'morning', minutes: 0, tick: 0, weather: 'sunny', forecast: 'sunny', weekday: 3, season: 'spring', cityEvent: null,
-      money: 800, playerNode: 'house', carUsedBy: null, playerJob: null, flags: {}, typhoonDay: -1,
+      playerNode: 'house', carUsedBy: null, playerJob: null, flags: {}, typhoonDay: -1,
     },
     characters: Object.fromEntries(all.map((c) => [c.id, c])),
     rel: {},
@@ -80,7 +109,7 @@ export function createGame(o: NewGameOptions): GameState {
     pendingArrivals: [],
     previously: '',
     awaitingPlayer: false,
-    finaleEpisode: null, invitations: [], approaches: [], feed: [], inventory: [], observedRoutines: {}, timeline: [],
+    finaleEpisode: null, invitations: [], approaches: [], feed: [], inventory: [], observedRoutines: {}, timeline: [], panelRemarks: [], panelNicknames: {}, diaries: {}, pairNotes: {}, memoryArchive: {},
   };
   const ids = all.map((c) => c.id).sort();
   initRelationships(s, rng, ids);
@@ -100,6 +129,18 @@ export function createGame(o: NewGameOptions): GameState {
   applyCalendar(s, rng);
   rotateChores(s);
   s.world.flags[`new_${P.id}`] = 1; // the player is the newcomer at the door in episode 1
+  if (o.moveInDay) {
+    // move-in day: everyone arrives one at a time; whoever came before the player is already settled in
+    const order = rng.shuffle(all.map((c) => c.id));
+    const mine = order.indexOf(P.id);
+    s.world.flags.moveIn = order.join(',');
+    s.world.slot = SLOTS[MOVE_IN_BLOCK[mine]] as Slot;
+    order.forEach((id, i) => {
+      if (id === P.id) return;
+      if (i > mine) s.characters[id].status = 'arriving';
+      else s.world.flags[`introduced_${id}`] = true; // arrived earlier today and met the others already
+    });
+  }
   s.rngState = rng.state() | 0;
   addLog(s, { kind: 'system', text: `Episode 1. ${P.name} arrives at the share house.`, participants: [P.id], salience: 0.5 });
   return s;
@@ -215,7 +256,8 @@ function validateAction(s: GameState, a: PlayerAction) {
   const later = { ...s, world: { ...s.world, minutes: Math.min(SLOT_MINUTES, s.world.minutes + actionMinutes(a)) } };
   if (!isShabbat(s, P) && isShabbat(later, P) && (a.type === 'goOut' && a.activity === 'work' || a.type === 'house' && a.activity === 'cook' || a.type === 'text')) throw new Error('this activity would run past Shabbat sundown');
   if (a.type === 'text' && isShabbat(later, s.characters[a.target])) throw new Error('the recipient puts their phone away before this conversation ends');
-  if (a.type === 'visit' && !canVisit(s, a.room, a.invite)) throw new Error('this private room needs an invitation, or the bathroom is occupied');
+  if (a.type === 'trip') { const why = tripProblem(s, a.node, a.with); if (why) throw new Error(why); }
+  if (a.type === 'visit' && !a.knock && !canVisit(s, a.room, a.invite)) throw new Error('this private room needs an invitation, or the bathroom is occupied');
   if (a.type === 'plan') {
     if (a.episode < s.world.episode || a.episode > s.world.episode + 7 || (a.episode === s.world.episode && SLOTS.indexOf(a.slot) <= SLOTS.indexOf(s.world.slot))) throw new Error('choose a future block within seven episodes');
     if (!content().city.nodes.some((n) => n.id === a.node) && !isRoom(a.node)) throw new Error('unknown meeting place');
@@ -234,9 +276,13 @@ function validateAction(s: GameState, a: PlayerAction) {
     if (s.world.weather === 'heatwave' || s.world.weather === 'typhoon') throw new Error('the extreme weather keeps everyone indoors');
     if (s.world.weather === 'rain' && ['beach', 'park', 'scenic'].includes(n.type) && a.activity === 'date') throw new Error('rain cancelled the outdoor date; choose an indoor place');
     if (a.invite && (a.invite === P.id || s.characters[a.invite]?.status !== 'inHouse' || ['work', 'sleep', 'nap', 'shower'].includes(s.characters[a.invite].lastAction ?? '') || isShabbat(s, s.characters[a.invite]))) throw new Error('your guest is unavailable');
-    const r = reachability('house', s.world.slot, s.world.money, canUseCar(s, a.node), s.world.minutes, s.world.weekday, a.useCar).find((r) => r.node === a.node);
+    const r = reachability('house', s.world.slot, playerBudget(s), canUseCar(s, a.node), s.world.minutes, s.world.weekday, a.useCar).find((r) => r.node === a.node);
     if (!r?.reachable) throw new Error(r?.reason ?? 'no route');
-    if (a.activity === 'gift' && (!a.item || !GIFT_ITEMS[a.item] || s.world.money < r.cost + GIFT_ITEMS[a.item].price)) throw new Error('choose an affordable gift');
+    if (a.activity === 'gift' && (!a.item || !GIFT_ITEMS[a.item])) throw new Error('choose a gift');
+    const fit = spendFit(s, a, r.price);
+    if (fit === 'out') throw new Error(a.activity === 'gift' ? 'that gift is out of your budget' : 'that is out of your budget');
+    if (fit === 'stretch' && !canStretch(s)) throw new Error('you stretched your budget recently; pick something cheaper for now');
+    if (a.invite && fit !== 'ok' && afford(budgetFor(s, a.invite), r.price) === 'out') throw new Error(`neither of you can afford ${placeName(a.node)} right now`);
     if (r.needsCar && isShabbat(s, P)) throw new Error('the shared car waits until after Shabbat');
     const returned = { ...s, world: { ...s.world, minutes: s.world.minutes + r.minutes * 2 + ACTIVITY_MINUTES } };
     if (r.needsCar && isShabbat(returned, P)) throw new Error('the car trip would run past Shabbat sundown');
@@ -277,10 +323,20 @@ function applyPlayerAction(s: GameState, a: PlayerAction): { invite?: string; ta
       return { talk: a.target };
     }
     case 'goOut': {
-      const r = reachability('house', s.world.slot, s.world.money, canUseCar(s, a.node), s.world.minutes, s.world.weekday, a.useCar).find((x) => x.node === a.node)!;
+      const r = reachability('house', s.world.slot, playerBudget(s), canUseCar(s, a.node), s.world.minutes, s.world.weekday, a.useCar).find((x) => x.node === a.node)!;
       P.location = a.node;
       s.world.playerNode = a.node;
-      s.world.money -= r.cost;
+      if (spendFit(s, a, r.price) === 'stretch') {
+        // a splurge: allowed now and then, it strains you, and a date notices (it reads as serious)
+        s.world.flags.stretchEp = s.world.episode;
+        P.mood = clamp(P.mood - 0.04, -1, 1);
+        if (a.invite && a.activity === 'date') s.rel[a.invite][P.id].romance = clamp(s.rel[a.invite][P.id].romance + 3, 0, 100);
+        addLog(s, { kind: 'system', text: `You splurged on ${a.activity === 'gift' ? 'a gift' : placeName(a.node)}${a.invite ? ` with ${firstName(s, a.invite)}` : ''}: a stretch for your budget.`, participants: a.invite ? [P.id, a.invite] : [P.id], salience: 0.35 });
+      }
+      if (a.invite && a.activity !== 'work' && afford(budgetFor(s, a.invite), r.price) !== 'ok') {
+        s.rel[a.invite][P.id].affinity = clamp(s.rel[a.invite][P.id].affinity + 2, -100, 100);
+        addLog(s, { kind: 'system', text: `You treated ${firstName(s, a.invite)}: ${placeName(a.node)} is beyond their budget.`, participants: [P.id, a.invite], salience: 0.3 });
+      }
       if (r.needsCar) s.world.carUsedBy = P.id;
       if (a.activity === 'work') {
         if (a.contract && job?.nodeId !== a.node) {
@@ -291,10 +347,12 @@ function applyPlayerAction(s: GameState, a: PlayerAction): { invite?: string; ta
         }
         const j = s.world.playerJob;
         if (j?.nodeId === a.node) s.world.flags.workedShift = true;
-        s.world.money += j?.nodeId === a.node && shiftToday(j, s.world.weekday, s.world.slot) ? j.wage : (WAGE[a.node] ?? 100);
+        satisfy(P, 'work');
+      } else if (a.activity === 'class') {
+        s.world.flags.attendedClass = true;
         satisfy(P, 'work');
       } else satisfy(P, 'goOut');
-      if (a.activity === 'gift' && a.item) { s.world.money -= GIFT_ITEMS[a.item].price; s.inventory.push(a.item); }
+      if (a.activity === 'gift' && a.item) s.inventory.push(a.item);
       if (a.invite) {
         s.characters[a.invite].location = a.node;
         s.characters[a.invite].activityUntil = SLOT_MINUTES;
@@ -305,6 +363,7 @@ function applyPlayerAction(s: GameState, a: PlayerAction): { invite?: string; ta
       satisfy(P, 'text');
       return { talk: a.target };
     case 'visit':
+      if (a.knock && !canVisit(s, a.room, a.invite) && knock(s, a.room) !== 'in') return {};
       P.location = a.room;
       s.world.playerNode = 'house';
       observeRoutines(s);
@@ -322,6 +381,9 @@ function applyPlayerAction(s: GameState, a: PlayerAction): { invite?: string; ta
       s.world.flags.sleepUntilMorning = true;
       return {};
     case 'skip': return {};
+    case 'trip':
+      leaveOnTrip(s, a.node, [P.id, ...a.with], a.roommate && a.with.includes(a.roommate) ? a.roommate : undefined);
+      return {};
     case 'graduate': {
       // you can always leave alone; leaving *with* someone needs them to be your partner (or to have asked you)
       const w = a.with && s.characters[a.with]?.status === 'inHouse' && (isCouple(s, P.id, a.with) || flag(s, 'canGraduate') === a.with) ? a.with : undefined;
@@ -376,12 +438,20 @@ function planPlayerScene(s: GameState, rng: Rng, a: PlayerAction, acts: Record<s
   const pool = housemates(s).filter((c) => c.id === P.id || (available(s, c, acts) && !departing(s, c.id)) || c.id === talk);
   const inRoom = pool.filter((c) => c.location === room || c.id === P.id || c.id === talk);
   const usePool = inRoom.length >= 2 ? inRoom : pool;
+  // light conversations pull in everyone else hanging out in the room, like the show's living-room talks
+  const company = (e: EventInstance | null) => {
+    if (!e || !e.tags.includes('light') || !isRoom(e.location)) return e;
+    const extra = pool.filter((c) => c.location === e.location && c.id !== P.id && !e.participants.includes(c.id)).slice(0, 3).map((c) => c.id);
+    if (!extra.length) return e;
+    const participants = [...e.participants, ...extra];
+    return { ...e, participants, factRefs: { ...e.factRefs, ...Object.fromEntries(extra.map((id) => [id, factRefsFor(s, id, participants)])) } };
+  };
   const cs = withPlayer(candidates(s, rng, { location: room, pool: usePool, isPlayerScene: true, focus: talk }));
   const pick = sample(rng, cs);
-  if (pick) return ev(pick);
+  if (pick) return company(ev(pick));
   const partner = talk ?? usePool.find((c) => c.id !== P.id)?.id;
   if (!partner) return null;
-  return makeEvent(s, content().eventById.get('casual-chat')!, { a: P.id, b: partner }, room);
+  return company(makeEvent(s, content().eventById.get('casual-chat')!, { a: P.id, b: partner }, room));
 }
 
 const IX_TEMPLATE: Record<string, string> = {
@@ -425,9 +495,14 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
       return;
     }
     s.world.carUsedBy = null;
+    const moveInDay = s.world.episode === 1 && !!s.world.flags.moveIn;
+    if (moveInDay) moveInArrivals(s);
     for (const c of housemates(s)) decayNeeds(c);
     const { invite, talk } = applyPlayerAction(s, action);
     if (action.type === 'goOut' && action.activity === 'work') workCareerTick(s, rng, P);
+    // weekend trips come up on their own: a Thursday invitation, or a pair going without the player on Friday
+    maybeOfferTrip(s, rng);
+    if (action.type !== 'trip') maybeNpcTrip(s, rng);
     // NPC actions
     const acts: Record<string, AgentAction> = {};
     for (const c of npcs(s)) {
@@ -485,19 +560,53 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
         gather(s, playerEv);
       }
     }
+    // back from an overnight trip: the group comes through the door; the ones who stayed home want details
+    const back = returningFromTrip(s);
+    if (back && back.group.length >= 2 && !playerEv) {
+      const stayed = npcs(s).filter((c) => !back.group.includes(c.id) && available(s, c, acts)).slice(0, 2).map((c) => c.id);
+      const ev = makeEvent(s, content().eventById.get('trip-return')!, { a: back.group[0], b: back.group[1] }, 'entrance');
+      const participants = [...back.group, ...(!back.group.includes(P.id) && isRoom(P.location) ? [P.id] : []), ...stayed].slice(0, 6);
+      Object.assign(ev, { participants, isPlayerScene: participants.includes(P.id), playerPresent: participants.includes(P.id), factRefs: Object.fromEntries(participants.map((id) => [id, factRefsFor(s, id, participants)])) });
+      participants.forEach((id) => busy.add(id));
+      gather(s, ev);
+      if (ev.isPlayerScene) playerEv = ev;
+      else plan.scenes.push({ event: ev, render: true, visible: false, priority: 2 });
+    }
     const leavingToday = leavers.find((c) => departing(s, c.id) && !busy.has(c.id));
     if (leavingToday && s.world.slot === 'morning' && !playerEv) playerEv = housePlan('farewell-door', leavingToday.id, 'entrance') ?? playerEv;
     // the day after deciding, the leaver tells the whole house (the show's "I've decided to graduate")
     const announcer = leavers.find((c) => !departing(s, c.id) && !flag(s, `announced_${c.id}`) && flag(s, `leaving_${c.id}`) !== s.world.episode);
     if (announcer && !busy.size && (s.world.slot === 'morning' || s.world.slot === 'evening')) playerEv = housePlan('leave-announcement', announcer.id, 'living') ?? playerEv;
+    // broadcast lag: the episode from two episodes ago airs on the living-room TV tonight
+    const airs = s.world.slot === 'evening' ? airingTonight(s) : null;
+    if (airs !== null) {
+      const premise = airEpisode(s, airs);
+      const home = isRoom(P.location) ? [P] : [];
+      const crowd = [...home, ...npcs(s).filter((c) => available(s, c, acts) && !busy.has(c.id) && !departing(s, c.id))].slice(0, 5);
+      if (crowd.length >= 2) {
+        const ev = makeEvent(s, content().eventById.get('broadcast-watch')!, { a: crowd[0].id, b: crowd[1].id }, 'living');
+        const participants = crowd.map((c) => c.id);
+        Object.assign(ev, { participants, premise: `${ev.premise} ${premise}`, factRefs: Object.fromEntries(participants.map((id) => [id, factRefsFor(s, id, participants)])) });
+        participants.forEach((id) => busy.add(id));
+        gather(s, ev);
+        if (ev.isPlayerScene || participants.includes(P.id)) playerEv ??= { ...ev, isPlayerScene: true };
+        else plan.scenes.push({ event: ev, render: true, visible: false, priority: 2 });
+      }
+    }
     // newcomer introductions
     for (const c of housemates(s)) {
       if (!flag(s, `new_${c.id}`) || flag(s, `introduced_${c.id}`) || playerEv) continue;
-      if (s.world.slot !== 'morning' && s.world.slot !== 'evening') continue;
+      if (!moveInDay && s.world.slot !== 'morning' && s.world.slot !== 'evening') continue;
       const t = content().eventById.get('arrival-intro')!;
       const greeter = c.isPlayer ? npcs(s).filter((o) => available(s, o, acts)).sort((x, y) => y.persona.traits[2] - x.persona.traits[2])[0] : P;
       if (!greeter || (greeter.isPlayer && !isRoom(P.location))) continue;
       const ev = makeEvent(s, t, { a: c.id, b: greeter.id }, 'entrance');
+      if (moveInDay) {
+        // move-in day: everyone already here comes to the door for introductions (name, age, job)
+        const extra = housemates(s).filter((o) => !ev.participants.includes(o.id) && (o.isPlayer ? isRoom(P.location) : available(s, o, acts)) && !busy.has(o.id)).slice(0, 3).map((o) => o.id);
+        const participants = [...ev.participants, ...extra];
+        Object.assign(ev, { participants, isPlayerScene: participants.includes(P.id), playerPresent: ev.playerPresent || participants.includes(P.id), premise: `The doorbell rings: ${c.name} (${c.age}, ${c.occupation}) is moving in today, with one suitcase and a nervous smile. Everyone already here introduces themselves: name, age, job.`, factRefs: Object.fromEntries(participants.map((id) => [id, factRefsFor(s, id, participants)])) });
+      }
       if (ev.isPlayerScene) playerEv = ev;
       else plan.scenes.push({ event: ev, render: true, visible: false, priority: 2 });
       ev.participants.forEach((id) => busy.add(id));
@@ -596,6 +705,18 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
     const visitorHosts = npcs(s).filter((c) => available(s, c, acts) && !busy.has(c.id));
     if (!plan.scenes.some((p) => p.event.isPlayerScene) && isRoom(P.location) && visitorHosts.length && (s.world.flags.coworkerVisitor ? visitorHosts.some((c) => c.id === s.world.flags.coworkerVisitor) : rng.chance(0.16))) {
       const host = visitorHosts.find((c) => c.id === s.world.flags.coworkerVisitor) ?? rng.pick(visitorHosts);
+      // half the time it is someone from the host's own life: family on the phone, an old friend, an ex
+      if (!s.world.flags.coworkerVisitor && rng.chance(0.5)) {
+        const kind = rng.pick(['family', 'friend', 'ex'] as const);
+        const m = outsiderMoment(host, kind, !!flag(s, `leaving_${host.id}`));
+        const ev = makeEvent(s, content().eventById.get('casual-chat')!, { a: host.id, b: P.id }, m.at, { title: m.title, premise: m.premise });
+        addMemory(s, host.id, m.title, [host.id], 0.45);
+        gather(s, ev);
+        plan.scenes.unshift({ event: ev, render: true, visible: false, priority: 3 });
+        advanceLiving(s, rng, end, new Set(plan.scenes.flatMap((p) => p.event.participants)));
+        observeRoutines(s);
+        return;
+      }
       const visitor = content().npcs.find((n) => n.linkedTo === host.id) ?? rng.pick(content().npcs);
       const t = content().eventById.get('casual-chat')!;
       const ev = makeEvent(s, t, { a: P.id, b: host.id, x: visitor.id }, 'entrance', { title: `${visitor.name} at the door`, premise: `${visitor.name}, ${s.world.flags.coworkerVisitor ? `a coworker of ${host.name}` : visitor.role}, rings the doorbell to see ${host.name}. They catch up in the house; the visitor has their own perspective.` });
@@ -606,6 +727,17 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
     advanceLiving(s, rng, end, new Set(plan.scenes.flatMap((p) => p.event.participants)));
     observeRoutines(s);
   });
+  if (action.type === 'trip') {
+    // the trip replaces whatever the block would have been for the player: the drive, then a night far from the house
+    const t = TRIPS[action.node];
+    const group = [s.playerId, ...action.with];
+    const drive = makeEvent(s, content().eventById.get('trip-travel')!, { a: s.playerId, b: action.with[0] }, action.node);
+    Object.assign(drive, { participants: group, premise: `The shared car, a playlist argument and gas-station snacks: the drive to ${t.name} (${t.blurb}).` });
+    const roommate = action.roommate && action.with.includes(action.roommate) ? action.roommate : action.with[0];
+    const night = makeEvent(s, content().eventById.get('trip-night')!, { a: s.playerId, b: roommate }, action.node);
+    night.premise = night.premise.replace(action.node, t.name);
+    plan.scenes = [drive, night].map((event) => ({ event, render: true, visible: false, priority: 3 })).concat(plan.scenes.filter((p) => !p.event.participants.some((id) => group.includes(id))));
+  }
   if (action.type === 'sleep' || action.type === 'skip') for (const p of plan.scenes) { p.render = false; p.visible = false; }
   recordActivity(s, actionLabel(s, action, began));
   return { state: s, plan };
@@ -688,6 +820,14 @@ export function finishSlot(s0: GameState): GameState {
       if (missed >= MISSES_BEFORE_FIRED) s.world.playerJob = null;
       addLog(s, { kind: 'system', text: missed >= MISSES_BEFORE_FIRED ? `The manager at ${place} let you go after missed shifts.` : `You missed your shift at ${place}. The manager noticed.`, participants: [s.playerId], salience: 0.5 });
     }
+    if (classToday(player(s).occupation, s.world.weekday, slot) && !isShabbat(s, player(s)) && !['heatwave', 'typhoon'].includes(s.world.weather) && !flag(s, 'attendedClass')) {
+      const missed = ((flag(s, 'classMissed') as number) ?? 0) + 1;
+      s.world.flags.classMissed = missed;
+      const exam = !!s.world.flags.examWeek;
+      player(s).mood = clamp(player(s).mood - (exam ? 0.15 : 0.05), -1, 1);
+      addLog(s, { kind: 'system', text: exam ? 'You missed an exam. There is a resit, but everyone at the department noticed.' : missed >= 3 ? 'The department emailed: one more missed lecture and you fail the course.' : 'You skipped class today. The notes will have to come from someone else.', participants: [s.playerId], salience: exam || missed >= 3 ? 0.5 : 0.3 });
+    }
+    delete s.world.flags.attendedClass;
     delete s.world.flags.workedShift;
     delete s.world.flags.startedBlock;
     s.world.minutes = 0;
@@ -704,7 +844,9 @@ export function finishSlot(s0: GameState): GameState {
       return;
     }
     // ---- end of episode
+    for (const c of Object.values(s.characters)) if (c.status === 'arriving') c.status = 'inHouse'; // nobody is left on the doorstep
     evaluateLeaves(s, rng);
+    careerChanges(s, rng);
     expirePredictions(s);
     decayGrudges(s);
     relationshipUpkeep(s);
@@ -728,6 +870,7 @@ export function finishSlot(s0: GameState): GameState {
     }
     s.world.episode++;
     s.world.slot = 'morning';
+    s.world.flags.examWeek = s.world.episode % 6 === 5; // students sit exams every sixth episode
     applyCalendar(s, rng);
     rotateChores(s);
     addLog(s, { kind: 'system', text: `Episode ${s.world.episode}.`, participants: [], salience: 0.2 });
@@ -789,7 +932,6 @@ export function joinNewPlayer(s0: GameState, setup: PlayerSetup): GameState {
   s.house.choreLedger[P.id] = { done: 0, skipped: 0 };
   s.house.groupChat.members.push(P.id);
   s.world.flags[`new_${P.id}`] = s.world.episode;
-  s.world.money = 800;
   s.world.playerJob = null;
   s.world.playerNode = 'house';
   delete s.world.flags.jobMissed;

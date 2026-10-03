@@ -49,7 +49,7 @@ function checkChains(s: GameState, out: string[]) {
         out.push(`${holder} knows missing fact ${fid}`);
         continue;
       }
-      if (e.source === 'self' || e.source === 'witnessed') {
+      if (e.source === 'self' || e.source === 'witnessed' || e.source === 'broadcast') { // the aired episode is its own source
         if (e.source === 'self' && f.parentId && !s.knowledge[holder]?.[f.parentId]) out.push(`${holder} invented ${fid} without parent`);
         continue;
       }

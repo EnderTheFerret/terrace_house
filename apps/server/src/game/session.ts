@@ -1,11 +1,12 @@
 // GameSession: owns the live GameState, runs slots and scenes, logs replayable events, autosaves.
 // Only engine functions touch state.rngState, in a fixed order that scripts/replay.ts reproduces.
+import type { Recall } from '../llm/recall';
 import {
   PlayerAction, SceneResponse, Intent as IntentSchema, autoChoices, captionFor, confessionPreview, createGame, finishSlot, firstName,
   panelPrediction, planSlot, predictionText, projectForPlayer, proposeOutcome, recordCommentary, resolveScene, content, placeName,
   type Commentary, type EventInstance, type GameState, type Intent, type LineContext, type NewGameOptions, type PlannedScene,
   type PlayerSetup, type PredictionCond, type Emotion, type Beat, classifyIntent, joinNewPlayer, recordChat, recordPlayerWords, replyBeatType,
-  MAX_TYPED_EXCHANGES, passTime, blockOver, isShabbat, SLOT_START, MINUTES_PER_LINE,
+  MAX_TYPED_EXCHANGES, passTime, recordDiary, reactionTo, blockOver, isShabbat, SLOT_START, MINUTES_PER_LINE, occasionFor, typedResponders,
 } from '@shared-roof/shared';
 import { z } from 'zod';
 import type { Store } from '../db';
@@ -21,9 +22,11 @@ export type Emit = (event: string, data: unknown) => void;
 
 /** SEASON_LENGTH=0: the house never closes; housemates keep rotating. */
 const REPLY_EMOTION: Partial<Record<Intent, Emotion>> = { flirt: 'shy', confront: 'annoyed', apologize: 'tender', support: 'tender', joke: 'happy', tease: 'happy', confess: 'nervous', decline: 'sad', listen: 'tender' };
-const ChoiceSchema = z.object({ intent: IntentSchema.optional(), text: z.string().trim().min(1).max(200).optional(), done: z.boolean().optional() });
+const ChoiceSchema = z.object({ intent: IntentSchema.optional(), text: z.string().trim().min(1).max(200).optional(), done: z.boolean().optional(), listen: z.boolean().optional() });
+/** How many times the player can stay quiet and let a group keep talking in one scene. */
+const MAX_LISTENS = 3;
 
-type Phase = 'new' | 'awaiting-response' | 'awaiting-choice' | 'reply' | 'post' | 'done';
+type Phase = 'new' | 'awaiting-response' | 'awaiting-choice' | 'reply' | 'listen' | 'post' | 'done';
 
 interface SceneRun {
   id: string;
@@ -44,11 +47,15 @@ interface SceneRun {
   said: string[];
   /** typed words waiting for a reply (phase 'reply') */
   pendingText?: string;
+  /** rounds the player stayed quiet and let the housemates talk among themselves */
+  listened?: number;
   /** the player ended a typed conversation: their choice beat is already spoken */
   skipPlayerBeat?: boolean;
   /** a phone message typed before the scene started */
   openingText?: string;
   phoneClosed?: boolean;
+  /** memories recalled by meaning per speaker: they stay in that speaker's prompt for the rest of the scene */
+  recalled?: Record<string, string[]>;
 }
 
 export interface SceneSummary {
@@ -79,11 +86,29 @@ export class GameSession {
   pendingIntermission: 'mid' | 'end' | null = null;
   budgetBlock = '';
 
+  /** a recalled memory cools down for a few episodes after its scene, so the same callback isn't in every talk */
+  private recallCooldown = new Map<string, number>();
+
   constructor(
     public store: Store,
     public gen: Generator,
     public images: ImageQueue,
+    public recall: Recall | null = null,
   ) {}
+
+  /** Add memories recalled by meaning for each upcoming speaker (embeddings; no-op without the model). */
+  private async recallFor(run: SceneRun, speakers: string[], replyTo?: string) {
+    if (!this.recall) return;
+    const s = this.requireState();
+    const query = [...run.transcript.slice(-2).map((l) => l.text), replyTo ?? ''].join(' ').trim() || run.ev.premise;
+    for (const id of new Set(speakers)) {
+      if (!s.characters[id] || s.characters[id].isPlayer) continue;
+      const have = new Set(run.recalled?.[id] ?? []);
+      const cooling = new Set([...this.recallCooldown].filter(([k, until]) => k.startsWith(`${id}\n`) && until > s.world.tick).map(([k]) => k.slice(id.length + 1)));
+      const found = await this.recall.recallFor(s, id, query, new Set([...have, ...cooling]));
+      if (found.length) ((run.recalled ??= {})[id] = [...have, ...found].slice(-4));
+    }
+  }
 
   private requireState(): GameState {
     if (!this.state) throw new Error('no game in progress');
@@ -100,11 +125,11 @@ export class GameSession {
     return projectForPlayer(s, this.digestSince);
   }
 
-  async newGame(o: { seed?: number; player?: PlayerSetup; randomizeCast?: boolean; seasonLength?: number }) {
+  async newGame(o: { seed?: number; player?: PlayerSetup; randomizeCast?: boolean; seasonLength?: number; moveInDay?: boolean }) {
     if (this.busy) throw new Error('generation is running');
     const seed = o.seed ?? (config.seed ? Number(config.seed) : Math.floor(Math.random() * 2 ** 31));
     const gameId = `g${Date.now().toString(36)}${seed.toString(36)}`;
-    const opts: NewGameOptions = { seed, player: o.player, randomizeCast: o.randomizeCast, seasonLength: o.seasonLength ?? config.seasonLength, gameId };
+    const opts: NewGameOptions = { seed, player: o.player, randomizeCast: o.randomizeCast, seasonLength: o.seasonLength ?? config.seasonLength, gameId, moveInDay: o.moveInDay ?? true };
     this.state = createGame(opts);
     this.runs.clear();
     this.order = [];
@@ -290,8 +315,13 @@ export class GameSession {
       run.phase = 'reply';
       return;
     }
+    if (c.listen) {
+      if ((run.listened ?? 0) >= MAX_LISTENS || this.listeners(run).length < 2) throw new Error('nobody else is talking');
+      run.phase = 'listen';
+      return;
+    }
     if (c.done) {
-      if (!run.said.length) throw new Error('say something first');
+      if (!run.said.length && !run.listened) throw new Error('say something first');
       run.skipPlayerBeat = true;
       run.phase = 'post';
       return;
@@ -319,11 +349,30 @@ export class GameSession {
     await this.enrichNewCharacters(Object.keys(s.characters));
     this.autosave();
     const ns = this.state;
-    if (ns.world.episode !== prevEp) this.prefetchPortraits();
+    if (ns.world.episode !== prevEp) {
+      this.prefetchPortraits();
+      void this.writeDiaries(prevEp);
+    }
     const newEpisode = ns.world.episode !== prevEp || ns.seasonOver;
     // the show cuts to the studio halfway through the day and after the last scene
     this.pendingIntermission = newEpisode ? 'end' : prevSlot === 'slot2' ? 'mid' : null;
     return { view: this.view(), newEpisode, seasonOver: ns.seasonOver, intermission: this.pendingIntermission };
+  }
+
+  /**
+   * After an episode, each housemate writes a diary entry and their view of the others (LLM, in the background, one at
+   * a time). Each lands in state as it arrives and is logged so replay reproduces it.
+   */
+  private async writeDiaries(episode: number) {
+    const game = this.state?.gameId;
+    for (const c of Object.values(this.requireState().characters)) {
+      if (c.isPlayer || c.status !== 'inHouse') continue;
+      const release = this.images.hold();
+      const entry = await this.gen.diary(this.requireState(), c.id, episode).finally(release);
+      if (!entry || this.state?.gameId !== game) continue;
+      this.state = recordDiary(this.state!, c.id, episode, entry.diary, entry.pairs);
+      this.log('diary', { id: c.id, episode, ...entry });
+    }
   }
 
   private async enrichNewCharacters(previous: string[]) {
@@ -343,6 +392,17 @@ export class GameSession {
       this.busy = false;
       release();
     }
+  }
+
+  /** The last aired episode as the house saw it on TV: every rendered scene with its transcript (read-only). */
+  broadcast() {
+    const s = this.requireState();
+    const ep = typeof s.world.flags.aired === 'number' ? s.world.flags.aired : null;
+    if (ep === null) return { episode: null, scenes: [] };
+    const scenes = this.store.events(s.gameId)
+      .filter((e) => e.kind === 'scene' && e.payload.episode === ep && e.payload.transcript?.length)
+      .map((e) => ({ title: e.payload.title as string, location: placeName(e.payload.location), mine: (e.payload.participants as string[]).includes(s.playerId), lines: (e.payload.transcript as { speaker: string; text: string }[]).map((l) => ({ name: speakerName(s, l.speaker), text: l.text })) }));
+    return { episode: ep, scenes };
   }
 
   /** Studio intermission over the footage since the last one. Text only: never touches game state. */
@@ -365,14 +425,13 @@ export class GameSession {
     const run = this.runs.get(id);
     if (!run || !run.rendered || run.phase === 'awaiting-response') throw new Error('scene is not available');
     if (!run.ev.participants.includes(s.playerId)) throw new Error('join this conversation before generating a scene');
-    const participants = [s.playerId, ...run.ev.participants.filter((p) => p !== s.playerId)].slice(0, 2);
+    const participants = [s.playerId, ...run.ev.participants.filter((p) => p !== s.playerId)].slice(0, 6);
     if (participants.length < 2) throw new Error('a scene image needs another housemate');
     const phone = run.ev.location === 'phone';
     const ev = { ...run.ev, participants, location: phone ? s.characters[s.playerId].location : run.ev.location };
     const exchange = run.transcript.slice(-6).map((l) => `${speakerName(s, l.speaker)}: ${l.text}`).join(' ').slice(-1200);
     const context = `${phone ? `phone conversation, split-screen composition, ${participants.map((p) => `${speakerName(s, p)} separately at ${placeName(s.characters[p].location)}`).join('; ')}, each holding a phone, not in the same room. ` : ''}${run.ev.premise}. Recent conversation: ${exchange}. Illustrate the situation and body language, no speech bubbles or captions.`;
-    const lead = s.characters[s.playerId];
-    return this.images.request(freezeRequest(s, ev, this.images.localFile(portraitRequest(lead)), context), PRIORITY.currentScene);
+    return this.images.request(freezeRequest(s, ev, (r) => this.images.localFile(r), context), PRIORITY.currentScene);
   }
 
   /** Run the next segment of a scene, emitting SSE events. Resolves when the segment ends. */
@@ -382,6 +441,8 @@ export class GameSession {
     if (this.busy) throw new Error('another scene segment is running');
     this.busy = true;
     const release = this.images.hold(); // one GPU: dialogue first, images after the segment
+    // every scene gets its own call budget: a block-wide one ran dry on the first scene and templated the rest
+    if (run.phase === 'new') this.budget = new Budget(config.llmCallsPerScene);
     try {
       if (run.phase === 'awaiting-response') {
         emit('respond', { id, options: ['join', 'eavesdrop', 'ignore'], premise: run.ev.premise });
@@ -409,6 +470,7 @@ export class GameSession {
           premise: await this.gen.flavor(run.ev.premise, this.budget),
           location: run.ev.location,
           locationName: placeName(run.ev.location),
+          occasion: occasionFor(run.ev),
           participants: run.ev.participants.map((p) => ({ id: p, name: speakerName(s, p) })),
           outsiders: Object.entries(run.ev.roles).filter(([, v]) => !s.characters[v]).map(([, v]) => ({ id: v, name: speakerName(s, v) })),
           isPlayerScene: run.ev.isPlayerScene,
@@ -437,6 +499,7 @@ export class GameSession {
         } else run.phase = 'post';
       }
       if (run.phase === 'reply') return await this.reply(run, emit);
+      if (run.phase === 'listen') return await this.listen(run, emit);
       if (run.phase === 'post') await this.finishScene(run, emit);
     } finally {
       this.busy = false;
@@ -445,7 +508,7 @@ export class GameSession {
   }
 
   private choiceEvent(run: SceneRun) {
-    return { id: run.id, intents: run.ev.intents, canType: run.said.length < MAX_TYPED_EXCHANGES, canEnd: run.said.length > 0 };
+    return { id: run.id, intents: run.ev.intents, canType: run.said.length < MAX_TYPED_EXCHANGES, canEnd: run.said.length > 0 || !!run.listened, canListen: (run.listened ?? 0) < MAX_LISTENS && this.listeners(run).length >= 2 };
   }
 
   private phoneCapacity(run: SceneRun) {
@@ -460,6 +523,32 @@ export class GameSession {
     return Math.max(0, Math.floor(left / MINUTES_PER_LINE));
   }
 
+  /** Housemates in the scene who can talk among themselves (not the player, not anyone busy asleep or on the phone). */
+  private listeners(run: SceneRun) {
+    const s = this.requireState();
+    return run.ev.location === 'phone' ? [] : run.ev.participants.filter((id) => id !== s.playerId && !['sleep', 'nap', 'text'].includes(s.characters[id]?.lastAction ?? ''));
+  }
+
+  /**
+   * The player stays quiet: two housemates keep the conversation going (SillyTavern auto mode). Talkative and engaged
+   * people speak first; nobody takes two turns in a row.
+   */
+  private async listen(run: SceneRun, emit: Emit) {
+    const s = this.requireState();
+    run.listened = (run.listened ?? 0) + 1;
+    const last = run.transcript.at(-1)?.speaker;
+    const keen = (id: string) => s.characters[id].persona.traits[2] + s.characters[id].mood * 0.3 + (last && s.rel[id]?.[last] ? s.rel[id][last].affinity / 200 : 0);
+    const order = this.listeners(run).filter((id) => id !== last).sort((a, b) => keen(b) - keen(a) || (a < b ? -1 : 1));
+    const second = this.listeners(run).filter((id) => id !== order[0]).sort((a, b) => keen(b) - keen(a))[0];
+    const speakers = [order[0], second].filter(Boolean);
+    const topic = run.beats?.[0]?.topic ?? 'small talk';
+    const beats: Beat[] = speakers.map((speaker, i) => ({ speaker, intent: i ? 'answer them' : 'carry the conversation on', emotion: 'neutral', beatType: i ? 'joke' : 'smalltalk', subtext: '', depth: run.ev.depthCeiling, topic }));
+    this.budget.cap++;
+    await this.realize(run, beats, beats.map(() => undefined), emit);
+    run.phase = 'awaiting-choice';
+    emit('choice', this.choiceEvent(run));
+  }
+
   /** The player's typed words, then the housemate's answer to them; then it's the player's turn again. */
   private async reply(run: SceneRun, emit: Emit) {
     if (this.phoneCapacity(run) === 0) {
@@ -472,6 +561,7 @@ export class GameSession {
     const text = run.pendingText!;
     run.pendingText = undefined;
     const intent = classifyIntent(text, run.ev.intents);
+    const replyIntent = classifyIntent(text, ['decline', ...run.ev.intents]);
     run.playerIntent = intent;
     run.said.push(text);
     const P = s.playerId;
@@ -480,12 +570,13 @@ export class GameSession {
     emit('token', { index: idx, token: text });
     run.transcript.push({ speaker: P, text, source: 'player' });
     emit('line-end', { index: idx, speaker: P, text, caption: null, source: 'player' });
-    // the last housemate who spoke answers (else whoever else is in the scene)
-    const responder = [...run.transcript].reverse().find((l) => l.speaker !== P && s.characters[l.speaker])?.speaker ?? run.ev.participants.find((x) => x !== P);
-    if (responder && s.characters[responder]) {
+    const responders = typedResponders(s, run.ev.participants, run.transcript, text);
+    if (responders.length) {
       this.budget.cap++; // typed talk is the player's call: each answer gets its own LLM call
-      const beat: Beat = { speaker: responder, intent: 'answer the player', emotion: REPLY_EMOTION[intent] ?? 'neutral', beatType: replyBeatType(intent, s.characters[responder]), subtext: '', depth: run.ev.depthCeiling, topic: run.beats?.[0]?.topic ?? 'small talk' };
-      await this.realize(run, [beat], [undefined], emit, { text, intent });
+      const topic = run.beats?.[0]?.topic ?? 'small talk';
+      const beat = (speaker: string, why: string): Beat => ({ speaker, intent: why, emotion: reactionTo(text) ?? REPLY_EMOTION[replyIntent] ?? 'neutral', beatType: replyBeatType(replyIntent, s.characters[speaker]), subtext: '', depth: run.ev.depthCeiling, topic });
+      const beats = responders.map(speaker => beat(speaker, 'answer the player'));
+      await this.realize(run, beats, beats.map(() => undefined), emit, { text, intent: replyIntent });
     }
     if (run.phoneClosed || this.phoneCapacity(run) === 0) {
       run.phoneClosed = true;
@@ -508,13 +599,14 @@ export class GameSession {
     };
     const base = run.transcript.length;
     const started = new Set<number>();
+    await this.recallFor(run, beats.map((b) => b.speaker), replyTo?.text);
     const lines = await this.gen.lines(
       s,
       run.ev,
       beats,
       run.transcript,
       intents,
-      { ...run.ctx, listener: listenerFor(beats[0].speaker), fact: this.factFor(run, beats[0].speaker), outcomeHint: run.result?.confession === 'rejected' ? 'rejected' : undefined, replyTo },
+      { ...run.ctx, listener: listenerFor(beats[0].speaker), fact: this.factFor(run, beats[0].speaker), outcomeHint: run.result?.confession === 'rejected' ? 'rejected' : undefined, replyTo, recalled: run.recalled },
       this.budget,
       (i, speaker) => {
         if (started.has(i)) return;
@@ -561,7 +653,9 @@ export class GameSession {
     s = rs.state;
     run.result = { confession: rs.result.effects.confession, leaving: rs.result.effects.leaving, secretRevealed: rs.result.effects.secretRevealed, noticed: rs.result.noticed };
     this.state = s;
-    this.log('scene', { eventId: ev.id, response: run.response, playerIntent: run.playerIntent, choices: ac.choices, proposal: rs.result.proposal, beats: run.beats, transcript: run.transcript });
+    this.log('scene', { eventId: ev.id, episode: ev.episode, title: ev.title, location: ev.location, participants: ev.participants, response: run.response, playerIntent: run.playerIntent, choices: ac.choices, proposal: rs.result.proposal, beats: run.beats, transcript: run.transcript });
+    // callbacks recalled in this scene rest for about three episodes (World Info cooldown)
+    for (const [id, texts] of Object.entries(run.recalled ?? {})) for (const t of texts) this.recallCooldown.set(`${id}\n${t}`, this.state.world.tick + 15);
     // housemates remember what you actually said; phone conversations stay in the chat thread
     if (run.said.length) {
       this.state = recordPlayerWords(this.state, ev.participants, run.said);
@@ -570,8 +664,11 @@ export class GameSession {
     if (ev.location === 'phone' && ev.participants.length === 2) {
       const [a, b] = ev.participants;
       const lines = run.transcript.map((l) => ({ speaker: l.speaker, text: l.text }));
-      this.state = recordChat(this.state, a, b, lines);
-      this.log('chat', { a, b, lines });
+      // asked for a picture? the other person's reply comes with a selfie
+      const asked = run.said.some((t) => /\b(pic|pics|picture|photo|selfie)\b/i.test(t));
+      const photoFrom = asked ? ev.participants.find((id) => id !== this.state!.playerId) : undefined;
+      this.state = recordChat(this.state, a, b, lines, photoFrom);
+      this.log('chat', { a, b, lines, photoFrom });
     }
     // the clock runs for as long as the player was in (or listening to) the conversation
     if (ev.participants.includes(this.state.playerId) || run.response === 'eavesdrop') {
@@ -599,12 +696,14 @@ export class GameSession {
       const by = cm.commentary.lines[0]?.speaker ?? 'nagumo';
       prediction = { by, condition: pp.condition, text: predictionText(this.state, by, pp.condition) };
     }
-    this.state = recordCommentary(this.state, { prediction, calledBack: callbacks });
-    this.log('commentary', { eventId: ev.id, prediction, calledBack: callbacks, commentary: cm.commentary, source: cm.source });
+    const remarks = { episode: ev.episode, participants: ev.participants, lines: cm.commentary.lines.map((l) => ({ text: l.text })), moment: `${ev.templateId} ${ev.title} ${ev.tags.join(' ')}` };
+    this.state = recordCommentary(this.state, { prediction, calledBack: callbacks, remarks });
+    this.log('commentary', { eventId: ev.id, prediction, calledBack: callbacks, remarks, commentary: cm.commentary, source: cm.source });
     run.commentary = { ...cm.commentary, prediction: prediction ? { text: prediction.text } : undefined };
     if (ev.freeze) {
-      const lead = this.state.characters[ev.participants[0]];
-      const img = this.images.request(freezeRequest(this.state, ev, lead && this.images.localFile(portraitRequest(lead))), PRIORITY.freeze);
+      // the LLM stages the frame (who stands where, poses, a prop); empty in mock mode
+      const shot = await this.gen.shot(this.state, ev, run.transcript);
+      const img = this.images.request(freezeRequest(this.state, ev, (r) => this.images.localFile(r), shot), PRIORITY.freeze);
       run.freeze = { caption: cm.commentary.freezeFrame?.caption ?? 'that moment', image: img.key };
       emit('freeze', { id: ev.id, caption: run.freeze.caption, image: img });
     }

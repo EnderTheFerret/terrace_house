@@ -1,0 +1,29 @@
+﻿{
+    "tag":  "s1",
+    "refs":  [
+                 "C:\\Users\\User\\AppData\\Local\\Temp\\claude\\C--Projects-terrace-house\\0c555bcd-65ad-4b17-8eca-60684b16b781\\scratchpad\\ref8x.png"
+             ],
+    "steps":  8,
+    "res":  1024,
+    "chars":  [
+                  {
+                      "id":  "kaito",
+                      "seed":  1202,
+                      "who":  "24-year-old adult man, wavy shoulder-length sun-bleached brown hair, brown eyes, athletic build, tan skin, wearing oversized graphic tee and board shorts, shell necklace"
+                  },
+                  {
+                      "id":  "tamar",
+                      "seed":  2306,
+                      "who":  "24-year-old adult woman, long wavy dark brown hair, brown eyes, slim build, brown skin, wearing olive utility jacket over cream shirt and rust trousers, gold hoop earrings"
+                  }
+              ],
+    "passes":  [
+                   {
+                       "key":  "sheet",
+                       "prompt":  "\u003cimage1\u003e is a 4x4 pixel art walking sprite sheet: row 1 walks toward the viewer (front view), row 2 walks away (back view, no face visible), row 3 walks facing left, row 4 walks facing right; each row has four walk frames. Replace the character in every one of the 16 frames with this new character: {who}. Keep every pose, facing direction, frame position, frame size, pixel grid, outline and handheld RPG overworld pixel art style exactly. Remove the original red headband and spiky brown hair; hair and clothes must follow the new description. Same character design in all 16 frames. Plain white background.",
+                       "refs":  [
+                                    "ref0"
+                                ]
+                   }
+               ]
+}

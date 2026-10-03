@@ -25,9 +25,9 @@ const num = (k: string, d: number) => {
 export const config = {
   mode: (env('MODE', 'real') === 'mock' ? 'mock' : 'real') as 'mock' | 'real',
   ollamaUrl: env('OLLAMA_URL', 'http://127.0.0.1:11434'),
-  ollamaModel: env('OLLAMA_MODEL', 'gemma3:12b'),
-  ollamaModelLines: env('OLLAMA_MODEL_LINES', env('OLLAMA_MODEL', 'gemma3:12b')),
-  ollamaKeepAlive: env('OLLAMA_KEEP_ALIVE', env('OLLAMA_MODEL_LINES', env('OLLAMA_MODEL', 'gemma3:12b')) === env('OLLAMA_MODEL', 'gemma3:12b') ? '30m' : '0'),
+  ollamaModel: env('OLLAMA_MODEL', 'llama3.2:latest'),
+  ollamaModelLines: env('OLLAMA_MODEL_LINES', env('OLLAMA_MODEL', 'llama3.2:latest')),
+  ollamaKeepAlive: env('OLLAMA_KEEP_ALIVE', env('OLLAMA_MODEL_LINES', env('OLLAMA_MODEL', 'llama3.2:latest')) === env('OLLAMA_MODEL', 'llama3.2:latest') ? '30m' : '0'),
   comfyUrl: env('COMFY_URL', 'http://127.0.0.1:8188'),
   comfyWorkflow: resolve(ROOT, env('COMFY_WORKFLOW', './workflows/txt2img.api.json')),
   comfyMapping: resolve(ROOT, env('COMFY_MAPPING', './workflows/mapping.json')),
@@ -37,6 +37,10 @@ export const config = {
   stylePrefix: env('IMAGE_STYLE_PREFIX', 'pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, reality show still'),
   seasonLength: num('SEASON_LENGTH', 0),
   llmCallsPerSlot: num('LLM_CALLS_PER_SLOT', 6),
+  /** LLM calls each rendered scene may use (beats, lines, voice retries, outcome, commentary); the rest falls back to templates */
+  llmCallsPerScene: num('LLM_CALLS_PER_SCENE', 8),
+  /** unload the resident LLM before each ComfyUI job (one shared GPU); set FREE_LLM_FOR_IMAGES=0 on a card with room for both */
+  freeLlmForImages: env('FREE_LLM_FOR_IMAGES', '1') !== '0',
   seed: env('SEED', ''),
   language: env('LANGUAGE', 'en'),
   port: num('PORT', 8787),
@@ -55,6 +59,8 @@ export const config = {
   dataDir: resolve(ROOT, env('DATA_DIR', 'data')), // E2E tests point this at a throwaway dir
   cacheDir: resolve(ROOT, 'cache', 'images'),
   logsDir: resolve(ROOT, 'logs'),
+  /** Ollama embedding model for recall by meaning (S1); recall falls back to keywords when it is not installed */
+  embedModel: env('OLLAMA_EMBED_MODEL', 'nomic-embed-text'),
   assetsDir: resolve(ROOT, 'apps', 'web', 'public', 'assets'),
   webDist: resolve(ROOT, 'apps', 'web', 'dist'),
   sizes: {

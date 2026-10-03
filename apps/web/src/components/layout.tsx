@@ -37,7 +37,7 @@ export function TopBar() {
       </span>
       {view.cityEvent && <span className="px-1" style={{ background: '#f6d48f', boxShadow: '0 0 0 1px var(--color-ink)' }}>today: {view.cityEvent.name}</span>}
       <span title={`tomorrow: ${view.forecast}`}>tomorrow: {WEATHER_ICON[view.forecast] ?? ''} {view.forecast}</span>
-      <span>₪{view.money.toLocaleString()}</span>
+      <span title={`what you can afford comes from your job${view.budget.partTime ? ', plus your part-time job' : ''}`}>budget: {view.budget.label}</span>
       <span className="ml-auto flex flex-wrap items-center gap-2">
         <HealthBadge />
         <button aria-label="phone" className="px-btn text-xs" onClick={() => setScreen('phone')} title={`phone (p)${notifications ? ` · ${notifications} notifications` : ''}`}>phone{notifications > 0 && <span aria-hidden> ●</span>}</button>

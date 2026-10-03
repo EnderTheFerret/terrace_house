@@ -1,0 +1,11 @@
+{
+  "tag": "f1",
+  "refs": [],
+  "res": 1024,
+  "chars": [{"id": "x", "seed": 11, "who": ""}],
+  "passes": [
+    {"key": "bed", "size": [512, 1024], "refs": [], "prompt": "A single pixel art game asset: a single bed seen from directly above in top-down 3/4 RPG view, white pillow at the top, blue blanket, wooden frame. Handheld Game Boy Advance RPG style like Zelda Minish Cap: bold dark brown outline, warm saturated colours, flat cel shading with highlights. The bed fills the whole image. Plain white background, no shadow, no text."},
+    {"key": "sofa", "size": [1024, 256], "refs": [], "prompt": "A single pixel art game asset: a long blue three-seat sofa seen from above in top-down 3/4 RPG view, backrest at the top, cushions facing down. Handheld Game Boy Advance RPG style like Zelda Minish Cap: bold dark brown outline, warm saturated colours, flat cel shading with highlights. The sofa fills the whole image. Plain white background, no shadow, no text."},
+    {"key": "plant", "size": [512, 512], "refs": [], "prompt": "A single pixel art game asset: a leafy green houseplant in a terracotta pot seen from above in top-down 3/4 RPG view. Handheld Game Boy Advance RPG style like Zelda Minish Cap: bold dark brown outline, warm saturated colours, flat cel shading with highlights. The plant fills the whole image. Plain white background, no shadow, no text."}
+  ]
+}

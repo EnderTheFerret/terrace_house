@@ -27,6 +27,8 @@ export const Cond = z.object({
   mood: z.string().optional(),
   chance: z.number().optional(),
   lastDate: z.array(z.string()).length(2).optional(),
+  /** romance ladder: the pair's current milestone (0 none, 1 first date, 2 second date, 3 hand-holding, 4 first kiss) equals `is` */
+  milestone: z.array(z.string()).length(2).optional(),
   birthday: z.string().optional(),
   choreSkipper: z.string().optional(),
   newArrival: z.string().optional(),
@@ -78,6 +80,8 @@ export const Effect = z.object({
   confession: z.array(z.string()).length(2).optional(), // [confessor, target] resolved by engine
   apology: z.array(z.string()).length(2).optional(),
   date: z.array(z.string()).length(2).optional(),
+  /** the pair climbs one rung of the romance ladder (and the house can hear about it) */
+  milestone: z.array(z.string()).length(2).optional(),
   groupChatKick: z.string().optional(),
 });
 export type Effect = z.infer<typeof Effect>;

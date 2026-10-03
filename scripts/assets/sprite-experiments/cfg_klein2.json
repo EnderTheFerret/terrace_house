@@ -1,0 +1,9 @@
+{
+  "tag": "k2",
+  "chars": [
+    {"id": "kaito", "seeds": [1202], "portrait": "C:/Projects/terrace_house/apps/web/public/assets/portraits/kaito.png", "extra": "The character has wavy sun-bleached brown hair and tan skin, and wears a white graphic t-shirt, dark navy board shorts and a shell necklace."},
+    {"id": "mio", "seeds": [2306], "portrait": "C:/Projects/terrace_house/apps/web/public/assets/portraits/mio.png", "extra": "The character has long straight chestnut-brown hair and fair skin, and wears a pink cardigan over a white top and a mauve knee-length skirt."},
+    {"id": "ren", "seeds": [5], "portrait": "C:/Projects/terrace_house/apps/web/public/assets/portraits/ren.png"},
+    {"id": "sora", "seeds": [5], "portrait": "C:/Projects/terrace_house/apps/web/public/assets/portraits/sora.png"}
+  ]
+}

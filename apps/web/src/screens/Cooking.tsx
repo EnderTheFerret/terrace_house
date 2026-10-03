@@ -1,4 +1,5 @@
 // Cooking minigame renderer. All rules/scoring live in shared/engine/cooking (pure); this only collects inputs.
+import { Tip } from '../components/Tip';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   availableSteps, beginStep, chopBeats, completeStep, content, recipeById, sauteBand, sauteStep, scoreBoil, scoreChop, scorePlate,
@@ -310,7 +311,7 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
   if (!recipe || !cs) {
     return (
       <div className="flex h-full flex-col">
-        {view && !practice ? <TopBar /> : null}
+        {view && !practice ? <TopBar /> : null}<Tip id="cooking" />
         <main className="flex flex-1 justify-center overflow-y-auto p-4 scroll-thin">
           <Panel title={practice ? 'practice kitchen' : 'cook something'} className="w-full max-w-3xl">
             <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">

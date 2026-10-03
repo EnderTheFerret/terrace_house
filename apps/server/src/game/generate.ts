@@ -7,8 +7,11 @@ import { config } from '../config';
 import { MockLlm } from '../llm/mock';
 import { structured, logFailure, type Budget } from '../llm/structured';
 import { beatSheetPrompt, deltaPrompt, linesPrompt, parseLines } from '../prompts/scene';
-import { chatPrompt, commentaryPrompt, flavorPrompt, intermissionPrompt } from '../prompts/studio';
+import { chatPrompt, commentaryPrompt, flavorPrompt, intermissionPrompt, shotPrompt } from '../prompts/studio';
 import { contentCheck } from './personas';
+import { diaryPrompt } from '../prompts/common';
+
+const DIARY_SCHEMA = { type: 'object', properties: { diary: { type: 'string' }, pairs: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, summary: { type: 'string' } }, required: ['name', 'summary'] } } }, required: ['diary', 'pairs'] };
 
 export interface Line {
   speaker: string;
@@ -83,9 +86,10 @@ export class Generator {
       this.voice.add(b.speaker, text);
     };
     let texts: (string | null)[] = beats.map(() => null);
-    if (this.linesLlm.name !== 'mock' && budget.take()) {
+    // Keep explicit refusals unambiguous even when a small model ignores the boundary.
+    if (ctx.replyTo?.intent !== 'decline' && this.linesLlm.name !== 'mock' && budget.take()) {
       try {
-        const prompt = linesPrompt(s, ev, beats, transcript, intents, ctx.replyTo?.text);
+        const prompt = linesPrompt(s, ev, beats, transcript, intents, ctx.replyTo?.text, ctx.recalled);
         let buf = '';
         for await (const tok of this.linesLlm.stream({ kind: 'lines', prompt, temperature: config.temps.lines, maxTokens: 160 * beats.length })) buf += tok;
         // Validate before displaying: a rejected line must never flash on screen.
@@ -107,7 +111,7 @@ export class Generator {
           text = null;
           if (budget.take()) {
             try {
-              const raw = await this.linesLlm.complete({ kind: 'lines', prompt: linesPrompt(s, ev, [b], transcript, [intents[i]], ctx.replyTo?.text) +`\n(Previous attempt failed: ${vc.reasons.join('; ')})`, temperature: config.temps.lines, maxTokens: 120 });
+              const raw = await this.linesLlm.complete({ kind: 'lines', prompt: linesPrompt(s, ev, [b], transcript, [intents[i]], ctx.replyTo?.text, ctx.recalled) +`\n(Previous attempt failed: ${vc.reasons.join('; ')})`, temperature: config.temps.lines, maxTokens: 120 });
               const retry = parseLines(raw, [b])[0];
               if (retry && contentCheck(retry) && voiceCheck(retry, c.persona.speech).ok) text = retry;
             } catch {
@@ -178,6 +182,39 @@ export class Generator {
   }
 
   /** Optional premise flavor pass: rewrites text only, never changes the selection. */
+  /**
+   * End-of-episode diary for one housemate plus their view of each housemate, written only from what they know.
+   * Null when the LLM is off or answers badly: the engine's template summaries stay.
+   */
+  async diary(s: GameState, id: string, episode: number): Promise<{ diary: string; pairs: Record<string, string> } | null> {
+    if (!this.real) return null;
+    try {
+      const raw = await this.llm.complete({ kind: 'summary', prompt: diaryPrompt(s, id, episode), temperature: 0.6, maxTokens: 700, schema: DIARY_SCHEMA });
+      const j = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)) as { diary?: unknown; pairs?: { name?: unknown; summary?: unknown }[] };
+      if (typeof j.diary !== 'string') return null;
+      const byName = Object.fromEntries(Object.values(s.characters).map((c) => [c.name.split(' ')[0].toLowerCase(), c.id]));
+      const pairs: Record<string, string> = {};
+      for (const p of j.pairs ?? []) {
+        const other = typeof p.name === 'string' ? byName[p.name.split(' ')[0].toLowerCase()] : undefined;
+        if (other && other !== id && typeof p.summary === 'string') pairs[other] = p.summary;
+      }
+      return contentCheck(j.diary) ? { diary: j.diary, pairs } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** One staged visual line for a freeze-frame; '' when the LLM is off or the answer is unusable. */
+  async shot(s: GameState, ev: EventInstance, transcript: Line[]): Promise<string> {
+    if (!this.real) return '';
+    try {
+      const t = (await this.llm.complete({ kind: 'flavor', prompt: shotPrompt(s, ev, transcript), temperature: 0.5, maxTokens: 80 })).trim().split('\n')[0];
+      return t.length > 10 && t.length < 300 && contentCheck(t) ? t : '';
+    } catch {
+      return '';
+    }
+  }
+
   async flavor(premise: string, budget: Budget): Promise<string> {
     if (!config.flavorPass || !this.real || budget.remaining < 6 || !budget.take()) return premise;
     try {

@@ -5,7 +5,9 @@ import type { Rng } from '../rng';
 import { content } from '../content';
 import { evalAll, type Binding } from './conditions';
 import { flag, housemates, rel } from './core';
-import { jobOf, jobNode } from './agents';
+import { jobOf, jobNode, jobSchedule } from './agents';
+import { addLog } from './core';
+import { postGroupChat } from './house';
 import { hashSeed } from '../rng';
 
 const CATEGORY: Record<string,string> = { craft:'trades', fitness:'creative', education:'office', 'public service':'office', events:'service', beauty:'service', travel:'service', delivery:'service' };
@@ -96,4 +98,33 @@ export function completeBeat(s: GameState, charId: string, beatId: string) {
   if (beat) st.act = Math.min(3, beat.act + 1);
   if (arc && st.done.length >= arc.beats.length) st.outcome = 'complete';
   s.world.flags[`arcEp_${charId}`] = s.world.episode;
+}
+
+/**
+ * Careers change mid-season, as on the show: a housemate who is unhappy, or whose story has run its course, quits,
+ * goes back to school or starts something of their own. Occupation, work schedule and career arc follow; the house
+ * hears about it in the group chat. At most one per episode; the player changes their own job in town.
+ */
+export function careerChanges(s: GameState, rng: Rng): string | null {
+  for (const c of rng.shuffle(housemates(s).filter((h) => !h.isPlayer && !flag(s, `leaving_${h.id}`) && !flag(s, `careerChanged_${h.id}`)))) {
+    const restless = c.mood < -0.2 || s.arcs[c.id]?.outcome === 'complete';
+    if (!rng.chance(restless ? 0.08 : 0.025)) continue;
+    const jobs = content().jobs.filter((j) => j.title.toLowerCase() !== c.occupation.toLowerCase());
+    const [how, next] = rng.pick([
+      ['went back to school', 'grad student'],
+      ['started something of their own', 'startup founder'],
+      ['switched fields', jobs.length ? rng.pick(jobs).title : 'barista'],
+    ] as const);
+    const before = c.occupation;
+    c.occupation = next;
+    const job = jobOf(next);
+    c.persona.routine.jobSlots = job ? jobSchedule(rng, job) : [];
+    s.world.flags[`careerChanged_${c.id}`] = s.world.episode;
+    const arc = careerArc(c, s);
+    if (arc) s.arcs[c.id] = { arcId: arc.id, act: 1, done: [], pending: null };
+    addLog(s, { kind: 'arc', text: `${c.name.split(' ')[0]} quit being a ${before} and ${how}: now a ${next}.`, participants: [c.id], salience: 0.7 });
+    postGroupChat(s, c.id, `big news: no more ${before} life. I ${how.replace('their', 'my')} (${next}!)`, { subject: c.id, kind: 'event', content: `${c.name} left their job as a ${before} and became a ${next}.`, sensitivity: 0.2 });
+    return c.id;
+  }
+  return null;
 }

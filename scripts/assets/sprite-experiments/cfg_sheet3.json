@@ -1,0 +1,10 @@
+{
+  "tag": "r3",
+  "portrait": false,
+  "denoise": [0.7, 0.85],
+  "prompt": "Recolor and restyle this pixel art sprite sheet into a different character: {who}. Keep all 16 sprites in exactly the same positions, poses, walking directions, sizes, chibi proportions and pixel grid. Change only the hair shape and hair colour, skin colour and clothing. Remove the red headband and the cap. Keep the thick black outline and the white background.",
+  "chars": [
+    {"id": "kaito", "seed": 1202, "who": "a young man with wavy shoulder-length sun-bleached brown hair, tan skin, white t-shirt, dark navy board shorts, bare legs, sandals"},
+    {"id": "mio", "seed": 2306, "who": "a young woman with long straight chestnut-brown hair down to her back, fair skin, pink cardigan over a white top, mauve knee-length skirt"}
+  ]
+}

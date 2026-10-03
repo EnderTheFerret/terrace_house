@@ -75,6 +75,10 @@ it('keeps personal memories and summaries across saves, refreshes dialogue conte
     const context = memoriesBlock(loaded, 'ren', shared);
     expect(context).toContain('bake bread');
     expect(context).not.toContain('Private talk');
+    loaded.memory.ren.unshift({ episode: 1, tick: -100, participants: ['ren', 'mio'], salience: 0.1, text: 'We found a seashell on the beach.' });
+    expect(memoriesBlock(loaded, 'ren', shared, 1, 'Remember that seashell on the beach?')).toContain('seashell');
+    expect(memoriesBlock(loaded, 'mio', shared, 3, 'seashell')).not.toContain('seashell');
+    expect(memoriesBlock(loaded, 'ren', [P, 'mio', 'ren'], 3)).toContain('bake bread');
     const history = projectForPlayer(loaded).bible.find((b) => b.id === 'ren')!.sharedHistory;
     expect(history.memories[0].text).toContain('bake bread');
     expect(JSON.stringify(history)).not.toContain('Private talk');

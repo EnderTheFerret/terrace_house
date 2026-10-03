@@ -3,9 +3,10 @@ import { expect, test } from '@playwright/test';
 for (const kind of ['talk', 'text'] as const) {
   test(`generate scene during ${kind} preserves the conversation`, async ({ page, request }) => {
     await page.addInitScript(() => localStorage.setItem('shared-roof-settings', JSON.stringify({ typewriter: false, reducedMotion: true, sound: false })));
-    await request.post('/api/game/new', { data: { seed: 21 } });
+    await request.post('/api/game/new', { data: { seed: 21, moveInDay: false } });
     await page.goto('/');
     await page.getByRole('button', { name: /continue · episode 1/ }).click();
+    await page.getByRole('button', { name: 'begin', exact: true }).click();
     if (kind === 'talk') {
       await page.getByRole('button', { name: 'talk to Kai', exact: true }).click();
       await page.getByRole('dialog', { name: 'talk to Kai?' }).getByRole('button', { name: 'yes', exact: true }).click();

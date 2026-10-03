@@ -15,7 +15,7 @@ it('generates any joined conversation from current dialogue without changing the
   const image = { name: 'mock', health: async () => true, generate: async (req: ImageRequest) => { requests.push(req); return mock.generate(req); } };
   const { app, session, queue } = await buildApp({ llm: new MockLlm(), image, store: new Store(openDb(':memory:')), workflowHash: 'mock', cacheDir: dir });
   try {
-    await session.newGame({ seed: 21 });
+    await session.newGame({ seed: 21, moveInDay: false });
     expect((await app.inject({ method: 'POST', url: '/api/scene/missing/image' })).statusCode).toBe(400);
     await session.act({ type: 'talk', target: 'ren' });
     const scene = session.summaries().find((sc) => sc.isPlayerScene)!;
@@ -31,8 +31,11 @@ it('generates any joined conversation from current dialogue without changing the
     const req = requests.find((r) => r.kind === 'freeze')!;
     expect(req.prompt).toContain('bake bread together');
     expect(req.prompt).toContain('Recent conversation:');
-    expect(req.reference).toMatch(/tel-aviv-player\.png$/);
-    expect(req.meta!.people).toHaveLength(2);
+    expect(req.references![0]).toMatch(/tel-aviv-player\.png$/); // the player is image 1
+    expect(req.references).toHaveLength(req.meta!.people!.length + 1); // everyone in the scene keeps their face...
+    expect(req.references!.at(-1)).toMatch(/locations[\\/]/); // ...and the room's pixel-art background sets the style
+    expect(req.prompt).toContain(`pixel art style and palette of image ${req.references!.length}`);
+    expect(req.prompt).toContain('the person from image 2');
     expect(req.meta!.people![0].appearance).toEqual(session.state!.characters[session.state!.playerId].appearance);
     expect(session.state).toEqual(before);
     expect(run.phase).toBe('awaiting-choice');

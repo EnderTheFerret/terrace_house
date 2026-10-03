@@ -2,13 +2,13 @@ import { expect, test } from '@playwright/test';
 
 test('expression icons generate only on click and the bible shows shared history', async ({ page, request }, testInfo) => {
   await page.addInitScript(() => localStorage.setItem('shared-roof-settings', JSON.stringify({ typewriter: false, reducedMotion: true, sound: false })));
-  await request.post('/api/game/new', { data: { seed: 21 } });
+  await request.post('/api/game/new', { data: { seed: 21, moveInDay: false } });
   let expressionRequests = 0;
   page.on('request', (r) => { if (r.url().endsWith('/expression')) expressionRequests++; });
   await page.goto('/');
   await page.getByRole('button', { name: /continue · episode 1/ }).click();
-  await page.getByRole('button', { name: 'talk to Kai', exact: true }).click();
-  await page.getByRole('dialog', { name: 'talk to Kai?' }).getByRole('button', { name: 'yes', exact: true }).click();
+  await page.getByRole('button', { name: 'begin', exact: true }).click();
+  await page.getByRole('button', { name: 'bible', exact: true }).click();
   const controls = page.getByRole('group', { name: /expressions for Kai/ });
   const happy = controls.getByRole('button', { name: /Generate happy expression/ });
   await expect(happy).toBeEnabled();
@@ -25,6 +25,9 @@ test('expression icons generate only on click and the bible shows shared history
   expect([after.clock, after.episode]).toEqual([before.clock, before.episode]);
   await controls.getByRole('button', { name: /Show neutral expression/ }).click();
   expect(expressionRequests).toBe(1);
+  await page.getByRole('button', { name: 'back', exact: true }).click();
+  await page.getByRole('button', { name: 'talk to Kai', exact: true }).click();
+  await page.getByRole('dialog', { name: 'talk to Kai?' }).getByRole('button', { name: 'yes', exact: true }).click();
   await page.getByLabel('say something in your own words').fill('I will bring bread on Sunday.');
   await page.getByRole('button', { name: 'say', exact: true }).click();
   await page.getByRole('button', { name: "that's all", exact: true }).click();

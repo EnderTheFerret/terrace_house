@@ -45,7 +45,7 @@ export const SLOTS = ['morning', 'slot1', 'slot2', 'slot3', 'evening', 'lateNigh
 export const Slot = z.enum(SLOTS);
 export type Slot = z.infer<typeof Slot>;
 
-export const ROOMS = ['living', 'kitchen', 'backyard', 'smallBathroom', 'bathroom', 'bedroomW', 'bedroomM', 'balconyW', 'balconyM', 'entrance', 'stairs', 'stairsUp'] as const;
+export const ROOMS = ['living', 'kitchen', 'backyard', 'smallBathroom', 'bathroom', 'bedroomW', 'bedroomM', 'balconyW', 'balconyM', 'entrance', 'stairs', 'stairsUp', 'hallW'] as const;
 export type Room = (typeof ROOMS)[number];
 
 export const WEATHERS = ['sunny', 'cloudy', 'rain', 'heatwave', 'typhoon', 'snow'] as const;
@@ -125,7 +125,8 @@ export const Appearance = z.object({
 });
 export type Appearance = z.infer<typeof Appearance>;
 
-export const CharStatus = z.enum(['inHouse', 'left']);
+/** arriving = on move-in day, not through the door yet */
+export const CharStatus = z.enum(['inHouse', 'left', 'arriving']);
 
 export const Character = z.object({
   id: z.string(),
@@ -194,7 +195,7 @@ export const Fact = z.object({
 });
 export type Fact = z.infer<typeof Fact>;
 
-export const KnowledgeSource = z.enum(['self', 'witnessed', 'told', 'rumor', 'overheard', 'groupchat']);
+export const KnowledgeSource = z.enum(['self', 'witnessed', 'told', 'rumor', 'overheard', 'groupchat', 'broadcast']);
 export type KnowledgeSource = z.infer<typeof KnowledgeSource>;
 export const KnowledgeEntry = z.object({
   source: KnowledgeSource,
@@ -222,6 +223,10 @@ export type MemoryItem = z.infer<typeof MemoryItem>;
 export const ChatMsg = z.object({
   from: z.string(),
   text: z.string(),
+  /** the message carries a photo of the sender (asked for, or sent unprompted from a trip) */
+  photo: z.boolean().optional(),
+  /** where the photo was taken */
+  at: z.string().optional(),
   tick: z.number().int(),
   stamp: z.string().optional(),
   readBy: z.array(z.string()).default([]),
@@ -262,7 +267,6 @@ export const World = z.object({
   weekday: z.number().int().min(0).max(6),
   season: z.enum(SEASONS),
   cityEvent: z.string().nullable(),
-  money: z.number(),
   playerNode: z.string(),
   carUsedBy: z.string().nullable(),
   playerJob: z.object({ nodeId: z.string(), slot: Slot, weekdays: z.array(z.number()), wage: z.number() }).nullable(),
@@ -461,6 +465,16 @@ export const GameState = z.object({
   inventory: z.array(z.string()).default([]),
   observedRoutines: z.record(z.string(), z.array(z.string())).default({}),
   timeline: z.array(z.object({ episode: z.number().int(), slot: Slot, clock: z.string(), text: z.string() })).default([]),
+  /** the panel's lines about each scene, delivered to the house when that episode airs */
+  panelRemarks: z.array(z.object({ episode: z.number().int(), participants: z.array(z.string()), text: z.string() })).default([]),
+  /** memories beyond the prompt budget: kept for recall by keyword or meaning instead of being deleted */
+  memoryArchive: z.record(z.string(), z.array(MemoryItem)).default({}),
+  /** LLM-written end-of-episode diary per housemate, from only what they know (newest last) */
+  diaries: z.record(z.string(), z.array(z.object({ episode: z.number().int(), text: z.string() }))).default({}),
+  /** LLM-written "how i sees j", keyed "i>j"; the template summary is the fallback */
+  pairNotes: z.record(z.string(), z.object({ episode: z.number().int(), text: z.string() })).default({}),
+  /** nicknames the panel coined for housemates, reused for the rest of the season */
+  panelNicknames: z.record(z.string(), z.object({ name: z.string(), by: z.string(), episode: z.number().int() })).default({}),
 });
 export type GameState = z.infer<typeof GameState>;
 
@@ -471,7 +485,7 @@ export const PlayerAction = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('goOut'),
     node: z.string(),
-    activity: z.enum(['date', 'wander', 'work', 'shop', 'karaoke', 'eat', 'invite', 'gift']),
+    activity: z.enum(['date', 'wander', 'work', 'class', 'shop', 'karaoke', 'eat', 'invite', 'gift']),
     item: z.string().max(60).optional(),
     invite: z.string().optional(),
     useCar: z.boolean().optional(),
@@ -484,7 +498,9 @@ export const PlayerAction = z.discriminatedUnion('type', [
   z.object({ type: z.literal('endSeason') }),
   z.object({ type: z.literal('skip') }),
   z.object({ type: z.literal('sleep') }),
-  z.object({ type: z.literal('visit'), room: z.string(), invite: z.string().optional() }),
+  z.object({ type: z.literal('visit'), room: z.string(), invite: z.string().optional(), knock: z.boolean().optional() }),
+  /** Friday (before the afternoon) overnight trip in the shared car with 1-3 housemates, back Saturday morning */
+  z.object({ type: z.literal('trip'), node: z.string(), with: z.array(z.string()).min(1).max(3), roommate: z.string().optional() }),
   z.object({ type: z.literal('plan'), target: z.string(), node: z.string(), episode: z.number().int().min(1), slot: Slot }),
   z.object({ type: z.literal('respondPlan'), id: z.string(), accept: z.boolean() }),
   z.object({ type: z.literal('approach'), id: z.string(), accept: z.boolean() }),

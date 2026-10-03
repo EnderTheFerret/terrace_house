@@ -1,0 +1,68 @@
+﻿{
+    "tag":  "s2",
+    "refs":  [
+                 "C:\\Users\\User\\AppData\\Local\\Temp\\claude\\C--Projects-terrace-house\\0c555bcd-65ad-4b17-8eca-60684b16b781\\scratchpad\\ref8x.png"
+             ],
+    "steps":  8,
+    "res":  1024,
+    "chars":  [
+                  {
+                      "id":  "kaito",
+                      "seed":  1202,
+                      "who":  "24-year-old adult man, wavy shoulder-length sun-bleached brown hair, brown eyes, athletic build, tan skin, wearing oversized graphic tee and board shorts, shell necklace"
+                  },
+                  {
+                      "id":  "tamar",
+                      "seed":  2306,
+                      "who":  "24-year-old adult woman, long wavy dark brown hair, brown eyes, slim build, brown skin, wearing olive utility jacket over cream shirt and rust trousers, gold hoop earrings"
+                  }
+              ],
+    "passes":  [
+                   {
+                       "key":  "front",
+                       "prompt":  "\u003cimage1\u003e is only an art style guide: a handheld RPG overworld pixel art sprite sheet. Do not copy its character, hair or headband. Draw ONE new single character sprite in exactly that pixel art style: {who}. Chibi proportions about two heads tall: oversized head with big voluminous clustered hair, small face with simple dark eyes, short body and short legs. Thick dark outline, flat cel shading with 3-4 tones per color, large clean square pixels. Full body, standing idle, facing the viewer, centered, generous margins. Plain white background, no text, no other characters.",
+                       "size":  [
+                                    768,
+                                    960
+                                ],
+                       "refs":  [
+                                    "ref0"
+                                ]
+                   },
+                   {
+                       "key":  "side",
+                       "prompt":  "Turn the character in \u003cimage1\u003e 90 degrees so they face LEFT: a strict left side profile, nose pointing to the left edge of the image, only one eye visible. Keep the identical character design, hair, face, clothing, colors, chunky pixel art style, outline, size and position on the canvas. Plain white background.",
+                       "refs":  [
+                                    "front"
+                                ]
+                   },
+                   {
+                       "key":  "back",
+                       "prompt":  "Show the character in \u003cimage1\u003e from directly behind: back view, the face is completely hidden, we see the back of the head and hair and the back of the clothes, no necklace or shirt print visible. Keep the identical character design, hair, face, clothing, colors, chunky pixel art style, outline, size and position on the canvas. Plain white background.",
+                       "refs":  [
+                                    "front"
+                                ]
+                   },
+                   {
+                       "key":  "wfront",
+                       "prompt":  "The character in \u003cimage1\u003e takes one small calm walking step like a classic 16-bit RPG overworld walk frame: one foot slightly forward and lifted, the other planted, arms close to the body with a slight swing. Same facing direction and camera angle; do not run, do not turn. Keep the identical character design, hair, face, clothing, colors, chunky pixel art style, outline, size and position on the canvas. Plain white background.",
+                       "refs":  [
+                                    "front"
+                                ]
+                   },
+                   {
+                       "key":  "wback",
+                       "prompt":  "The character in \u003cimage1\u003e takes one small calm walking step like a classic 16-bit RPG overworld walk frame: one foot slightly forward and lifted, the other planted, arms close to the body with a slight swing. Same facing direction and camera angle; do not run, do not turn. Keep the identical character design, hair, face, clothing, colors, chunky pixel art style, outline, size and position on the canvas. Plain white background.",
+                       "refs":  [
+                                    "back"
+                                ]
+                   },
+                   {
+                       "key":  "wside",
+                       "prompt":  "The character in \u003cimage1\u003e takes one small calm walking step like a classic 16-bit RPG overworld walk frame: one foot slightly forward and lifted, the other planted, arms close to the body with a slight swing. Same facing direction and camera angle; do not run, do not turn. Keep the identical character design, hair, face, clothing, colors, chunky pixel art style, outline, size and position on the canvas. Plain white background.",
+                       "refs":  [
+                                    "side"
+                                ]
+                   }
+               ]
+}

@@ -1,266 +1,205 @@
 {
-  "1": {
+  "unet": {
     "class_type": "UNETLoader",
     "inputs": {
-      "unet_name": "qwen_image_edit_2511_fp8mixed.safetensors",
+      "unet_name": "flux-2-klein-base-4b-fp8.safetensors",
       "weight_dtype": "default"
-    },
-    "_meta": {
-      "title": "Load Qwen-Image-Edit 2511"
     }
   },
-  "2": {
-    "class_type": "CLIPLoader",
-    "inputs": {
-      "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
-      "type": "qwen_image",
-      "device": "default"
-    },
-    "_meta": {
-      "title": "Load Text Encoder"
-    }
-  },
-  "3": {
-    "class_type": "VAELoader",
-    "inputs": {
-      "vae_name": "qwen_image_vae.safetensors"
-    },
-    "_meta": {
-      "title": "Load VAE"
-    }
-  },
-  "4": {
+  "lora": {
     "class_type": "LoraLoaderModelOnly",
     "inputs": {
       "model": [
-        "1",
+        "unet",
         0
       ],
-      "lora_name": "Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors",
-      "strength_model": 1
-    },
-    "_meta": {
-      "title": "Lightning LoRA (8 steps)"
+      "lora_name": "pixel_4walk_small_flux2_klein_base_4b_v1.safetensors",
+      "strength_model": 1.0
     }
   },
-  "5": {
-    "class_type": "ModelSamplingAuraFlow",
+  "clip": {
+    "class_type": "CLIPLoader",
     "inputs": {
-      "model": [
-        "4",
-        0
-      ],
-      "shift": 3.1
-    },
-    "_meta": {
-      "title": "Model Sampling"
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "flux2",
+      "device": "default"
     }
   },
-  "6": {
-    "class_type": "CFGNorm",
+  "vae": {
+    "class_type": "VAELoader",
     "inputs": {
-      "model": [
-        "5",
-        0
-      ],
-      "strength": 1
-    },
-    "_meta": {
-      "title": "CFG Norm"
+      "vae_name": "flux2-vae.safetensors"
     }
   },
-  "7": {
-    "class_type": "TextEncodeQwenImageEditPlus",
-    "inputs": {
-      "clip": [
-        "2",
-        0
-      ],
-      "prompt": "positive prompt",
-      "vae": [
-        "3",
-        0
-      ],
-      "image1": [
-        "13",
-        0
-      ],
-      "image2": [
-        "18",
-        0
-      ]
-    },
-    "_meta": {
-      "title": "Positive (with reference)"
-    }
-  },
-  "8": {
-    "class_type": "TextEncodeQwenImageEditPlus",
-    "inputs": {
-      "clip": [
-        "2",
-        0
-      ],
-      "prompt": "negative prompt",
-      "vae": [
-        "3",
-        0
-      ],
-      "image1": [
-        "13",
-        0
-      ],
-      "image2": [
-        "18",
-        0
-      ]
-    },
-    "_meta": {
-      "title": "Negative"
-    }
-  },
-  "9": {
-    "class_type": "EmptySD3LatentImage",
-    "inputs": {
-      "width": 1024,
-      "height": 384,
-      "batch_size": 1
-    },
-    "_meta": {
-      "title": "Latent size"
-    }
-  },
-  "10": {
-    "class_type": "KSampler",
-    "inputs": {
-      "model": [
-        "6",
-        0
-      ],
-      "positive": [
-        "14",
-        0
-      ],
-      "negative": [
-        "15",
-        0
-      ],
-      "latent_image": [
-        "9",
-        0
-      ],
-      "seed": 1,
-      "steps": 8,
-      "cfg": 1,
-      "sampler_name": "euler",
-      "scheduler": "simple",
-      "denoise": 1
-    },
-    "_meta": {
-      "title": "Sampler"
-    }
-  },
-  "11": {
-    "class_type": "VAEDecode",
-    "inputs": {
-      "samples": [
-        "10",
-        0
-      ],
-      "vae": [
-        "3",
-        0
-      ]
-    },
-    "_meta": {
-      "title": "Decode"
-    }
-  },
-  "12": {
+  "ref": {
     "class_type": "LoadImage",
     "inputs": {
-      "image": "reference.png"
-    },
-    "_meta": {
-      "title": "Reference portrait (patched per request)"
+      "image": "portrait.png"
     }
   },
-  "13": {
+  "refs": {
     "class_type": "ImageScaleToTotalPixels",
     "inputs": {
       "image": [
-        "12",
-        0
-      ],
-      "upscale_method": "lanczos",
-      "megapixels": 1,
-      "resolution_steps": 8
-    },
-    "_meta": {
-      "title": "Scale reference"
-    }
-  },
-  "14": {
-    "class_type": "FluxKontextMultiReferenceLatentMethod",
-    "inputs": {
-      "conditioning": [
-        "7",
-        0
-      ],
-      "reference_latents_method": "index_timestep_zero"
-    },
-    "_meta": {
-      "title": "Reference method (positive)"
-    }
-  },
-  "15": {
-    "class_type": "FluxKontextMultiReferenceLatentMethod",
-    "inputs": {
-      "conditioning": [
-        "8",
-        0
-      ],
-      "reference_latents_method": "index_timestep_zero"
-    },
-    "_meta": {
-      "title": "Reference method (negative)"
-    }
-  },
-  "16": {
-    "class_type": "SaveImage",
-    "inputs": {
-      "images": [
-        "11",
-        0
-      ],
-      "filename_prefix": "shared_roof_sprites"
-    },
-    "_meta": {
-      "title": "Save"
-    }
-  },
-  "17": {
-    "class_type": "LoadImage",
-    "inputs": {
-      "image": "sprite-layout.png"
-    },
-    "_meta": {
-      "title": "Four-view layout guide"
-    }
-  },
-  "18": {
-    "class_type": "ImageScaleToTotalPixels",
-    "inputs": {
-      "image": [
-        "17",
+        "ref",
         0
       ],
       "upscale_method": "nearest-exact",
-      "megapixels": 0.5,
-      "resolution_steps": 8
-    },
-    "_meta": {
-      "title": "Scale four-view guide"
+      "megapixels": 1,
+      "resolution_steps": 1
+    }
+  },
+  "refl": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "refs",
+        0
+      ],
+      "vae": [
+        "vae",
+        0
+      ]
+    }
+  },
+  "p": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "clip",
+        0
+      ],
+      "text": "Create a pixel art spritesheet of the character in the image. The spritesheet is a 4 by 4 grid of four rows of frames - first row is 3 walking frames facing down and 1 frame both arms raised, second row is 3 walking frames facing left and 1 frame jumping left, third row is 3 walking frames facing right and 1 frame jumping right, fourth row is 3 walking frames back view facing up and 1 frame lying on floor."
+    }
+  },
+  "neg": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "clip",
+        0
+      ],
+      "text": ""
+    }
+  },
+  "latent": {
+    "class_type": "EmptyFlux2LatentImage",
+    "inputs": {
+      "width": 512,
+      "height": 512,
+      "batch_size": 1
+    }
+  },
+  "sched": {
+    "class_type": "Flux2Scheduler",
+    "inputs": {
+      "steps": 20,
+      "width": 512,
+      "height": 512
+    }
+  },
+  "sampler": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "noise": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 0
+    }
+  },
+  "pr": {
+    "class_type": "ReferenceLatent",
+    "inputs": {
+      "conditioning": [
+        "p",
+        0
+      ],
+      "latent": [
+        "refl",
+        0
+      ]
+    }
+  },
+  "nr": {
+    "class_type": "ReferenceLatent",
+    "inputs": {
+      "conditioning": [
+        "neg",
+        0
+      ],
+      "latent": [
+        "refl",
+        0
+      ]
+    }
+  },
+  "guider": {
+    "class_type": "CFGGuider",
+    "inputs": {
+      "model": [
+        "lora",
+        0
+      ],
+      "positive": [
+        "pr",
+        0
+      ],
+      "negative": [
+        "nr",
+        0
+      ],
+      "cfg": 5
+    }
+  },
+  "k": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "noise",
+        0
+      ],
+      "guider": [
+        "guider",
+        0
+      ],
+      "sampler": [
+        "sampler",
+        0
+      ],
+      "sigmas": [
+        "sched",
+        0
+      ],
+      "latent_image": [
+        "latent",
+        0
+      ]
+    }
+  },
+  "sheet": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "k",
+        0
+      ],
+      "vae": [
+        "vae",
+        0
+      ]
+    }
+  },
+  "sheet_save": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "sheet",
+        0
+      ],
+      "filename_prefix": "shared_roof_sprite"
     }
   }
 }

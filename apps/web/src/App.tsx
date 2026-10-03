@@ -13,6 +13,8 @@ import { Debug } from './screens/Debug';
 import { CityMap } from './screens/CityMap';
 import { Cooking } from './screens/Cooking';
 import { ErrorToast } from './components/ui';
+import { ActivityStatus } from './components/Activity';
+import { useCharacterSprites } from './pixel/sprites';
 
 const screens: Record<Screen, () => ReactElement | null> = {
   title: Title,
@@ -38,6 +40,7 @@ const NEEDS_GAME: Screen[] = ['house', 'map', 'scene', 'cooking', 'phone', 'boar
 
 export function App() {
   const { screen, settings, boot, view } = useGame();
+  const spritePending = useCharacterSprites(view?.characters ?? []);
   useEffect(() => {
     void boot();
     const t = setInterval(() => void useGame.getState().refreshHealth(), 30000);
@@ -49,7 +52,8 @@ export function App() {
   const Comp = !view && NEEDS_GAME.includes(screen) ? Title : screens[screen];
   return (
     <div className={`h-full ${settings.reducedMotion ? 'reduced-motion' : ''}`}>
-      <Comp />
+      {Comp === EpisodeCard ? <EpisodeCard pending={spritePending} /> : <Comp />}
+      <ActivityStatus spritePending={spritePending} />
       <ErrorToast />
     </div>
   );

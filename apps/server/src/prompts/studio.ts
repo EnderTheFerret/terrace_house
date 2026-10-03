@@ -8,6 +8,12 @@ const PANEL_RULES = [
   'Each line ≤ 2 sentences. Only the panel may break the fourth wall. PG-13.',
 ].join('\n');
 
+/** Nicknames the panel already coined: reused all season, never a second one for the same person. */
+const nicknames = (s: GameState) => {
+  const n = Object.entries(s.panelNicknames).filter(([id]) => s.characters[id]?.status === 'inHouse').map(([id, k]) => `- ${firstName(s, id)} is "${k.name}" (coined by ${k.by}, episode ${k.episode})`);
+  return n.length ? `Nicknames the panel uses for housemates (reuse them; do not invent another for these people):\n${n.join('\n')}` : '';
+};
+
 export function commentaryPrompt(
   s: GameState,
   ev: EventInstance,
@@ -27,6 +33,7 @@ export function commentaryPrompt(
       { text: `The scene they just watched: "${ev.title}" at the ${placeName(ev.location)}. ${ev.premise}${outcome ? ` Outcome: confession ${outcome}.` : ''}`, priority: 95, required: true },
       { text: `Transcript:\n${transcript.slice(-10).map((l) => `${s.characters[l.speaker] ? firstName(s, l.speaker) : l.speaker}: ${l.text}`).join('\n')}`, priority: 80 },
       { text: callbacks.join('\n'), priority: 70 },
+      { text: nicknames(s), priority: 75 },
       {
         text: [
           '2–4 panelists speak. reaction is one of laugh, gasp, cringe, aww, silence, groan.',
@@ -51,6 +58,7 @@ export function intermissionPrompt(s: GameState, at: 'mid' | 'end', since: numbe
       { text: PANEL_RULES, priority: 100, required: true },
       { text: `Panelists:\n${panel}`, priority: 95, required: true },
       { text: `${at === 'mid' ? 'The host pauses the tape halfway through the episode.' : 'The episode just ended; the host wraps up.'} What the panel just watched:\n${topics}`, priority: 95, required: true },
+      { text: nicknames(s), priority: 80 },
       {
         text: [
           `nagumo speaks first${at === 'end' ? ' and last (a one-line sign-off)' : ''}. 3–6 lines total; panelists riff on each other, use nicknames for housemates. reaction is one of laugh, gasp, cringe, aww, silence, groan.`,
@@ -77,6 +85,17 @@ export function chatPrompt(s: GameState, from: string, to: string, thread: { fro
     ],
     TOKEN_BUDGET.chat,
   );
+}
+
+/** One visual line for a freeze-frame (SillyTavern's "Scenario" image mode): staging, not dialogue. */
+export function shotPrompt(s: GameState, ev: EventInstance, transcript: { speaker: string; text: string }[]): string {
+  const who = ev.participants.map((id) => firstName(s, id)).join(', ');
+  return [
+    `A reality show freeze-frame of "${ev.title}" at the ${placeName(ev.location)} with ${who}.`,
+    `What just happened: ${ev.premise}`,
+    `Last lines:\n${transcript.slice(-4).map((l) => `${s.characters[l.speaker] ? firstName(s, l.speaker) : l.speaker}: ${l.text}`).join('\n')}`,
+    'Describe the single frame in one sentence (max 35 words): who stands or sits where, their poses and expressions, one key prop. Use the names. No dialogue, no camera talk, nothing explicit.',
+  ].join('\n\n');
 }
 
 export function flavorPrompt(premise: string): string {

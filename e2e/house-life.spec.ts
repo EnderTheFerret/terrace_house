@@ -40,7 +40,7 @@ test('creator maps an appearance and saves dietary choices and fixed season', as
 });
 
 test('stairs, private balconies and a shared plan are accessible', async ({ page, request }) => {
-  await request.post('/api/game/new', { data: { seed: 9, seasonLength: 0 } });
+  await request.post('/api/game/new', { data: { seed: 9, seasonLength: 0, moveInDay: false } });
   await page.goto('/');
   await page.getByRole('button', { name: /continue · episode 1/ }).click();
   await reachHouse(page);

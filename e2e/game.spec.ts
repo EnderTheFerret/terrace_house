@@ -83,7 +83,7 @@ test('creator → episode 1 → studio intermissions → episode 2', async ({ pa
 });
 
 test('studio intermission shows panel lines', async ({ page, request }) => {
-  await request.post('/api/game/new', { data: { seed: 11 } });
+  await request.post('/api/game/new', { data: { seed: 11, moveInDay: false } });
   await page.goto('/');
   await btn(page, /continue · episode 1/).click();
   await playUntil(page, () => btn(page, 'back to the house').isVisible());
@@ -94,7 +94,7 @@ test('studio intermission shows panel lines', async ({ page, request }) => {
 });
 
 test('type your own words: the housemate answers, then you end the conversation', async ({ page, request }) => {
-  await request.post('/api/game/new', { data: { seed: 9 } });
+  await request.post('/api/game/new', { data: { seed: 9, moveInDay: false } });
   await page.goto('/');
   await btn(page, /continue · episode 1/).click();
   // morning arrival scene: wait for the response panel, then speak for yourself
@@ -111,7 +111,7 @@ test('type your own words: the housemate answers, then you end the conversation'
 });
 
 test('graduate from the house and move in as someone new', async ({ page, request }) => {
-  await request.post('/api/game/new', { data: { seed: 12 } });
+  await request.post('/api/game/new', { data: { seed: 12, moveInDay: false } });
   await page.goto('/');
   await btn(page, /continue · episode 1/).click();
   await playUntil(page, () => btn(page, 'leave the house').isVisible());
@@ -121,6 +121,7 @@ test('graduate from the house and move in as someone new', async ({ page, reques
   await page.getByLabel('name').fill('Riku Hoshino');
   for (let i = 0; i < 3; i++) await btn(page, 'next').click();
   await btn(page, 'move in').click();
+  await btn(page, 'begin').click();
   await expect(page.getByRole('region', { name: /what will you do\?/ })).toBeVisible();
   const g = await (await request.get('/api/game')).json();
   expect(g.view.awaitingPlayer).toBe(false);
@@ -128,7 +129,7 @@ test('graduate from the house and move in as someone new', async ({ page, reques
 });
 
 test('part-time job: sign a contract on the city map', async ({ page, request }) => {
-  await request.post('/api/game/new', { data: { seed: 5 } });
+  await request.post('/api/game/new', { data: { seed: 5, moveInDay: false } });
   await page.goto('/');
   await btn(page, /continue · episode 1/).click();
   // mornings are house-only; pass the morning, then head out

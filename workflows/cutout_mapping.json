@@ -1,0 +1,4 @@
+{
+  "reference": { "node": "img", "input": "image" },
+  "output": { "node": "cut_save" }
+}

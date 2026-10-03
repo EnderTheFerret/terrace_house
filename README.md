@@ -30,11 +30,13 @@ Open http://localhost:5173. That's it.
 1. **Ollama** — install from https://ollama.com, then pull a model:
 
    ```bash
-   ollama pull gemma3:12b
+   ollama pull llama3.2:latest
+   ollama pull hf.co/Nubinu/Qwen3.5-4B-MiniFantasy-GGUF:Q4_K_M
    ```
 
-   Smaller models work too (`gemma3:4b`): prompts are compact and schemas small. Any chat model Ollama can serve with
-   JSON-schema output will do; set `OLLAMA_MODEL`.
+   The example configuration uses MiniFantasy 4B for structured JSON and Llama 3.2 for dialogue, with an 8192-token context.
+   Both were already installed on the development machine. Set `OLLAMA_MODEL` and `OLLAMA_MODEL_LINES` to use another pair.
+   See `docs/ROLEPLAY.md` for measured results and quality limits.
 
 2. **ComfyUI** — install and start ComfyUI (the Windows portable build is fine). The default workflow uses Qwen-Image +
    the Lightning 8-step LoRA. See [docs/COMFYUI.md](docs/COMFYUI.md) for the model files, how to import or export
@@ -49,11 +51,12 @@ Open http://localhost:5173. That's it.
    | key | default | meaning |
    |---|---|---|
    | `MODE` | `real` | `real` or `mock` (`dev:mock` forces mock) |
-   | `OLLAMA_URL` / `OLLAMA_MODEL` | `http://127.0.0.1:11434` / `gemma3:12b` | text model |
+   | `OLLAMA_URL` / `OLLAMA_MODEL` | `http://127.0.0.1:11434` / MiniFantasy 4B in `.env.example` | structured JSON model |
    | `COMFY_URL` / `COMFY_WORKFLOW` / `COMFY_MAPPING` | `http://127.0.0.1:8188` / `./workflows/…` | image backend |
    | `IMAGE_STYLE_PREFIX` | pixel art … | prepended to every image prompt |
    | `SEASON_LENGTH` | `0` | open-ended; positive values set a fixed season |
-   | `OLLAMA_MODEL_LINES` | same as `OLLAMA_MODEL` | optional separate speaking/reply model |
+   | `OLLAMA_MODEL_LINES` | `llama3.2:latest` in `.env.example`; otherwise same as `OLLAMA_MODEL` | speaking/reply model |
+   | `OLLAMA_KEEP_ALIVE` | `30m` in `.env.example` | keeps the small models warm between calls |
    | `LLM_CALLS_PER_SLOT` | `6` | hard cap of LLM calls per time slot; the rest uses templates |
    | `SEED` | random | fixed seed for reproducible seasons |
    | `PORT` | `8787` | API port (the web dev server proxies to it) |

@@ -4,6 +4,24 @@ The core is six people with independent daily lives, relationships and ambitions
 
 Design inference: the valuable missing layer was follow-through. An invitation creates something to anticipate; showing up or missing it changes trust; career progress creates a reason to stay or graduate. Let ordinary chores, quiet talks, friendships and refusals matter. The player should discover routines, choose whom to spend limited time with, and see how the house responds. No score for dating everyone or forcing drama. A shared calendar, visible mess, small favors, career arcs, notification/feed callbacks and a player-chosen finale make these existing systems easier to enjoy.
 
+## Current selection: October 3, one model
+
+`gemma4:12b` now handles every call (`OLLAMA_MODEL_LINES` empty), so only one model reloads after an image job (~7 s). The GPU contention that made it feel slow is handled by unloading it before images and holding images during each call. Its 20-scene rerun (`logs/roleplay-benchmark-1791015374495.json`, ComfyUI unloaded): 97.7% mechanical pass, 2 missing lines, 0 player or unexpected labels, 38.8 tokens/s, 10.7 GB peak. `MN-12B-Mag-Mell-R1` (a Mistral-Nemo merge recommended for 12–16 GB roleplay) was tried as a challenger: 59% pass over 11 scenes, 26 missing lines, and two Ollama 500s, so it was not adopted. The section below is the earlier October 2 split-model setup.
+
+## October 2 speed pass (superseded)
+
+The October 2 local configuration used `hf.co/Nubinu/Qwen3.5-4B-MiniFantasy-GGUF:Q4_K_M` for structured calls and `llama3.2:latest` for dialogue/chat. Both were already installed. `OLLAMA_KEEP_ALIVE=30m` retains the small models, and production context is bounded to 8192 tokens. The recommendations below are historical comparisons, superseded by this section.
+
+Five installed models were tested with ComfyUI idle and initially unloaded. Report `logs/roleplay-benchmark-1790957036857.json` has the identical 20-scene comparison: Gemma 73.33 s, Stheno 79.46 s, Hamanasu 37.26 s, MiniFantasy 58.62 s, Llama 47.36 s. Device-wide peaks were respectively 12,832 / 10,082 / 7,864 / 7,461 / 7,460 MiB; these are device allocation, not proof of simultaneous image-model residency.
+
+The matched five-single-reply run (`logs/roleplay-benchmark-1790957174322.json`) took 12.99 s for Gemma, 4.71 s for Llama, and 6.10 s for Hamanasu. All five Llama answers parsed with no unexpected/player speaker labels. Human inspection still found evasive boundary acknowledgments and weaker prose. Explicit refusal replies therefore use the existing persona-colored templates directly; small-model speed does not establish semantic reliability.
+
+MiniFantasy passed all ten isolated structured persona/appearance checks (`logs/generation-probe-1790957383811.json`); Llama and Hamanasu each passed nine, missing the requested clothing color in the description. These are small probes, not a full cast-quality study.
+
+Dialogue prompts now expose only actual speakers' cards, each speaker's known facts, and keyword-relevant memories from the premise, typed words and last four lines. Stronger speaker instructions eliminated unexpected/player labels in the later Llama probe (`logs/roleplay-benchmark-1790957493450.json`), but 34 of 127 lines were missing and the mechanical pass rate was 72.44%. Multi-beat refusal fixtures contributed to this; the final prompt explicitly asks for every required beat. Production still validates before display and fills missing/rejected lines with templates. Long conversations, biography consistency and a complete real-mode episode remain separate checks.
+
+The final-prompt single-reply recheck (`logs/roleplay-benchmark-1790960157444.json`) reinforces the quality caveat: Gemma parsed 5/5 replies, Llama only 3/5. Llama incorrectly refused two adult-only fixtures as involving minors. The raw benchmark bypasses production's explicit-decline template route, so these two fixtures cannot reach the real model through that production route. Wall times were 71.91 s and 7.54 s with retained ComfyUI allocations (the initial unload request failed), substantially different from the earlier initially-unloaded comparison. Treat this as a robustness check; it does not replace the earlier matched timing figure or establish a stable speed ratio.
+
 ## Candidate evidence (checked October 1, 2026)
 
 ### Smaller candidates checked October 2, 2026

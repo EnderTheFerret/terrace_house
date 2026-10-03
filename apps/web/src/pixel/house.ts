@@ -28,78 +28,163 @@ export function passable(ax: number, ay: number, bx: number, by: number, solid: 
   return true;
 }
 
+const NO_SOLIDS = new Set<string>();
+/**
+ * Shortest tile path (BFS, 4-way) around furniture and through doors. The goal itself may be furniture (a seat on the
+ * sofa, a bed). Returns the steps after `from`, or null when unreachable.
+ */
+export function findPath(from: [number, number], to: [number, number], solid: Set<string>, floor = 0): [number, number][] | null {
+  const key = (x: number, y: number) => `${x},${y}`;
+  const prev = new Map<string, string | null>([[key(...from), null]]);
+  const queue: [number, number][] = [from];
+  while (queue.length) {
+    const [x, y] = queue.shift()!;
+    if (x === to[0] && y === to[1]) {
+      const path: [number, number][] = [];
+      for (let k: string | null = key(x, y); k && k !== key(...from); k = prev.get(k) ?? null) path.unshift(k.split(',').map(Number) as [number, number]);
+      return path;
+    }
+    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]] as [number, number][]) {
+      if (prev.has(key(nx, ny))) continue;
+      const goal = nx === to[0] && ny === to[1];
+      if (!passable(x, y, nx, ny, goal ? NO_SOLIDS : solid, floor)) continue;
+      prev.set(key(nx, ny), key(x, y));
+      queue.push([nx, ny]);
+    }
+  }
+  return null;
+}
+
 export function solidTiles(floor = 0): Set<string> {
   const s = new Set<string>();
   for (const f of house().furniture) if (f.floor === floor && f.solid !== false) for (let j = 0; j < f.h; j++) for (let i = 0; i < f.w; i++) s.add(`${f.x + i},${f.y + j}`);
   return s;
 }
 
+// Look: warm, saturated handheld-RPG interiors — bold dark outlines, soft drop shadows, 3/4 wall faces.
+const tiles = (base: string, grout: string, size: number) => (c: CanvasRenderingContext2D, x: number, y: number) => {
+  px(c, base, x, y, TILE, TILE);
+  for (let j = 0; j < TILE; j += size) for (let i = 0; i < TILE; i += size) {
+    px(c, shade(base, 1.08), x + i + 1, y + j + 1, size - 3, 1); // glaze highlight
+    px(c, grout, x + i + size - 1, y + j, 1, size);
+    px(c, grout, x + i, y + j + size - 1, size, 1);
+  }
+};
+const carpet = (base: string) => (c: CanvasRenderingContext2D, x: number, y: number) => {
+  px(c, base, x, y, TILE, TILE);
+  const dot = shade(base, 0.9);
+  for (const [i, j] of [[3, 3], [11, 3], [7, 7], [3, 11], [11, 11]]) { px(c, dot, x + i - 1, y + j, 3, 1); px(c, dot, x + i, y + j - 1, 1, 3); }
+  px(c, shade(base, 1.06), x + 7, y + 0, 2, 1);
+};
 const FLOOR: Record<string, (ctx: CanvasRenderingContext2D, x: number, y: number, r: () => number) => void> = {
   wood: (c, x, y, r) => {
-    c.fillStyle = '#d9a46c';
-    c.fillRect(x, y, TILE, TILE);
-    c.fillStyle = '#c38c55';
-    for (let j = 3; j < TILE; j += 4) c.fillRect(x, y + j, TILE, 1);
-    c.fillStyle = '#b97f4c';
-    c.fillRect(x + ((y / TILE) % 2 ? 4 : 11), y, 1, 3);
-    if (r() < 0.2) c.fillRect(x + Math.floor(r() * 14), y + 1 + Math.floor(r() * 3) * 4, 2, 1);
+    // golden planks, 4 px tall, staggered butt joints
+    px(c, '#e8b464', x, y, TILE, TILE);
+    for (let j = 0; j < TILE; j += 4) {
+      px(c, '#f6cf86', x, y + j, TILE, 1);
+      px(c, '#b8773a', x, y + j + 3, TILE, 1);
+      const joint = (hashSeed(`${x},${y + j}`) % 12) + 2;
+      px(c, '#b8773a', x + joint, y + j, 1, 3);
+      if (r() < 0.25) px(c, '#d49a4e', x + Math.floor(r() * 12), y + j + 1 + Math.floor(r() * 2), 3, 1);
+    }
   },
-  'tile-cream': (c, x, y) => {
-    c.fillStyle = '#f2e9d6';
-    c.fillRect(x, y, TILE, TILE);
-    c.fillStyle = '#e6d9bf';
-    c.fillRect(x + 8, y, 8, 8);
-    c.fillRect(x, y + 8, 8, 8);
-    c.fillStyle = '#d8c9ad';
-    c.fillRect(x, y + 15, TILE, 1);
-    c.fillRect(x + 15, y, 1, TILE);
+  oak: (c, x, y, r) => {
+    // pale natural oak, long boards (Terrace House Tokyo)
+    px(c, '#e9cfa6', x, y, TILE, TILE);
+    for (let j = 0; j < TILE; j += 4) {
+      px(c, '#f3dfbd', x, y + j, TILE, 1);
+      px(c, '#c9a57a', x, y + j + 3, TILE, 1);
+      if (hashSeed(`${x},${y + j}`) % 3 === 0) px(c, '#c9a57a', x + (hashSeed(`${y + j},${x}`) % 14) + 1, y + j, 1, 3);
+      if (r() < 0.3) px(c, '#dcbf94', x + Math.floor(r() * 10), y + j + 1, 5, 1); // grain
+    }
   },
-  'tile-blue': (c, x, y) => {
-    c.fillStyle = '#d3e7f2';
-    c.fillRect(x, y, TILE, TILE);
-    c.fillStyle = '#bfd9ea';
-    c.fillRect(x + 8, y, 8, 8);
-    c.fillRect(x, y + 8, 8, 8);
-    c.fillStyle = '#a9c8dc';
-    c.fillRect(x, y + 15, TILE, 1);
-    c.fillRect(x + 15, y, 1, TILE);
+  'wood-dark': (c, x, y, r) => {
+    px(c, '#8a5a3a', x, y, TILE, TILE);
+    for (let j = 0; j < TILE; j += 4) {
+      px(c, '#a06c47', x, y + j, TILE, 1);
+      px(c, '#5e3a25', x, y + j + 3, TILE, 1);
+      px(c, '#5e3a25', x + (hashSeed(`${x},${y + j}`) % 12) + 2, y + j, 1, 3);
+      if (r() < 0.3) px(c, '#7a4c30', x + Math.floor(r() * 10), y + j + 1, 4, 1);
+    }
   },
-  'carpet-rose': (c, x, y) => {
-    c.fillStyle = '#f2c9cf';
-    c.fillRect(x, y, TILE, TILE);
-    c.fillStyle = '#e8b4bd';
-    for (let j = 0; j < TILE; j += 4) for (let i = (j / 4) % 2 ? 2 : 0; i < TILE; i += 4) c.fillRect(x + i, y + j, 1, 1);
+  'carpet-cream': carpet('#f3e8da'),
+  pooldeck: (c, x, y, r) => {
+    // pale stone pavers around the pool
+    px(c, '#cfc6b8', x, y, TILE, TILE);
+    for (const [i, j] of [[0, 0], [8, 0], [0, 8], [8, 8]]) {
+      px(c, ['#ece6dc', '#e6dfd3', '#f1ebe2'][Math.floor(r() * 3)], x + i, y + j, 7, 7);
+      px(c, '#f8f4ee', x + i, y + j, 7, 1);
+    }
   },
-  'carpet-slate': (c, x, y) => {
-    c.fillStyle = '#bfcadb';
-    c.fillRect(x, y, TILE, TILE);
-    c.fillStyle = '#aab7cb';
-    for (let j = 0; j < TILE; j += 4) for (let i = (j / 4) % 2 ? 2 : 0; i < TILE; i += 4) c.fillRect(x + i, y + j, 1, 1);
+  'tile-cream': tiles('#f4e5c4', '#c9ad7f', 8),
+  'tile-blue': tiles('#cfe7f1', '#8fb5cb', 8),
+  'carpet-rose': carpet('#eeb7bf'),
+  'carpet-slate': carpet('#b4c2d8'),
+  grass: (c, x, y, r) => {
+    px(c, '#7cbf5a', x, y, TILE, TILE);
+    for (let k = 0; k < 5; k++) {
+      const gx = x + Math.floor(r() * 14), gy = y + Math.floor(r() * 13);
+      px(c, '#5e9f45', gx, gy + 1, 1, 2);
+      px(c, '#5e9f45', gx + 2, gy, 1, 3);
+      px(c, '#9fd774', gx + 1, gy, 1, 1);
+    }
+    if (r() < 0.08) { px(c, '#fff4f0', x + 6, y + 6, 2, 2); px(c, '#f6c24e', x + 6, y + 6, 1, 1); } // daisy
   },
   deck: (c, x, y) => {
-    c.fillStyle = '#caa073';
-    c.fillRect(x, y, TILE, TILE);
-    c.fillStyle = '#a97f55';
-    for (let i = 0; i < TILE; i += 5) c.fillRect(x + i, y, 1, TILE);
+    px(c, '#c9925a', x, y, TILE, TILE);
+    for (let i = 0; i < TILE; i += 4) {
+      px(c, '#dfae74', x + i, y, 1, TILE);
+      px(c, '#8f5f34', x + i + 3, y, 1, TILE);
+      px(c, '#8f5f34', x + i + 1, y + ((i * 5) % 12) + 2, 1, 1); // nail
+    }
   },
   stone: (c, x, y, r) => {
-    c.fillStyle = '#d4cdc4';
-    c.fillRect(x, y, TILE, TILE);
-    c.fillStyle = '#bdb4aa';
-    for (let k = 0; k < 4; k++) c.fillRect(x + Math.floor(r() * 12), y + Math.floor(r() * 12), 4, 3);
+    // flagstones with mortar and lit top edges
+    px(c, '#a99a8c', x, y, TILE, TILE);
+    for (const [i, j, w, h] of [[0, 0, 9, 7], [9, 0, 7, 7], [0, 7, 6, 9], [6, 7, 10, 9]]) {
+      px(c, ['#d8cbbb', '#cfc1b0', '#d3c6b6'][Math.floor(r() * 3)], x + i, y + j, w - 1, h - 1);
+      px(c, '#e8dccd', x + i, y + j, w - 1, 1);
+    }
   },
 };
+
+/** Leafy clump: dark outline, mid body, lit tufts. */
+const leaves = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) => {
+  px(c, OUT, x + 1, y, w - 2, h);
+  px(c, OUT, x, y + 1, w, h - 2);
+  px(c, '#4f9a4f', x + 1, y + 1, w - 2, h - 2);
+  px(c, '#7cc46c', x + 2, y + 2, Math.ceil(w / 3), 2);
+  px(c, '#7cc46c', x + w - 5, y + 4, 3, 2);
+  px(c, '#2f6f3c', x + 2, y + h - 3, w - 4, 1);
+};
+
+/** Wallpaper for the 3/4 wall face along a room's north side (null = open air: a low parapet instead). */
+const WALL: Record<string, string | null> = { 'carpet-rose': '#f6d6cd', 'carpet-slate': '#d4dbe8', 'tile-blue': '#e3f1f6', 'tile-cream': '#f6e8c8', wood: '#f1d9a8', stone: '#e6d8c4', oak: '#f6f1e9', 'carpet-cream': '#fbf2ea', 'wood-dark': '#9a6844', deck: null, grass: null, pooldeck: null };
+/** Wall-face decor per tile column (lived-in: framed prints, a shelf, a clock), picked by hash; null = bare. */
+const DECOR: (Draw | null)[] = [
+  (c, x, y) => { px(c, OUT, x + 4, y + 1, 8, 6); px(c, '#f4efe4', x + 5, y + 2, 6, 4); px(c, '#8fb3a0', x + 6, y + 4, 4, 2); px(c, '#e9b07a', x + 8, y + 3, 2, 1); },
+  (c, x, y) => { px(c, OUT, x + 3, y + 2, 5, 4); px(c, '#e7c9b0', x + 4, y + 3, 3, 2); px(c, OUT, x + 9, y + 1, 4, 5); px(c, '#b8cde0', x + 10, y + 2, 2, 3); },
+  (c, x, y) => { px(c, '#a87b52', x + 1, y + 5, 14, 1); px(c, '#4f9a4f', x + 3, y + 3, 3, 2); px(c, '#e07a6a', x + 8, y + 2, 1, 3); px(c, '#5577aa', x + 9, y + 2, 1, 3); px(c, '#f6d48f', x + 10, y + 3, 1, 2); },
+  (c, x, y) => { px(c, OUT, x + 6, y + 1, 5, 5); px(c, '#ffffff', x + 7, y + 2, 3, 3); px(c, OUT, x + 8, y + 3, 1, 1); },
+  null, null, null,
+];
+const WALL_FACE = 9;
 
 type Draw = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) => void;
 const px = (c: CanvasRenderingContext2D, col: string, x: number, y: number, w: number, h: number) => {
   c.fillStyle = col;
   c.fillRect(x, y, w, h);
 };
-const OUT = '#4a3c50';
+const OUT = '#3d2630';
+const WALL_TOP = '#b98f86'; // lit stone rim along wall tops
+const SHADOW = 'rgba(61,38,48,0.28)';
+/** Outlined block in 3/4 view: lit top, darker front face, soft shadow on the floor. */
 const box = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, fill: string) => {
+  px(c, SHADOW, x + 2, y + h - 1, w - 1, 3);
   px(c, OUT, x, y, w, h);
   px(c, fill, x + 1, y + 1, w - 2, h - 2);
-  px(c, shade(fill, 1.12), x + 1, y + 1, w - 2, 2);
+  px(c, shade(fill, 1.15), x + 1, y + 1, w - 2, 2);
+  if (h >= 8) px(c, shade(fill, 0.78), x + 1, y + h - 4, w - 2, 3);
 };
 
 const FURN: Record<string, Draw> = {
@@ -109,9 +194,11 @@ const FURN: Record<string, Draw> = {
   },
   bed: (c, x, y, w, h) => {
     box(c, x + 1, y + 1, w - 2, h - 2, '#f7f2ea');
-    px(c, '#fff', x + 3, y + 3, w - 6, 5);
-    px(c, '#9fc3e8', x + 2, y + 10, w - 4, h - 12);
-    px(c, shade('#9fc3e8', 0.85), x + 2, y + 10, w - 4, 2);
+    box(c, x + 3, y + 3, w - 6, 6, '#ffffff'); // pillow
+    px(c, OUT, x + 1, y + 10, w - 2, h - 11);
+    px(c, '#7fb0e2', x + 2, y + 11, w - 4, h - 14); // blanket
+    px(c, '#a6cbef', x + 2, y + 11, w - 4, 2);
+    px(c, shade('#7fb0e2', 0.8), x + 2, y + h - 6, w - 4, 3);
   },
   desk: (c, x, y, w, h) => {
     box(c, x + 1, y + 2, w - 2, h - 4, '#b98a5e');
@@ -132,15 +219,14 @@ const FURN: Record<string, Draw> = {
     for (let i = 4; i < w - 2; i += 6) px(c, '#8a5c38', x + i, y + 5, 1, 7);
   },
   planter: (c, x, y) => {
-    box(c, x + 3, y + 8, 10, 7, '#c27a5a');
-    px(c, '#6fae6b', x + 2, y + 2, 12, 7);
-    px(c, '#8fcf86', x + 4, y + 3, 4, 3);
-    px(c, '#f4a7b9', x + 10, y + 4, 2, 2);
+    box(c, x + 3, y + 8, 10, 7, '#c9724e');
+    leaves(c, x + 2, y + 1, 12, 8);
+    px(c, '#f48fb1', x + 10, y + 3, 2, 2);
+    px(c, '#ffd1df', x + 10, y + 3, 1, 1);
   },
   plant: (c, x, y) => {
-    box(c, x + 4, y + 10, 8, 5, '#d8c0a0');
-    px(c, '#5f9e5c', x + 3, y + 2, 10, 9);
-    px(c, '#82c27a', x + 5, y + 3, 3, 3);
+    box(c, x + 4, y + 10, 8, 5, '#e0c39a');
+    leaves(c, x + 3, y + 1, 10, 10);
   },
   railing: (c, x, y, w) => {
     px(c, '#e6e9ef', x, y + 10, w, 2);
@@ -160,9 +246,11 @@ const FURN: Record<string, Draw> = {
     px(c, '#f6d48f', x + 2, y + h / 2, 1, 2);
   },
   rug: (c, x, y, w, h) => {
-    px(c, '#e9b8a4', x + 2, y + 2, w - 4, h - 4);
-    px(c, '#f4d4c4', x + 5, y + 5, w - 10, h - 10);
-    px(c, '#e9b8a4', x + 8, y + 8, w - 16, h - 16);
+    px(c, shade('#d9856a', 0.7), x + 2, y + 2, w - 4, h - 4);
+    px(c, '#d9856a', x + 3, y + 3, w - 6, h - 6);
+    px(c, '#f2c7a8', x + 5, y + 5, w - 10, h - 10);
+    px(c, '#d9856a', x + 8, y + 8, w - 16, h - 16);
+    for (let i = x + 4; i < x + w - 4; i += 3) { px(c, '#f2c7a8', i, y + 1, 1, 2); px(c, '#f2c7a8', i, y + h - 3, 1, 2); } // fringe
   },
   tv: (c, x, y, w) => {
     box(c, x + 2, y + 1, w - 4, 10, '#2b2b33');
@@ -177,9 +265,9 @@ const FURN: Record<string, Draw> = {
     for (let i = 4; i < w - 3; i += 3) px(c, cols[(i / 3 + 2) % 5 | 0], x + i, y + 8, 2, 4);
   },
   lowtable: (c, x, y, w) => {
-    box(c, x + 2, y + 3, w - 4, 10, '#b98a5e');
-    px(c, '#ffffff', x + 6, y + 6, 4, 3);
-    px(c, '#e07a6a', x + w - 10, y + 6, 3, 3);
+    box(c, x + 2, y + 3, w - 4, 10, '#a8683c');
+    box(c, x + 6, y + 5, 5, 4, '#ffffff'); // mug
+    box(c, x + w - 11, y + 5, 5, 4, '#e86a5a'); // book
   },
   sofa: (c, x, y, w) => {
     box(c, x + 1, y + 2, w - 2, 13, '#8fb3dd');
@@ -187,13 +275,18 @@ const FURN: Record<string, Draw> = {
     for (let i = 2 + (w - 4) / 3; i < w - 3; i += (w - 4) / 3) px(c, shade('#8fb3dd', 0.75), x + i, y + 9, 1, 5);
   },
   counter: (c, x, y, w) => {
-    box(c, x, y + 1, w, 14, '#e8e2d6');
-    px(c, '#c9c0b0', x + 1, y + 11, w - 2, 3);
+    // butcher-block top over painted cabinets with handles
+    box(c, x, y + 1, w, 14, '#7fb0a0');
+    px(c, '#d9a35f', x + 1, y + 2, w - 2, 5);
+    px(c, '#efc586', x + 1, y + 2, w - 2, 1);
+    px(c, OUT, x + 1, y + 7, w - 2, 1);
+    for (let i = x + 4; i < x + w - 3; i += 8) px(c, '#f6e6b8', i, y + 9, 3, 1);
   },
   sink: (c, x, y) => {
-    box(c, x, y + 1, 16, 14, '#e8e2d6');
-    px(c, '#b8c6d4', x + 3, y + 4, 10, 6);
-    px(c, '#8a96a4', x + 7, y + 2, 2, 3);
+    box(c, x, y + 1, 16, 14, '#7fb0a0');
+    px(c, '#d9a35f', x + 1, y + 2, 14, 5);
+    box(c, x + 3, y + 2, 10, 5, '#c7d6e2');
+    px(c, '#8a96a4', x + 7, y, 2, 3);
   },
   stove: (c, x, y, w) => {
     box(c, x, y + 1, w, 14, '#3a3a44');
@@ -210,14 +303,22 @@ const FURN: Record<string, Draw> = {
     px(c, '#e07a6a', x + 8, y + 19, 3, 3);
   },
   diningtable: (c, x, y, w, h) => {
-    box(c, x + 1, y + 2, w - 2, h - 4, '#c49568');
+    box(c, x + 1, y + 2, w - 2, h - 4, '#a8683c');
+    px(c, '#f3e3c2', x + 5, y + h / 2 - 2, w - 10, 3); // runner
     for (let i = 8; i < w - 8; i += 16) {
-      px(c, '#ffffff', x + i, y + 8, 6, 5);
-      px(c, '#ffffff', x + i + 4, y + h - 13, 6, 5);
+      box(c, x + i, y + 6, 7, 6, '#ffffff');
+      box(c, x + i + 4, y + h - 14, 7, 6, '#ffffff');
     }
   },
   chair: (c, x, y) => {
-    box(c, x + 3, y + 3, 10, 10, '#b07a4f');
+    box(c, x + 3, y + 2, 10, 4, '#8f5530'); // back rest
+    box(c, x + 3, y + 5, 10, 8, '#b8743f');
+  },
+  pool: (c, x, y, w, h) => {
+    box(c, x, y, w, h, '#e6dfd3');
+    px(c, '#3fb6d0', x + 3, y + 3, w - 6, h - 6);
+    px(c, '#7fd8ea', x + 5, y + 5, w - 14, 2);
+    px(c, '#2a8fb0', x + 3, y + 3, w - 6, 2);
   },
   whiteboard: (c, x, y, w) => {
     box(c, x + 1, y + 1, w - 2, 12, '#ffffff');
@@ -227,49 +328,113 @@ const FURN: Record<string, Draw> = {
   },
 };
 
-/** Render the static house layer (floors, walls, furniture) at 1 px = 1 px. Cached by caller. */
+const WINDOWS = [3, 10, 16];
+/** A walled room on the top row at column x (gets a window on its north wall). */
+const indoorAt = (x: number, floor: number) => !!WALL[house().rooms.find((r) => r.id === roomAt(x, 0, floor))?.material ?? ''];
+/** Lies flat on the floor: no drop shadow. */
+const FLAT = new Set(['rug', 'sheepskin', 'sneakers', 'magazines', 'floorcushions', 'pool']);
+
+/** Baked ComfyUI furniture sprites (scripts/assets/house_assets.py), 32 px per tile; missing ones stay procedural. */
+const ASSETS = new Map<string, HTMLImageElement>();
+let assetsLoading: Promise<void> | null = null;
+export function loadHouseAssets(): Promise<void> {
+  assetsLoading ??= Promise.all([...new Set(house().furniture.map((f) => `${f.type}_${f.w}x${f.h}`))].map((key) => new Promise<void>((done) => {
+    const img = new Image();
+    img.onload = () => { ASSETS.set(key, img); done(); };
+    img.onerror = () => done();
+    img.src = `/assets/house/${key}.png`;
+  }))).then(() => {});
+  return assetsLoading;
+}
+
+/** Render the static house layer (floors, walls, furniture) at 2 device px per house px (draw it at half size). */
 export function renderHouse(floor = 0): HTMLCanvasElement {
   const H = house();
   const c = document.createElement('canvas');
-  c.width = H.width * TILE;
-  c.height = H.height * TILE;
+  c.width = H.width * TILE * 2;
+  c.height = H.height * TILE * 2;
   const ctx = c.getContext('2d')!;
+  ctx.scale(2, 2);
   ctx.imageSmoothingEnabled = false;
+  /** Walls bordering the pool deck are glass (Terrace House Tokyo: the pool behind a sheet of glass). */
+  const isGlass = (x: number, y: number) => H.rooms.find((r) => r.id === roomAt(x, y, floor))?.material === 'pooldeck';
+  /** Landing cut-out: look down into the floor below, darkened, behind a glass-and-oak balustrade. */
+  const drawVoid = (cx: CanvasRenderingContext2D, X: number, Y: number, W: number, Hh: number) => {
+    below ??= renderHouse(floor - 1);
+    cx.drawImage(below, X * 2, Y * 2, W * 2, Hh * 2, X, Y, W, Hh);
+    px(cx, 'rgba(30,24,40,0.35)', X, Y, W, Hh);
+    px(cx, 'rgba(30,24,40,0.3)', X, Y, W, 6); // the slab's shadow
+    for (const [x, y, w, h] of [[X, Y, W, 2], [X, Y + Hh - 2, W, 2], [X, Y, 2, Hh], [X + W - 2, Y, 2, Hh]] as const) {
+      px(cx, 'rgba(200,235,245,0.5)', x, y, w, h);
+      px(cx, '#c9a57a', x, y, Math.min(w, W), 1);
+    }
+  };
+  let below: HTMLCanvasElement | undefined;
   for (const r of H.rooms.filter((r) => r.floor === floor)) {
     const rng = mulberry32(hashSeed(r.id));
     const f = FLOOR[r.material] ?? FLOOR.wood;
     for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) f(ctx, x * TILE, y * TILE, () => rng.next());
   }
-  const roof = H.rooms.find((r) => r.id === 'backyard' && r.floor === floor);
-  if (roof) {
-    ctx.fillStyle = 'rgba(159,211,230,0.35)';
-    ctx.fillRect(roof.x * TILE, roof.y * TILE, roof.w * TILE, 6);
+  const edgeOf = (x: number, y: number, r: string) => (nx: number, ny: number) => {
+    const nr = roomAt(nx, ny, floor);
+    return nr !== r && !(nr && isDoor(x, y, nx, ny, floor));
+  };
+  // 3/4 wall faces along north walls: wallpaper, wainscot, skirting (outdoor rooms get a low parapet)
+  for (const r of H.rooms.filter((r) => r.floor === floor)) {
+    const paper = r.material in WALL ? WALL[r.material] : WALL.wood;
+    for (let x = r.x; x < r.x + r.w; x++) {
+      if (!edgeOf(x, r.y, r.id)(x, r.y - 1)) continue;
+      const X = x * TILE, Y = r.y * TILE;
+      if (isGlass(x, r.y - 1)) { // floor-to-ceiling glass onto the pool deck
+        px(ctx, 'rgba(170,220,235,0.55)', X, Y, TILE, WALL_FACE);
+        px(ctx, 'rgba(255,255,255,0.7)', X + ((x * 5) % 9) + 2, Y + 1, 3, 1);
+        px(ctx, '#55606a', X + TILE - 1, Y, 1, WALL_FACE); // mullion
+        px(ctx, SHADOW, X, Y + WALL_FACE, TILE, 1);
+        continue;
+      }
+      if (!paper) { px(ctx, '#e9e2d6', X, Y, TILE, 4); px(ctx, '#bdb2a4', X, Y + 4, TILE, 1); continue; }
+      px(ctx, paper, X, Y, TILE, WALL_FACE);
+      if (r.material === 'wood-dark') for (let i = 0; i < TILE; i += 4) px(ctx, shade(paper, 0.8), X + i, Y, 1, WALL_FACE); // cabin panelling
+      else px(ctx, shade(paper, 1.07), X + ((x * 7) % 12) + 1, Y + 1, 2, 3); // wallpaper motif
+      px(ctx, shade(paper, 0.82), X, Y + WALL_FACE - 4, TILE, 3); // wainscot
+      px(ctx, OUT, X, Y + WALL_FACE - 1, TILE, 1); // skirting line
+      px(ctx, SHADOW, X, Y + WALL_FACE, TILE, 2);
+      DECOR[hashSeed(`${r.id}:${x}`) % DECOR.length]?.(ctx, X, Y, TILE, WALL_FACE);
+    }
   }
   for (const f of H.furniture.filter((f) => f.floor === floor)) {
-    const draw = FURN[f.type];
-    if (draw) draw(ctx, f.x * TILE, f.y * TILE, f.w * TILE, f.h * TILE);
-    else box(ctx, f.x * TILE, f.y * TILE, f.w * TILE, f.h * TILE, '#cccccc');
+    const [X, Y, W, Hh] = [f.x * TILE, f.y * TILE, f.w * TILE, f.h * TILE];
+    const img = ASSETS.get(`${f.type}_${f.w}x${f.h}`);
+    if (f.type === 'void') drawVoid(ctx, X, Y, W, Hh);
+    else if (img) {
+      if (!FLAT.has(f.type)) px(ctx, SHADOW, X + 2, Y + Hh - 2, W - 3, 3);
+      ctx.drawImage(img, X, Y, W, Hh);
+    } else if (FURN[f.type]) FURN[f.type](ctx, X, Y, W, Hh);
+    else box(ctx, X, Y, W, Hh, '#cccccc');
   }
-  // walls
-  ctx.fillStyle = OUT;
+  // thick wall tops with a lit rim
   for (let y = 0; y < H.height; y++)
     for (let x = 0; x < H.width; x++) {
       const r = roomAt(x, y, floor);
       if (!r) continue;
-      const X = x * TILE;
-      const Y = y * TILE;
-      const edge = (nx: number, ny: number) => {
-        const nr = roomAt(nx, ny, floor);
-        return nr !== r && !(nr && isDoor(x, y, nx, ny, floor));
-      };
-      if (edge(x, y - 1)) ctx.fillRect(X, Y, TILE, 3);
-      if (edge(x - 1, y)) ctx.fillRect(X, Y, 3, TILE);
-      if (y === H.height - 1 || edge(x, y + 1)) ctx.fillRect(X, Y + TILE - 2, TILE, 2);
-      if (x === H.width - 1 || edge(x + 1, y)) ctx.fillRect(X + TILE - 2, Y, 2, TILE);
+      const X = x * TILE, Y = y * TILE;
+      const edge = edgeOf(x, y, r);
+      if (edge(x, y - 1)) {
+        if ((isGlass(x, y - 1) || isGlass(x, y)) && roomAt(x, y - 1, floor)) px(ctx, '#55606a', X, Y - 1, TILE, 2); // thin glass frame
+        else { px(ctx, OUT, X, Y - 2, TILE, 5); px(ctx, WALL_TOP, X, Y - 2, TILE, 2); }
+      }
+      if (edge(x - 1, y)) { px(ctx, OUT, X, Y, 4, TILE); px(ctx, WALL_TOP, X, Y, 2, TILE); }
+      if (y === H.height - 1 || (edge(x, y + 1) && !(isGlass(x, y) && roomAt(x, y + 1, floor)))) { px(ctx, OUT, X, Y + TILE - 3, TILE, 3); px(ctx, WALL_TOP, X, Y + TILE - 3, TILE, 1); }
+      if (x === H.width - 1 || edge(x + 1, y)) { px(ctx, OUT, X + TILE - 3, Y, 3, TILE); px(ctx, WALL_TOP, X + TILE - 2, Y, 1, TILE); }
     }
-  // windows on the outer top wall
-  ctx.fillStyle = '#bfe3f2';
-  for (const wx of [3, 16, 10]) ctx.fillRect(wx * TILE + 3, 0, 10, 2);
+  // windows on the outer north wall face
+  for (const wx of WINDOWS) {
+    if (!indoorAt(wx, floor)) continue;
+    px(ctx, OUT, wx * TILE + 2, 2, 12, 7);
+    px(ctx, '#a9dcef', wx * TILE + 3, 3, 10, 5);
+    px(ctx, '#e4f6fb', wx * TILE + 4, 3, 3, 2);
+    px(ctx, OUT, wx * TILE + 8, 3, 1, 5);
+  }
   return c;
 }
 
@@ -280,6 +445,81 @@ export function spotFor(room: string, index: number): [number, number] {
   const s = r.spots[index % r.spots.length];
   const extra = Math.floor(index / r.spots.length);
   return [s[0] + (extra % 2), s[1] - extra];
+}
+
+/** Furniture that glows after dark: [type, radius in tiles, warm colour]. */
+const LIGHTS: [string, number, string][] = [['sofa', 3, '255,196,120'], ['diningtable', 3.5, '255,210,140'], ['bed', 1.8, '255,186,120'], ['desk', 2, '255,224,160'], ['stove', 1.6, '255,150,90'], ['tv', 2.2, '150,190,255'], ['washbasin', 1.6, '235,240,255'], ['bench', 2.5, '255,200,120'], ['floorlamp', 3, '255,214,150'], ['lantern', 2.2, '255,180,100'], ['pool', 4, '120,220,255'], ['island', 2.5, '255,214,150']];
+let lightLayer: HTMLCanvasElement | null = null;
+
+/**
+ * Time-of-day light over the finished scene: morning sun shafts from the north windows, a golden afternoon, and a
+ * blue night where lamps cut warm pools out of the dark. `hour` is fractional (19.5 = 19:30).
+ */
+export function drawLighting(ctx: CanvasRenderingContext2D, floor: number, hour: number) {
+  const H = house();
+  const W = H.width * TILE, Hh = H.height * TILE;
+  const night = hour >= 20 || hour < 5 ? 1 : hour >= 18 ? (hour - 18) / 2 : hour < 6 ? 1 - (hour - 5) : 0;
+  if (hour >= 6 && hour < 17) { // sun through the windows, slanting with the hour
+    const slant = (hour - 11.5) * 3;
+    ctx.fillStyle = `rgba(255,236,190,${hour < 9 ? 0.22 : 0.14})`;
+    for (const wx of WINDOWS) if (indoorAt(wx, floor)) {
+      ctx.beginPath();
+      ctx.moveTo(wx * TILE + 3, 9); ctx.lineTo(wx * TILE + 13, 9);
+      ctx.lineTo(wx * TILE + 13 - slant * 2, 9 + TILE * 2.5); ctx.lineTo(wx * TILE + 3 - slant * 2, 9 + TILE * 2.5);
+      ctx.fill();
+    }
+  }
+  if (hour >= 15 && hour < 20) { ctx.fillStyle = `rgba(255,140,60,${Math.min(1, (hour - 15) / 3) * 0.2 * (1 - night)})`; ctx.fillRect(0, 0, W, Hh); }
+  if (hour < 9 && hour >= 5) { ctx.fillStyle = 'rgba(255,214,170,0.08)'; ctx.fillRect(0, 0, W, Hh); }
+  if (night <= 0) return;
+  // darkness with lamp-shaped holes, then a soft warm glow on top
+  lightLayer ??= document.createElement('canvas');
+  if (lightLayer.width !== W) [lightLayer.width, lightLayer.height] = [W, Hh];
+  const l = lightLayer.getContext('2d')!;
+  l.globalCompositeOperation = 'source-over';
+  l.clearRect(0, 0, W, Hh);
+  l.fillStyle = `rgba(16,20,52,${0.58 * night})`;
+  l.fillRect(0, 0, W, Hh);
+  const lamps = H.furniture.filter((f) => f.floor === floor).flatMap((f) => LIGHTS.filter(([t]) => t === f.type).map(([, r, col]) => ({ x: (f.x + f.w / 2) * TILE, y: (f.y + f.h / 2) * TILE, r: r * TILE, col })));
+  l.globalCompositeOperation = 'destination-out';
+  for (const p of lamps) {
+    const g = l.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+    g.addColorStop(0, 'rgba(0,0,0,0.9)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    l.fillStyle = g; l.fillRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+  }
+  ctx.drawImage(lightLayer, 0, 0);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const p of lamps) {
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 0.8);
+    g.addColorStop(0, `rgba(${p.col},${0.16 * night})`); g.addColorStop(1, `rgba(${p.col},0)`);
+    ctx.fillStyle = g; ctx.fillRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+  }
+  ctx.restore();
+}
+
+export type Pose = 'sit' | 'sleep' | 'cook';
+export interface Seat { x: number; y: number; pose: Pose; dir: 'up' | 'down' | 'left' | 'right' }
+
+/**
+ * Furniture spots for what someone is doing in a room: beds for sleepers, the stove for the cook, chairs and table
+ * sides for meals, the sofa for anyone lounging in the living room. Null = no free seat (stand at a normal spot).
+ */
+export function seatFor(room: string, activity: string | null, index: number): Seat | null {
+  const r = house().rooms.find((x) => x.id === room);
+  if (!r) return null;
+  const inRoom = house().furniture.filter((f) => f.floor === r.floor && f.x >= r.x && f.x < r.x + r.w && f.y >= r.y && f.y < r.y + r.h);
+  const of = (type: string) => inRoom.filter((f) => f.type === type);
+  const seats: Seat[] = [];
+  if (activity === 'sleep') for (const b of of('bed')) seats.push({ x: b.x, y: b.y, pose: 'sleep', dir: 'down' });
+  else if (activity === 'cook') for (const s of of('stove')) for (let i = 0; i < s.w; i++) seats.push({ x: s.x + i, y: s.y + 1, pose: 'cook', dir: 'up' });
+  else if (activity === 'eat') {
+    for (const t of of('diningtable')) {
+      for (const ch of of('chair')) seats.push({ x: ch.x, y: ch.y, pose: 'sit', dir: ch.x < t.x ? 'right' : 'left' });
+      for (let i = 1; i < t.w - 1; i++) seats.push({ x: t.x + i, y: t.y - 1, pose: 'sit', dir: 'down' }, { x: t.x + i, y: t.y + t.h, pose: 'sit', dir: 'up' });
+    }
+  } else if ((room === 'living' || room === 'stairsUp') && activity !== 'tidy' && activity !== 'exercise') for (const s of of('sofa')) for (let i = 0; i < s.w; i++) seats.push({ x: s.x + i, y: s.y, pose: 'sit', dir: 'up' });
+  return seats[index] ?? null;
 }
 
 export const hotspots = (floor = 0) => house().hotspots.filter((h) => h.floor === floor);

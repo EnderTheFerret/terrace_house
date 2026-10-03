@@ -14,3 +14,8 @@ playwright-report/
 __pycache__/
 *.stop
 *.log
+
+# regenerable ComfyUI raws/renders and experiment outputs (scripts are tracked)
+scripts/assets/house/
+scripts/assets/sprite-experiments/**/*.png
+

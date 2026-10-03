@@ -190,7 +190,7 @@ export function Saves() {
 export function Settings() {
   const { settings, setSettings, health, view, goBack, setScreen, refreshHealth } = useGame();
   useEffect(() => void refreshHealth(), [refreshHealth]);
-  const Toggle = ({ k, label }: { k: 'captions' | 'reducedMotion' | 'images' | 'sound' | 'author' | 'typewriter'; label: string }) => (
+  const Toggle = ({ k, label }: { k: 'captions' | 'reducedMotion' | 'images' | 'sound' | 'author' | 'typewriter' | 'tutorial'; label: string }) => (
     <label className="flex items-center gap-2 text-sm">
       <input type="checkbox" checked={settings[k]} onChange={(e) => setSettings({ [k]: e.target.checked })} /> {label}
     </label>
@@ -224,6 +224,8 @@ export function Settings() {
               </select>
             </label>
             <Toggle k="author" label="author mode (debug view: voice matrix, event log, LLM budget)" />
+            <Toggle k="tutorial" label="tutorial tips" />
+            <Btn className="text-xs" onClick={() => setSettings({ tutorial: true, tipsSeen: [] })}>how to play: replay the tips</Btn>
           </div>
           <Btn className="mt-5 text-xs" onClick={() => (view ? goBack() : setScreen('title'))}>back</Btn>
         </Panel>

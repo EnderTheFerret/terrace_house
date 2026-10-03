@@ -1,0 +1,59 @@
+{
+  "positive": {
+    "node": "enc",
+    "input": "prompt"
+  },
+  "negative": {
+    "node": "enc",
+    "input": "negative_prompt"
+  },
+  "seed": {
+    "node": "k",
+    "input": "seed"
+  },
+  "width": {
+    "node": "lat",
+    "input": "width"
+  },
+  "height": {
+    "node": "lat",
+    "input": "height"
+  },
+  "reference": {
+    "node": "ref1",
+    "input": "image"
+  },
+  "references": [
+    {
+      "node": "ref1",
+      "input": "image"
+    },
+    {
+      "node": "ref2",
+      "input": "image"
+    },
+    {
+      "node": "ref3",
+      "input": "image"
+    },
+    {
+      "node": "ref4",
+      "input": "image"
+    },
+    {
+      "node": "ref5",
+      "input": "image"
+    },
+    {
+      "node": "ref6",
+      "input": "image"
+    },
+    {
+      "node": "ref7",
+      "input": "image"
+    }
+  ],
+  "output": {
+    "node": "save"
+  }
+}
