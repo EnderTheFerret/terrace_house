@@ -2,7 +2,7 @@
 import type { Speech } from '../model';
 import { euclid } from '../util';
 
-export const BANNED_META = [/\bas an ai\b/i, /\blanguage model\b/i, /\bthe (show|camera|panel|audience|producers?)\b/i, /\bfourth wall\b/i, /\bin this scene\b/i, /\bcharacter\b/i, /\bprompt\b/i];
+export const BANNED_META = [/\bas an ai\b/i, /\blanguage model\b/i, /\b(?:the )?camera (?:pans|zooms|cuts|follows|lingers)\b/i, /\bthe (?:panel|audience|producers?) (?:watch(?:es)?|react(?:s)?|will love|want us to)\b/i, /\bfourth wall\b/i, /\bin this scene\b/i, /\bcharacter\b/i, /\bprompt\b/i];
 const FORMAL = /\b(i believe|perhaps|i suppose|please|thank you|i'm afraid|would you|shall|indeed|certainly)\b/gi;
 const CASUAL = /\b(gonna|wanna|yeah|nah|bro|like|lowkey|dude|kinda|no way|okay okay)\b/gi;
 

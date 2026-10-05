@@ -44,6 +44,39 @@ export function patchWorkflow(wf: Workflow, map: Mapping, req: ImageRequest, che
   if (checkpoint) put(map.checkpoint, checkpoint);
   if (referenceName) put(map.reference, referenceName);
   if (reference2Name) put(map.reference2, reference2Name);
+  if (req.framing === 'knees' && map.output) {
+    const saved = out[map.output.node];
+    if (!saved?.inputs.images) throw new Error('knees-up framing needs an image output');
+    // ponytail: upright, frame-filling figures put knees near 80%; use pose landmarks if arbitrary poses are supported.
+    out.portraitCrop = { class_type: 'ImageCropV2', inputs: { image: saved.inputs.images, crop_region: { x: 0, y: 0, width: req.width, height: Math.round(req.height * 0.8) } } };
+    out.portraitScale = { class_type: 'ImageScale', inputs: { image: ['portraitCrop', 0], upscale_method: 'nearest-exact', width: req.width, height: req.height, crop: 'center' } };
+    out.portraitRemBg = { class_type: 'easy imageRemBg', inputs: { images: ['portraitScale', 0], rem_mode: 'BEN2', image_output: 'Hide', save_prefix: 'rembg', torchscript_jit: false, add_background: 'none', refine_foreground: false } };
+    out.portraitSolid = { class_type: 'ThresholdMask', inputs: { mask: ['portraitRemBg', 1], value: 0.5 } };
+    out.portraitContours = { class_type: 'MaskToSEGS', inputs: { mask: ['portraitSolid', 0], combined: false, crop_factor: 1.0, bbox_fill: false, drop_size: 32, contour_fill: true } };
+    out.portraitMask = { class_type: 'SegsToCombinedMask', inputs: { segs: ['portraitContours', 0] } };
+    out.portraitBackground = { class_type: 'EmptyImage', inputs: { width: req.width, height: req.height, batch_size: 1, color: 0xf4eee4 } };
+    out.portraitMatte = { class_type: 'ImageCompositeMasked', inputs: { destination: ['portraitBackground', 0], source: ['portraitScale', 0], mask: ['portraitMask', 0], x: 0, y: 0, resize_source: false } };
+    saved.inputs.images = ['portraitMatte', 0];
+  }
+  if (req.editRegion === 'face' && referenceName && map.reference && map.output) {
+    const saved = out[map.output.node];
+    if (!saved?.inputs.images) throw new Error('face editing needs an image output');
+    out.faceDetector = { class_type: 'UltralyticsDetectorProvider', inputs: { model_name: 'bbox/face_yolov8m.pt' } };
+    out.faceSegments = { class_type: 'BboxDetectorSEGS', inputs: { bbox_detector: ['faceDetector', 0], image: [map.reference.node, 0], threshold: 0.25, dilation: 0, crop_factor: 1.0, drop_size: 10, labels: 'all' } };
+    out.faceMask = { class_type: 'SegsToCombinedMask', inputs: { segs: ['faceSegments', 0] } };
+    if (reference2Name) {
+      out.faceGuide = { class_type: 'LoadImage', inputs: { image: reference2Name } };
+      out.faceGuideSegments = { class_type: 'BboxDetectorSEGS', inputs: { ...out.faceSegments.inputs, image: ['faceGuide', 0] } };
+      out.faceFound = { class_type: 'ImpactIsNotEmptySEGS', inputs: { segs: ['faceSegments', 0] } };
+      out.faceChoice = { class_type: 'ImpactConditionalBranch', inputs: { cond: ['faceFound', 0], tt_value: ['faceSegments', 0], ff_value: ['faceGuideSegments', 0] } };
+      out.faceMask.inputs.segs = ['faceChoice', 0];
+    }
+    out.faceForeground = { class_type: 'easy imageRemBg', inputs: { images: [map.reference.node, 0], rem_mode: 'BEN2', image_output: 'Hide', save_prefix: 'rembg', torchscript_jit: false, add_background: 'none', refine_foreground: false } };
+    out.faceSolid = { class_type: 'ThresholdMask', inputs: { mask: ['faceForeground', 1], value: 0.5 } };
+    out.faceEditMask = { class_type: 'MaskComposite', inputs: { destination: ['faceMask', 0], source: ['faceSolid', 0], x: 0, y: 0, operation: 'multiply' } };
+    out.faceComposite = { class_type: 'ImageCompositeMasked', inputs: { destination: [map.reference.node, 0], source: saved.inputs.images, mask: ['faceEditMask', 0], x: 0, y: 0, resize_source: true } };
+    saved.inputs.images = ['faceComposite', 0];
+  }
   // a full house (5+ references) at 512 keeps faces as well as 768 and runs twice as fast (36 s vs 77 s for 7)
   if (referenceNames.length > 4) put(map.resolution, 512);
   if (map.references && (referenceNames.length || (map.canvas && reference2Name))) {

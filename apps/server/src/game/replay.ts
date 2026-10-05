@@ -1,7 +1,7 @@
 // Deterministic replay of an events_log: re-applies engine steps in the same order the session used.
 import {
-  autoChoices, createGame, finishSlot, panelPrediction, planSlot, proposeOutcome, recordCommentary, resolveScene, applyCooking,
-  joinNewPlayer, recordChat, recordPlayerWords, passTime, recordDiary,
+  applyReread, autoChoices, createGame, finishSlot, panelPrediction, planSlot, proposeOutcome, recordCommentary, resolveScene, applyCooking,
+  editPlayer, joinNewPlayer, recordChat, recordConversation, recordPlayerWords, passTime, recordDiary, planMoveInArrival, queueNpcPlans,
   type EventInstance, type GameState,
 } from '@shared-roof/shared';
 import { applyCharacterSnapshot } from './personas';
@@ -18,8 +18,11 @@ export function replayEvents(events: LoggedEvent[]): GameState {
   for (const e of events) {
     const p = e.payload;
     switch (e.kind) {
+      case 'autonomy':
+        queueNpcPlans(s!, p.plans);
+        break;
       case 'new':
-        s = createGame(p);
+        s = createGame({ ...p, moveInVersion: p.moveInVersion ?? 1 });
         break;
       case 'action': {
         const r = planSlot(s!, p.action);
@@ -28,7 +31,7 @@ export function replayEvents(events: LoggedEvent[]): GameState {
         break;
       }
       case 'scene': {
-        let ev = plan.get(p.eventId);
+        let ev = (p.event as EventInstance | undefined) ?? plan.get(p.eventId);
         if (!ev) throw new Error(`replay: unknown event ${p.eventId} at seq ${e.seq}`);
         if (p.response === 'join' && !ev.participants.includes(s!.playerId)) ev = { ...ev, participants: [...ev.participants, s!.playerId], isPlayerScene: true };
         // same rng consumption as the live session: choices, engine proposal, then resolution with the logged proposal
@@ -37,6 +40,9 @@ export function replayEvents(events: LoggedEvent[]): GameState {
         s = resolveScene(s, ev, p.proposal, p.choices, p.response).state;
         break;
       }
+      case 'reread':
+        applyReread(s!, p.id, p.change, p.participants);
+        break;
       case 'diary':
         s = recordDiary(s!, p.id, p.episode, p.diary, p.pairs ?? {});
         break;
@@ -53,14 +59,30 @@ export function replayEvents(events: LoggedEvent[]): GameState {
       case 'words':
         s = recordPlayerWords(s!, p.listeners, p.words);
         break;
+      case 'conversation':
+        s = recordConversation(s!, p.listeners, p.lines);
+        break;
       case 'chat':
         s = recordChat(s!, p.a, p.b, p.lines, p.photoFrom);
         break;
       case 'time':
-        s = passTime(s!, p.lines);
+        s = passTime(s!, p.lines, p.protectedIds ?? [], p.minutesPerLine ?? 3);
+        break;
+      case 'move-in': {
+        const arrival = planMoveInArrival(s!);
+        s = arrival.state;
+        for (const scene of arrival.plan.scenes) plan.set(scene.event.id, scene.event);
+        break;
+      }
+      case 'move-in-join':
+        plan.set(p.event.id, p.event);
+        s!.characters[p.newcomer].location = p.event.location;
         break;
       case 'new-player':
         s = joinNewPlayer(s!, p.setup);
+        break;
+      case 'edit-player':
+        s = editPlayer(s!, p.edit);
         break;
       case 'generated-character':
         applyCharacterSnapshot(s!, p.character);
@@ -68,6 +90,14 @@ export function replayEvents(events: LoggedEvent[]): GameState {
       case 'appearance-palette':
         if (s!.characters[p.id]?.portraitSeed === p.portraitSeed) s!.characters[p.id].appearance.palette = p.palette;
         break;
+      case 'artwork-edit': {
+        const c = s!.characters[p.id];
+        if (p.edit.kind === 'walk') {
+          c.spriteSeed = p.edit.seed;
+          c.spriteInstructions = p.edit.instructions;
+        } else c.expressionEdits = { ...c.expressionEdits, [p.edit.emotion]: { seed: p.edit.seed, instructions: p.edit.instructions } };
+        break;
+      }
     }
   }
   if (!s) throw new Error('replay: log has no "new" event');

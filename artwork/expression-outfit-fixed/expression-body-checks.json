@@ -1,0 +1,50 @@
+[
+  {
+    "id": "ren",
+    "occasion": "beach",
+    "faceChanges": 34591,
+    "bodyChanges": 0
+  },
+  {
+    "id": "kaito",
+    "occasion": "beach",
+    "faceChanges": 43598,
+    "bodyChanges": 0
+  },
+  {
+    "id": "ren",
+    "occasion": "formal",
+    "faceChanges": 36882,
+    "bodyChanges": 0
+  },
+  {
+    "id": "kaito",
+    "occasion": "date",
+    "faceChanges": 45507,
+    "bodyChanges": 0
+  },
+  {
+    "id": "mio",
+    "occasion": "date",
+    "faceChanges": 32708,
+    "bodyChanges": 0
+  },
+  {
+    "id": "sora",
+    "occasion": "date",
+    "faceChanges": 76458,
+    "bodyChanges": 0
+  },
+  {
+    "id": "mio",
+    "occasion": "beach",
+    "faceChanges": 57996,
+    "bodyChanges": 0
+  },
+  {
+    "id": "sora",
+    "occasion": "beach",
+    "faceChanges": 74677,
+    "bodyChanges": 0
+  }
+]

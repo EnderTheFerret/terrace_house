@@ -87,17 +87,24 @@ export function chatPrompt(s: GameState, from: string, to: string, thread: { fro
   );
 }
 
-/** One short action for the current speaker; the game supplies everyone else's body language. */
+/** Who gets a staged action: the last speaker, plus the player when they spoke or acted in the last few lines. */
+export function shotIds(s: GameState, ev: EventInstance, transcript: { speaker: string }[]): string[] {
+  const speaker = transcript.findLast((l) => ev.participants.includes(l.speaker) && s.characters[l.speaker])?.speaker ?? ev.participants[0];
+  const player = ev.participants.includes(s.playerId) && transcript.slice(-4).some((l) => l.speaker === s.playerId) ? s.playerId : undefined;
+  return [...new Set([speaker, player])].filter((id): id is string => !!id && !!s.characters[id]);
+}
+
+/** One short action for the current speaker (and the player's own typed action); the game supplies everyone else's body language. */
 export function shotPrompt(s: GameState, ev: EventInstance, transcript: { speaker: string; text: string }[]): string {
   const who = [...new Set(ev.participants)].filter((id) => s.characters[id]).slice(0, 6).map((id) => `${id}: ${firstName(s, id)}`).join(', ');
   const swimmers = ev.participants.filter((id) => s.characters[id]?.swimming).map((id) => firstName(s, id));
-  const speaker = transcript.findLast((l) => ev.participants.includes(l.speaker) && s.characters[l.speaker])?.speaker ?? ev.participants[0];
+  const ids = shotIds(s, ev, transcript);
   return [
     `A reality show freeze-frame of "${ev.title}" at the ${placeName(ev.location)} with ${who}.`,
     `What just happened: ${ev.premise}`,
     ...(swimmers.length ? [`In the pool water: ${swimmers.join(', ')}. Everyone else is out of the water.`] : []),
     `Last lines:\n${transcript.slice(-4).map((l) => `${s.characters[l.speaker] ? firstName(s, l.speaker) : l.speaker}: ${l.text}`).join('\n')}`,
-    `Output JSON only: {"${speaker}":"short action"}. Describe only this speaker's expression and hand gesture from the last lines, max 100 characters. The game fixes their position and clothes. Do not add swimming motions, floating, sitting, new clothing or invented props. A prop is allowed only if the dialogue explicitly mentions it. Omit names, other people, dialogue and camera talk. Nothing explicit.`,
+    `Output JSON only: {${ids.map((id) => `"${id}":"short action"`).join(',')}}. For each listed person describe only their expression and hand gesture from the last lines, max 100 characters. The game fixes their position and clothes. Do not add swimming motions, floating, sitting or new clothing. A prop is allowed only if the dialogue explicitly mentions it${ids.length > 1 ? `; ${firstName(s, s.playerId)}'s own typed action (such as lighting a cigarette or waving) must be shown as written` : ''}. Omit names, other people, dialogue and camera talk. Nothing explicit.`,
   ].join('\n\n');
 }
 

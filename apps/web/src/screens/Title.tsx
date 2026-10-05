@@ -5,7 +5,8 @@ import { Btn, HealthBadge } from '../components/ui';
 import { unlockAudio } from '../audio';
 
 export function Title() {
-  const { view, setScreen, health } = useGame();
+  const { view, setScreen, health, resume } = useGame();
+  const unfinished = useGame((st) => st.scenes.some((x) => x.rendered && x.phase !== 'done'));
   const [art, setArt] = useState(true);
   useEffect(() => {
     const img = new Image();
@@ -25,10 +26,12 @@ export function Title() {
           <Btn primary onClick={() => setScreen('creator')} autoFocus>
             new season
           </Btn>
-          <Btn disabled={!view} onClick={() => { if (!view?.seasonOver) useGame.setState({ episodeCard: 'start' }); setScreen(view?.seasonOver ? 'summary' : 'episode'); }}>
+          <Btn disabled={!view} onClick={() => { if (unfinished && !view?.seasonOver) return void resume(); if (!view?.seasonOver) useGame.setState({ episodeCard: 'start' }); setScreen(view?.seasonOver ? 'summary' : 'episode'); }}>
             continue{view ? ` · episode ${view.episode}` : ''}
           </Btn>
           <Btn onClick={() => setScreen('saves')}>load</Btn>
+          <Btn onClick={() => setScreen('gallery')}>scene gallery</Btn>
+          <Btn disabled={!view} onClick={() => setScreen('sprites')}>sprite library</Btn>
           <Btn onClick={() => setScreen('practice')}>practice cooking</Btn>
           <Btn onClick={() => setScreen('settings')}>settings</Btn>
         </nav>

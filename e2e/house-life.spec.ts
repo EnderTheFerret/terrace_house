@@ -39,6 +39,35 @@ test('creator maps an appearance and saves dietary choices and fixed season', as
   expect(g.view.characters.find((c: any) => c.isPlayer).appearanceText).toContain('Olive skin');
 });
 
+test('visits the kitchen and moves a housemate conversation between rooms', async ({ page, request }, info) => {
+  await request.post('/api/game/new', { data: { seed: 9, seasonLength: 0, moveInDay: false } });
+  await page.goto('/');
+  await page.getByRole('button', { name: /continue · episode 1/ }).click();
+  await reachHouse(page);
+  await page.getByRole('button', { name: 'go to kitchen', exact: true }).click();
+  await expect.poll(async () => (await (await request.get('/api/game')).json()).view.playerLocation).toBe('kitchen');
+  await page.getByRole('button', { name: 'go to living room', exact: true }).click();
+  await expect.poll(async () => (await (await request.get('/api/game')).json()).view.playerLocation).toBe('living');
+  await page.getByLabel('meet in room').selectOption('kitchen');
+  await page.getByLabel('invite housemate', { exact: true }).selectOption('ren');
+  await page.getByRole('button', { name: 'go together & talk', exact: true }).click();
+  await expect(page.getByLabel('move conversation to')).toBeVisible();
+  const kitchen = await (await request.get('/api/game')).json();
+  expect(kitchen.view.playerLocation).toBe('kitchen');
+  expect(kitchen.view.characters.find((c: any) => c.id === 'ren').location).toBe('kitchen');
+  expect(kitchen.scenes.find((s: any) => s.rendered && s.phase !== 'done').location).toBe('kitchen');
+  await expect(page.getByRole('img', { name: 'kitchen', exact: true })).toBeVisible();
+  await page.getByLabel('move conversation to').selectOption('living');
+  await page.getByRole('button', { name: 'go together & talk', exact: true }).click();
+  await expect(page.getByLabel('move conversation to')).toBeVisible();
+  await expect.poll(async () => (await (await request.get('/api/game')).json()).view.playerLocation).toBe('living');
+  const living = await (await request.get('/api/game')).json();
+  expect(living.view.characters.find((c: any) => c.id === 'ren').location).toBe('living');
+  expect(living.scenes.find((s: any) => s.rendered && s.phase !== 'done').premise).toContain('Pick up this topic');
+  await expect(page.getByRole('img', { name: 'living room', exact: true })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('room-invitation.png') });
+});
+
 test('stairs, private balconies and a shared plan are accessible', async ({ page, request }) => {
   await request.post('/api/game/new', { data: { seed: 9, seasonLength: 0, moveInDay: false } });
   await page.goto('/');
@@ -55,9 +84,19 @@ test('stairs, private balconies and a shared plan are accessible', async ({ page
   const doorPixel = () => canvas.evaluate((node: HTMLCanvasElement) => { const tile = node.width / 52; return [...node.getContext('2d')!.getImageData((16 * tile + 1) * 2, (14 * tile + tile / 2) * 2, 1, 1).data]; });
   await canvas.focus();
   const closedDoor = await doorPixel();
-  for (const key of ['ArrowLeft', 'ArrowLeft', 'ArrowLeft', 'ArrowDown']) { await page.keyboard.down(key); await page.waitForTimeout(50); await page.keyboard.up(key); await page.waitForTimeout(180); }
+  const step = async (key: string, x: number, y: number) => {
+    await page.keyboard.down(key); await page.waitForTimeout(50); await page.keyboard.up(key);
+    await expect.poll(() => canvas.evaluate(node => [Number(node.dataset.playerX), Number(node.dataset.playerY)])).toEqual([x, y]);
+  };
+  await step('ArrowLeft', 18, 13);
+  await step('ArrowLeft', 17, 13);
+  await step('ArrowLeft', 16, 13);
+  await step('ArrowDown', 16, 14);
   await expect.poll(doorPixel).not.toEqual(closedDoor);
-  for (const key of ['ArrowUp', 'ArrowRight', 'ArrowRight', 'ArrowRight']) { await page.keyboard.down(key); await page.waitForTimeout(50); await page.keyboard.up(key); await page.waitForTimeout(180); }
+  await step('ArrowUp', 16, 13);
+  await step('ArrowRight', 17, 13);
+  await step('ArrowRight', 18, 13);
+  await step('ArrowRight', 19, 13);
   await expect.poll(doorPixel).toEqual(closedDoor);
   await expect(page.getByRole('button', { name: 'backyard', exact: true })).toBeVisible();
   const before = await (await request.get('/api/game')).json();

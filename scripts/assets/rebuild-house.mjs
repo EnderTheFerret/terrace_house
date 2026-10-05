@@ -34,7 +34,9 @@ f('counter', 17, 1, 2, 1); f('sink', 19, 1); f('counter', 20, 1, 2, 1);
 f('stove', 22, 1, 2, 1); f('fridge', 24, 1, 1, 2); f('counter', 17, 2, 1, 2);
 f('island', 18, 3, 3, 1); f('stool', 18, 4, 1, 1, 0, { solid: false }); f('stool', 20, 4, 1, 1, 0, { solid: false });
 f('rug', 18, 5, 7, 4, 0, { solid: false }); f('diningtable', 19, 6, 5, 2);
-for (const y of [5, 8]) for (const x of [19, 21, 23]) f('chair', x, y, 1, 1, 0, { solid: false, dir: y === 5 ? 'down' : 'up' });
+// two chairs on each long side, one at each head
+for (const y of [5, 8]) for (const x of [20, 22]) f('chair', x, y, 1, 1, 0, { solid: false, dir: y === 5 ? 'down' : 'up' });
+f('chair', 18, 6, 1, 1, 0, { solid: false, dir: 'right' }); f('chair', 24, 6, 1, 1, 0, { solid: false, dir: 'left' });
 f('whiteboard', 24, 4, 1, 1); f('trashbin', 25, 3); f('bigplant', 25, 8, 1, 2);
 // Lounge: sofas face across a coffee table, framing a TV/storage wall and a rug.
 f('rug', 7, 10, 7, 7, 0, { solid: false });

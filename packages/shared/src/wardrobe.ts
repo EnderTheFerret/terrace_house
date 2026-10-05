@@ -3,7 +3,8 @@
 import { ROOMS } from './model';
 import { hashSeed } from './rng';
 
-export type Occasion = 'daily' | 'date' | 'outdoor' | 'beach' | 'sleep';
+export const OCCASIONS = ['daily', 'date', 'formal', 'outdoor', 'beach', 'sleep'] as const;
+export type Occasion = typeof OCCASIONS[number];
 
 type Pools = { woman: string[]; man: string[] };
 
@@ -13,8 +14,12 @@ const POOLS: Record<Occasion, Pools> = {
     man: ['plain white tee and chino shorts', 'short-sleeve linen shirt and khaki trousers', 'grey hoodie and joggers', 'striped polo shirt and jeans', 'black tee and cargo shorts', 'open flannel shirt over a tank top and jeans'],
   },
   date: {
-    woman: ['red knee-length summer dress and sandals', 'navy slip dress and a light cardigan', 'floral wrap dress and white sneakers', 'black satin midi dress and heeled sandals'],
+    woman: ['ruby-red tailored crepe midi dress, bateau neckline, short sleeves, defined waist, smooth pencil skirt and elegant heels', 'navy silk midi dress, softly draped cowl neckline, fitted waist and elegant heels', 'ivory satin wrap midi dress, short sleeves, tailored waist and elegant heels', 'black satin midi dress, square neckline, wide shoulder straps, fitted waist and elegant heels'],
     man: ['crisp white button-up shirt and tailored navy trousers', 'light blazer over a black tee and dark jeans', 'sage linen shirt and beige trousers', 'knit polo shirt and slim grey trousers'],
+  },
+  formal: {
+    woman: ['navy tailored pantsuit, white silk blouse and elegant heels', 'black silk evening gown, elegant bateau neckline, structured waist, long flowing skirt and elegant heels'],
+    man: ['tailored navy two-piece suit, white dress shirt, dark tie and dress shoes', 'black tuxedo, white dress shirt, black bow tie and dress shoes'],
   },
   outdoor: {
     woman: ['green hiking jacket, leggings and hiking boots', 'fleece pullover, cargo pants and trail shoes', 'windbreaker, shorts over leggings and hiking boots'],

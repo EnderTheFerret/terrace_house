@@ -43,8 +43,8 @@ describe('minute-based social life', () => {
   it('advances identical world state regardless of conversation chunk sizes', () => {
     const s = createGame({ seed: 31, seasonLength: 0 });
     s.world.slot = 'slot1';
-    const whole = passTime(s, 40);
-    const pieces = passTime(passTime(passTime(s, 10), 10), 20);
+    const whole = passTime(s, 20);
+    const pieces = passTime(passTime(passTime(s, 5), 5), 10);
     expect(pieces).toEqual(whole);
     expect(whole.world.minutes).toBe(120);
     expect(Object.values(whole.characters).some((c) => !c.isPlayer && c.activityUntil > 120)).toBe(true);
@@ -121,6 +121,7 @@ describe('minute-based social life', () => {
     s.characters.ren.location = 'grill'; s.characters.ren.lastAction = 'work';
     expect(() => planSlot(s, { type: 'approach', id: 'stale', accept: true })).toThrow(/busy/);
     s.characters.ren.location = 'bathroom'; s.characters.ren.lastAction = 'shower';
+    s.characters.ren.activityUntil = s.world.minutes + 40;
     expect(() => planSlot(s, { type: 'talk', target: 'ren' })).toThrow(/busy/);
     expect(() => planSlot(s, { type: 'house', activity: 'hangout', target: 'ren' })).toThrow(/busy/);
   });

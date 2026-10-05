@@ -16,14 +16,20 @@ it('validates expressions, references the approved face, caches each emotion and
   const store = new Store(openDb(':memory:'));
   const requests: ImageRequest[] = [];
   const mock = new MockImageBackend(dir);
-  const image = { name: 'mock', health: async () => true, generate: async (r: ImageRequest) => { requests.push(r); return mock.generate(r); } };
+  const image = { name: 'comfyui', health: async () => true, generate: async (r: ImageRequest) => { requests.push(r); return { ...await mock.generate(r), placeholder: false }; } };
   const { app, session, queue } = await buildApp({ llm: new MockLlm(), image, store, workflowHash: 'mock', cacheDir: dir });
   try {
     await session.newGame({ seed: 21 });
     const before = structuredClone(session.state);
     const c = session.state!.characters.ren;
     const base = portraitRequest(c);
-    expect(queue.localFile(base)).toMatch(/tel-aviv-ren\.png$/);
+    const baseStatus = queue.request(base, PRIORITY.portrait);
+    const settledBase = await queue.settle(baseStatus.key);
+    expect(settledBase.status).toBe('ready');
+    expect(settledBase.url).toBeTruthy();
+    const baseFile = queue.localFile(base);
+    expect(baseFile).toBeTruthy();
+    expect(base.subjectKey).toContain(':knees-up-v3');
     expect(expressionRequest(c, 'neutral')).toEqual(base);
     const post = (id: string, emotion: string) => app.inject({ method: 'POST', url: `/api/image/character/${id}/expression`, payload: { emotion } });
     expect((await post('ren', 'invented')).statusCode).toBe(400);
@@ -36,17 +42,17 @@ it('validates expressions, references the approved face, caches each emotion and
       keys.add(key);
       await queue.settle(key);
       const request = requests.at(-1)!;
-      expect(request.reference).toMatch(/tel-aviv-ren\.png$/);
+      expect(request.reference).toBe(baseFile);
       expect(request.prompt).toContain(`${emotion === 'tender' ? 'in love' : emotion} expression`);
       expect(request.seed).toBe(base.seed);
-      expect(request.subjectKey).toBe(`${base.subjectKey}:expression:${emotion}`);
+      expect(request.subjectKey).toBe(`${base.subjectKey}:expression:v3:${emotion}`);
       expect(cacheKey('mock', request)).not.toBe(cacheKey('mock', base));
       const count = requests.length;
       expect((await post('ren', emotion)).json().key).toBe(key);
       expect(requests).toHaveLength(count);
     }
     expect(keys.size).toBe(9);
-    expect((await post('ren', 'neutral')).json().url).toMatch(/tel-aviv-ren\.png$/);
+    expect((await post('ren', 'neutral')).json().url).toBe(settledBase.url);
     expect(session.state).toEqual(before);
   } finally {
     await app.close(); store.db.close(); rmSync(dir, { recursive: true, force: true });

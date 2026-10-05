@@ -1,6 +1,6 @@
 // Image request builders (prompts compiled by shared pure functions; style prefix from config).
 import {
-  compileAppearancePrompt, compileAppearanceTags, compileLocationPrompt, content, hashSeed, isOutdoors, sanitizePromptText, GLOBAL_NEGATIVE, outfitFor, occasionForCharacter,
+  DEFAULT_PLAYER, compileAppearancePrompt, compileAppearanceTags, compileLocationPrompt, content, hashSeed, isOutdoors, sanitizePromptText, GLOBAL_NEGATIVE, outfitFor, occasionForCharacter,
   type Character, type Emotion, type EventInstance, type GameState, type ImageRequest, type Slot,
 } from '@shared-roof/shared';
 import { config } from '../config';
@@ -31,19 +31,20 @@ const scenery: Record<string, string> = {
   hospital: 'interior of a modern Tel Aviv hospital ward, clean beds, white sheets, blue curtains, medical equipment, softly lit corridor',
 };
 
-export function portraitRequest(c: Pick<Character, 'id' | 'age' | 'gender' | 'appearance' | 'portraitSeed'> & { appearanceText?: string }, lowRes = false): ImageRequest {
+export function portraitRequest(c: Pick<Character, 'id' | 'age' | 'gender' | 'appearance' | 'portraitSeed'> & { appearanceText?: string }, lowRes = false, reference?: string | null): ImageRequest {
   const p = compileAppearancePrompt(c, 'portrait', { stylePrefix: config.stylePrefix });
   const { palette: _palette, ...appearance } = c.appearance;
   const [w, h] = size('portrait');
   const scale = lowRes ? 0.5 : 1;
   return {
-    kind: 'portrait',
-    prompt: p.positive,
+    kind: 'portrait', framing: 'knees',
+    prompt: reference ? `Redraw the single adult character in the reference, preserving the exact original 16-bit pixel art style, pixel cluster size, outlines, palette, facial features, hair and clothing. Correct only the body proportions: reduce the head including hair relative to the shoulders, lengthen the torso and thighs. Keep the same stylized face and eyes. Draw one full-length standing figure, upright with straight legs and relaxed arms, entire head and feet visible with small margins, plain solid pastel background. Do not change the art style or add other people. ${p.positive}` : p.positive,
     negative: p.negative,
     seed: c.portraitSeed,
     width: Math.round((w * scale) / 16) * 16,
     height: Math.round((h * scale) / 16) * 16,
-    subjectKey: `portrait:${c.id}:${c.portraitSeed}:${hashSeed(JSON.stringify([appearance, c.appearanceText ?? ''])) % 100000}`,
+    subjectKey: `portrait:${c.id}:${c.portraitSeed}:${hashSeed(JSON.stringify([appearance, c.appearanceText ?? ''])) % 100000}${c.id === 'player' && (c.age !== DEFAULT_PLAYER.age || c.gender !== DEFAULT_PLAYER.gender) ? `:identity:${c.age}:${c.gender}` : ''}:knees-up-v3`,
+    ...(reference ? { reference } : {}),
     meta: { appearance: c.appearance, gender: c.gender },
   };
 }
@@ -53,16 +54,19 @@ export function portraitRequest(c: Pick<Character, 'id' | 'age' | 'gender' | 'ap
  * portrait so defaults, arrivals and custom players share one path. The LoRA's training prompt fixes the layout:
  * rows down/left/right/up, columns 0-2 walk frames, column 3 an unused extra pose. The text pins the outfit.
  */
-export function spriteRequest(c: Parameters<typeof portraitRequest>[0], portrait?: string, outfit = c.appearance.outfit): ImageRequest {
-  const dressed = { ...c, appearance: { ...c.appearance, outfit } };
+export function spriteRequest(c: Parameters<typeof portraitRequest>[0] & Pick<Character, 'spriteSeed' | 'spriteInstructions'>, portrait?: string, outfit = c.appearance.outfit): ImageRequest {
+  const dressed = { ...c, appearance: { ...c.appearance, outfit, accessory: outfit === c.appearance.outfit ? c.appearance.accessory : 'none' } };
   const base = portraitRequest(c);
   const who = [...compileAppearanceTags(dressed), sanitizePromptText(outfit === c.appearance.outfit ? c.appearanceText ?? '' : '')].filter(Boolean).join(', ');
+  const corrections = sanitizePromptText(c.spriteInstructions ?? '');
+  const variation = c.spriteSeed !== undefined || corrections ? `:variation:${c.spriteSeed ?? base.seed}:${hashSeed(corrections) % 100000}` : '';
   return {
-    ...base, kind: 'sprite', width: 512, height: 512,
-    subjectKey: `sprite:klein-4walk-v1:${base.subjectKey}${outfit === c.appearance.outfit ? '' : `:outfit:${hashSeed(outfit) % 100000}`}`,
+    ...base, kind: 'sprite', framing: undefined, width: 512, height: 512,
+    seed: c.spriteSeed ?? base.seed,
+    subjectKey: `sprite:klein-4walk-v1:${base.subjectKey.replace(':knees-up-v3', '')}${outfit === c.appearance.outfit ? '' : `:outfit:v2:${hashSeed(outfit) % 100000}`}${variation}`,
     meta: { ...base.meta, appearance: dressed.appearance },
     ...(portrait ? { reference: portrait } : {}),
-    prompt: `Create a pixel art spritesheet of the character in the image. The spritesheet is a 4 by 4 grid of four rows of frames - first row is 3 walking frames facing down and 1 frame both arms raised, second row is 3 walking frames facing left and 1 frame jumping left, third row is 3 walking frames facing right and 1 frame jumping right, fourth row is 3 walking frames back view facing up and 1 frame lying on floor. The character is ${who}.`,
+    prompt: `Create a pixel art spritesheet of the character in the image. The spritesheet is a 4 by 4 grid of four rows of frames - first row is 3 walking frames facing down and 1 frame both arms raised, second row is 3 walking frames facing left and 1 frame jumping left, third row is 3 walking frames facing right and 1 frame jumping right, fourth row is 3 walking frames back view facing up and 1 frame lying on floor. The character is ${who}.${corrections ? ` Sprite corrections: ${corrections}. Keep the reference character's identity and the four-row walking layout consistent in every frame.` : ''}`,
     negative: '',
   };
 }
@@ -74,19 +78,23 @@ export function spriteRequest(c: Parameters<typeof portraitRequest>[0], portrait
 export function outfitPortraitRequest(c: Parameters<typeof portraitRequest>[0], outfit: string, reference?: string | null): ImageRequest {
   const base = portraitRequest(c);
   if (outfit === c.appearance.outfit) return base;
-  const p = compileAppearancePrompt({ ...c, appearance: { ...c.appearance, outfit } }, 'portrait', { stylePrefix: config.stylePrefix });
+  const appearance = { ...c.appearance, outfit, accessory: 'none' };
+  const p = compileAppearancePrompt({ ...c, appearance, appearanceText: '' }, 'portrait', { stylePrefix: config.stylePrefix });
+  const bareTorso = /shirtless/i.test(outfit) ? ` The adult ${c.gender === 'man' ? 'man' : c.gender === 'woman' ? 'woman' : 'person'} has a completely bare chest, shoulders and abdomen, wearing only swim trunks below the waist. Remove the T-shirt and sleeves completely. No shirt, top, vest, towel or necklace.` : '';
+  const wrapDress = /wrap dress/i.test(outfit) ? ' The dress has an overlapping V neckline, short sleeves, a diagonal wrapped front and a tie at the waist. It is not strapless.' : '';
   return {
     ...base,
-    prompt: `${p.positive}${reference ? `, preserve the reference character identity, face, hair, body, background and framing; change only the clothing to ${sanitizePromptText(outfit)}` : ''}`,
-    subjectKey: `${base.subjectKey}:outfit:${hashSeed(outfit) % 100000}`,
+    framing: reference ? undefined : base.framing,
+    prompt: reference ? `Edit the adult character's clothing in the reference image (adult, age 20+). Replace the entire outfit with ${sanitizePromptText(outfit)}.${bareTorso}${wrapDress} Remove all previous garments and clothing accessories, including towels, aprons, bags and necklaces, unless explicitly requested in the new outfit. Preserve the character identity, face, hair, natural adult body proportions, small proportional head, body pose, pixel art style and background. Keep the knees-up composition: entire head through both knees, crop at the knees, calves and feet outside the image. Keep clean solid pixel colors without extra speckles.` : p.positive,
+    subjectKey: `${base.subjectKey}:outfit:v2:${hashSeed(outfit) % 100000}`,
     ...(reference ? { reference } : {}),
-    meta: { ...base.meta, appearance: { ...c.appearance, outfit } },
+    meta: { ...base.meta, appearance },
   };
 }
 
 /** Visual-novel standing figure: the finished `source` image (`of`) with its background removed. */
 export function cutoutRequest(source: string, of: ImageRequest): ImageRequest {
-  return { kind: 'cutout', prompt: '', negative: '', seed: 0, width: of.width, height: of.height, subjectKey: `cutout:${of.subjectKey}`, reference: source, meta: of.meta };
+  return { kind: 'cutout', prompt: '', negative: '', seed: 0, width: of.width, height: of.height, subjectKey: `cutout:solid-v2:${of.subjectKey}`, reference: source, meta: of.meta };
 }
 
 const expressionTags: Record<Emotion, string> = {
@@ -98,11 +106,17 @@ const expressionTags: Record<Emotion, string> = {
   nervous: 'nervous expression, worried brows, tense small smile',
 };
 
-export function expressionRequest(c: Character, emotion: Emotion, reference?: string | null): ImageRequest {
+export function expressionRequest(c: Character, emotion: Emotion, reference?: string | null, faceGuide?: string | null, customExpression?: string): ImageRequest {
   const base = portraitRequest(c);
-  if (emotion === 'neutral') return base;
-  const p = compileAppearancePrompt(c, 'portrait', { stylePrefix: config.stylePrefix, expression: expressionTags[emotion] });
-  return { ...base, prompt: `${p.positive}${reference ? ', preserve the reference character identity, hair, clothing, background and framing; change only the facial expression' : ''}`, subjectKey: `${base.subjectKey}:expression:${emotion}`, ...(reference ? { reference } : {}) };
+  const description = sanitizePromptText(customExpression?.trim() ?? '');
+  if (emotion === 'neutral' && !description) return base;
+  if (reference) { base.editRegion = 'face'; base.framing = undefined; }
+  if (reference && faceGuide && faceGuide !== reference) base.reference2 = faceGuide;
+  const edit = c.expressionEdits?.[emotion];
+  const corrections = description ? '' : sanitizePromptText(edit?.instructions ?? '');
+  const expression = description || expressionTags[emotion];
+  const p = compileAppearancePrompt(c, 'portrait', { stylePrefix: config.stylePrefix, expression });
+  return { ...base, seed: edit?.seed ?? base.seed, prompt: `${reference ? `Edit only the adult character's face (adult, age 20+) to show this exact expression: ${expression}. Preserve the reference character identity, hair, clothing, body, background and framing. Keep the original pixel art style and clean solid colors. Do not add accessories, colored speckles or change pixels outside the face.` : p.positive}${corrections ? ` Expression corrections: ${corrections}; keep the ${expressionTags[emotion]}.` : ''}`, subjectKey: `${base.subjectKey}:expression:v3:${emotion}${edit ? `:variation:${edit.seed}:${hashSeed(corrections) % 100000}` : ''}${description ? `:custom:${hashSeed(description) % 100000}` : ''}`, ...(reference ? { reference } : {}) };
 }
 
 export const timeOfDay = (slot: Slot): 'morning' | 'day' | 'evening' | 'night' => (slot === 'morning' ? 'morning' : slot === 'slot3' ? 'evening' : slot === 'evening' || slot === 'lateNight' ? 'night' : 'day');
@@ -169,7 +183,7 @@ export function freezeRequest(s: GameState, ev: EventInstance, fileOf: (r: Image
   const people = [...new Set(ev.participants)].map((id) => s.characters[id]).filter(Boolean).slice(0, 6);
   const dressed = people.map((c) => {
     const outfit = outfitFor(c, occasionForCharacter(c, ev), s.world.day);
-    return { original: c, outfit, character: { ...c, appearance: { ...c.appearance, outfit } } };
+    return { original: c, outfit, character: { ...c, appearanceText: outfit === c.appearance.outfit ? c.appearanceText : '', appearance: { ...c.appearance, outfit, accessory: outfit === c.appearance.outfit ? c.appearance.accessory : 'none' } } };
   });
   // each person is staged on their own: where they are (in the water or not) and the body language of their last line
   const anySwimming = people.some((c) => c.swimming);

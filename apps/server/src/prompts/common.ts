@@ -1,6 +1,6 @@
 // Shared prompt pieces + budgeted assembly. Order: rules → persona → relationship → memories → premise → output.
 import {
-  firstName, knownFacts, placeName, pairSummaryText, topMemories, referencesFor, TRAIT_NAMES, moodWord, content, TRIPS, outsiderOf,
+  firstName, knownFacts, placeName, pairSummaryText, topMemories, referencesFor, TRAIT_NAMES, moodWord, content, TRIPS, outsiderOf, clockLabel,
   type Character, type EventInstance, type GameState,
 } from '@shared-roof/shared';
 
@@ -8,10 +8,12 @@ export const approxTokens = (s: string) => Math.ceil(s.length / 4);
 
 export const RULES = [
   'You write dialogue for a calm, slow-paced reality show about six adult housemates (all 20+) sharing a house in Tel Aviv, Israel.',
-  'Stay strictly in persona. No meta commentary, no narration about cameras, scripts, AI or the audience.',
+  'Stay strictly in persona. No AI talk or narrator commentary about cameras, scripts or the audience. Ordinary dialogue about a housemate\'s own filming, vlog or camera is allowed when relevant to what was said.',
   'Content rating PG-13: flirting, dates, confessions, hand-holding, at most a kiss. Nothing explicit.',
   'Respect refusals and personal boundaries. Religious practice, kashrut, Shabbat and dietary choices are never a punchline.',
   'Reality-TV register: short conversational lines, hesitations, understatement, awkward silences. 1–3 short sentences per line.',
+  'Play the people in the room: respond to what was actually said and let ordinary details carry the conversation. Humor, hesitation and slang fit the moment; do not perform a personality trait in every line.',
+  'Use plain spoken dialogue. Avoid bracketed laughter, stage directions, motivational slogans and polished summaries of the other person\'s feelings.',
   'Characters only know what is listed as their knowledge. Never reveal facts a speaker does not know.',
   'Use supplied biography and memories; never invent family history or past events. Speakers know their own persona, not another person\'s private background.',
 ].join('\n');
@@ -23,10 +25,11 @@ export function personaCard(s: GameState, c: Character, opts: { compact?: boolea
   const traits = p.traits.map((t, i) => `${TRAIT_NAMES[i].slice(0, 4)} ${t.toFixed(1)}`).join(', ');
   const lines = [
     `## ${c.name} (id: ${c.id}), ${c.age}, ${c.occupation}`,
-    `Voice: ${c.voiceNotes}`,
+    `Voice tendencies (not a performance to repeat every turn): ${c.voiceNotes}`,
     `Food: ${p.diet}; kashrut ${p.kashrut}. Shabbat observance: ${p.keepsShabbat ? 'yes; no work, cooking, phone or driving Friday evening to Saturday evening' : 'no'}. Respect these choices without mocking.`,
-    `Speech: ~${sp.sentenceLen.mean} words/sentence, formality ${sp.formality.toFixed(1)}, humor ${sp.humor}${sp.fillers.length ? `, fillers: ${sp.fillers.join(' / ')}` : ''}${sp.catchphrase ? `, catchphrase (rare): "${sp.catchphrase.text}"` : ''}.`,
-    `Examples: ${sp.exemplars.map((e) => `"${e}"`).join(' ')}`,
+    `Speech: ${sp.sentenceLen.mean <= 8 ? 'brief' : 'conversational'} sentences; ${sp.formality >= 0.7 ? 'measured and polite' : sp.formality <= 0.2 ? 'casual' : 'easygoing'}; ${sp.humor} humor when it fits.${sp.fillers.length ? ` Occasional vocabulary: ${sp.fillers.join(' / ')}.` : ''}`,
+    `Voice examples (cadence only, not lines to copy): ${sp.exemplars.map((e) => `"${e}"`).join(' ')}`,
+    'Do not repeat a filler, catchphrase or opening from their recent lines. Their voice is also what they notice, want and avoid.',
   ];
   if (sp.doNot.length) lines.push(`Do not: ${sp.doNot.join('; ')}.`);
   if (!opts.compact) {
@@ -36,7 +39,7 @@ export function personaCard(s: GameState, c: Character, opts: { compact?: boolea
       lines.push(`Life outside the house: their ${fam.who}${fam.name.includes(fam.who) ? '' : ` ${fam.name}`} back in ${c.hometown}; best friend ${friend.name}; an ex, ${ex.name}. Mention them only if it fits.`);
     }
     lines.push(`Personality: ${traits}; ${p.attachment} attachment; conflict style ${p.conflictStyle}; values ${p.values.slice(0, 3).join(', ')}.`);
-    lines.push(`Wants: ${p.goals.long.text}. Right now: ${p.goals.short.text}. Tells when hiding something: ${p.tells.join(', ') || 'none'}.`);
+    lines.push(`Wants: ${p.goals.long.text}. Right now: ${p.goals.short.text}.`);
     lines.push(`Mood: ${moodWord(c.mood)}. Most pressing need: ${pressingNeed(c)}.`);
     const diary = s.diaries[c.id]?.at(-1);
     if (diary) lines.push(`Their diary after episode ${diary.episode}: ${diary.text.slice(0, 300)}`);
@@ -121,7 +124,7 @@ export function knowledgeBlock(s: GameState, charId: string, ev: EventInstance):
 export function sceneHeader(s: GameState, ev: EventInstance): string {
   const refs = referencesFor(s, ev.participants).slice(0, 2);
   return [
-    `Scene: "${ev.title}" at the ${placeName(ev.location)}, ${s.world.slot}, ${s.world.weather}, episode ${s.world.episode}.`,
+    `Scene: "${ev.title}" at the ${placeName(ev.location)}, ${clockLabel(s.world.slot, s.world.minutes)}, ${s.world.weather}, episode ${s.world.episode}.`,
     `Premise: ${ev.premise}`,
     `Conversation depth allowed: ${ev.depthCeiling}.`,
     refs.length ? `Shared references they might recall: ${refs.map((r) => r.text).join('; ')}.` : '',
@@ -148,9 +151,17 @@ export function assemble(sections: Section[], maxTokens: number): string {
     live.splice(live.indexOf(drop), 1);
   }
   let out = live.map((x) => x.text).join('\n\n');
-  // hard cap: truncate from the middle of the longest required section
-  if (approxTokens(out) > maxTokens) out = out.slice(0, maxTokens * 4);
+  // Preserve the final output instructions when required context alone exceeds the budget.
+  while (out.length > maxTokens * 4) {
+    const candidates = live.filter(x => x.text.length > 69);
+    if (!candidates.length) { out = out.slice(0, maxTokens * 4); break; }
+    const priority = Math.min(...candidates.map(x => x.priority));
+    const section = candidates.filter(x => x.priority === priority).reduce((a, b) => a.text.length > b.text.length ? a : b);
+    const keep = Math.max(64, section.text.length - (out.length - maxTokens * 4) - 5);
+    section.text = section.text.slice(0, Math.ceil(keep / 2)) + '[...]' + section.text.slice(-Math.floor(keep / 2));
+    out = live.map(x => x.text).join('\n\n');
+  }
   return out;
 }
 
-export const TOKEN_BUDGET = { beats: 1100, lines: 1500, deltas: 1000, commentary: 1000, chat: 500, flavor: 400, summary: 600 } as const;
+export const TOKEN_BUDGET = { beats: 1500, lines: 2000, deltas: 1000, commentary: 1000, chat: 500, flavor: 400, summary: 600 } as const;

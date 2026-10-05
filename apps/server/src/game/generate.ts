@@ -7,7 +7,7 @@ import { config } from '../config';
 import { MockLlm } from '../llm/mock';
 import { structured, logFailure, extractJson, type Budget } from '../llm/structured';
 import { beatSheetPrompt, deltaPrompt, linesPrompt, parseLines } from '../prompts/scene';
-import { chatPrompt, commentaryPrompt, flavorPrompt, intermissionPrompt, shotPrompt } from '../prompts/studio';
+import { chatPrompt, commentaryPrompt, flavorPrompt, intermissionPrompt, shotIds, shotPrompt } from '../prompts/studio';
 import { contentCheck } from './personas';
 import { diaryPrompt } from '../prompts/common';
 
@@ -210,8 +210,7 @@ export class Generator {
   async shot(s: GameState, ev: EventInstance, transcript: Line[]): Promise<Record<string, string>> {
     if (!this.real) return {};
     try {
-      const speaker = transcript.findLast((l) => ev.participants.includes(l.speaker) && s.characters[l.speaker])?.speaker ?? ev.participants[0];
-      const ids = s.characters[speaker] ? [speaker] : [];
+      const ids = shotIds(s, ev, transcript);
       const schema = { type: 'object', properties: Object.fromEntries(ids.map((id) => [id, { type: 'string', maxLength: 100 }])), required: ids, additionalProperties: false };
       const j = extractJson(await this.llm.complete({ kind: 'flavor', prompt: shotPrompt(s, ev, transcript), temperature: 0.5, maxTokens: 120, schema }));
       if (!j || typeof j !== 'object' || Array.isArray(j)) return {};

@@ -1,0 +1,15 @@
+# Local evaluation only. Attribution and upstream terms:
+# https://huggingface.co/TheDrummer/Rocinante-X-12B-v1  (card gives no license; base model is Mistral-Nemo-Instruct-2407)
+# https://huggingface.co/bartowski/TheDrummer_Rocinante-X-12B-v1-GGUF
+# The card asks for Mistral v3 Tekken without [SYSTEM_PROMPT]: the system text goes inside the first [INST].
+FROM hf.co/bartowski/TheDrummer_Rocinante-X-12B-v1-GGUF:Q4_K_M
+TEMPLATE """[INST]{{ if .System }}{{ .System }}
+
+{{ end }}{{ .Prompt }}[/INST]{{ .Response }}</s>"""
+PARAMETER stop "</s>"
+PARAMETER stop "[INST]"
+PARAMETER min_p 0.05
+PARAMETER repeat_penalty 1.05
+LICENSE """TheDrummer/Rocinante-X-12B-v1: license not stated on the model card; resolve before any distribution.
+GGUF quantization by bartowski: https://huggingface.co/bartowski/TheDrummer_Rocinante-X-12B-v1-GGUF
+Local evaluation copy; no permission for commercial hosting is asserted."""

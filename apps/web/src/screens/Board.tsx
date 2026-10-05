@@ -86,7 +86,7 @@ export function Board() {
             </svg>
           ) : (
             <table className="text-sm">
-              <caption className="caption mb-2 text-left text-xs">rows: from · columns: to · {metric}</caption>
+              <caption className="caption mb-2 text-left text-xs">read across: how the row person feels about the column person · {metric}. your row is your own feelings; the other rows are only your estimate of them, so a compliment shows up in their row, under “you”.</caption>
               <thead>
                 <tr>
                   <th />

@@ -27,11 +27,16 @@ for (const kind of ['talk', 'text'] as const) {
     const preview = page.getByRole('dialog', { name: 'generated scene' });
     await expect(preview).toBeVisible();
     await expect(preview.getByRole('img', { name: 'illustration of the current conversation' })).toBeVisible();
+    expect(await preview.getByRole('img', { name: 'illustration of the current conversation' }).evaluate((el) => el.tagName)).toBe('IMG');
     await expect(preview.getByText('Temporary preview: image service unavailable.')).toBeVisible();
     const after = (await (await request.get('/api/game')).json()).view;
     expect([after.clock, after.tick, after.episode]).toEqual([before.clock, before.tick, before.episode]);
     await preview.getByRole('button', { name: 'close', exact: true }).click();
     await expect(preview).not.toBeVisible();
+    await expect(say).toBeVisible();
+    await page.getByRole('button', { name: 'scene gallery', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'scene gallery', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'back', exact: true }).click();
     await expect(say).toBeVisible();
     await say.fill('I will bring the flour.');
     await page.getByRole('button', { name: 'say', exact: true }).click();

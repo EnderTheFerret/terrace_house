@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { INTENTS, type Intent } from '../model';
 import { mulberry32 } from '../rng';
 import { mockReply } from '../gen/mock';
-import { classifyIntent, recordChat, recordPlayerWords, typedResponders } from './talk';
+import { classifyIntent, inviteDecision, recordChat, recordPlayerWords, typedResponders } from './talk';
 import { blockOver, createGame, finishSlot, joinNewPlayer, passTime, planSlot } from './loop';
-import { DEFAULT_PLAYER } from './castgen';
+import { DEFAULT_PLAYER, editPlayer } from './castgen';
 import { depart, markLeaving } from './leave';
 import { housemates, MINUTES_PER_LINE } from './core';
 
@@ -30,7 +30,55 @@ describe('group conversations', () => {
   });
 });
 
+describe('invitations', () => {
+  it('a housemate who likes you, and is free, says yes; one who is busy or cold says no', () => {
+    const s = createGame({ seed: 1 });
+    const id = 'ren';
+    s.characters[id].lastAction = 'wander';
+    s.rel[id][s.playerId].affinity = 60;
+    expect(inviteDecision(s, id, [], { date: false, seed: 'a' }).accept).toBe(true);
+    s.characters[id].lastAction = 'work';
+    expect(inviteDecision(s, id, [], { date: false, seed: 'a' })).toMatchObject({ accept: false });
+    s.characters[id].lastAction = 'wander';
+    s.rel[id][s.playerId].affinity = -80;
+    expect(inviteDecision(s, id, [{ speaker: id, text: 'I hate this, shut up' }], { date: false, seed: 'a' }).accept).toBe(false);
+  });
+  it('a date needs romance and interest in you', () => {
+    const s = createGame({ seed: 1 });
+    const c = s.characters.ren;
+    c.lastAction = 'wander';
+    c.interestedIn = [];
+    expect(inviteDecision(s, 'ren', [], { date: true, seed: 'a' }).accept).toBe(false);
+    c.interestedIn = [s.characters[s.playerId].gender];
+    s.rel.ren[s.playerId].affinity = 50;
+    s.rel.ren[s.playerId].romance = 70;
+    expect(inviteDecision(s, 'ren', [], { date: true, seed: 'a' }).accept).toBe(true);
+  });
+});
+
+describe('editing your character', () => {
+  it('changes job, home town and looks mid-season and drops the sampled palette', () => {
+    const s = createGame({ seed: 1 });
+    s.characters[s.playerId].appearance.palette = { hair: '#111111', skin: '#222222', outfit: '#333333' };
+    const e = editPlayer(s, { occupation: 'fisherman', hometown: 'Jaffa', appearance: { ...s.characters[s.playerId].appearance, hairColor: 'silver' } });
+    const me = e.characters[e.playerId];
+    expect(me).toMatchObject({ occupation: 'fisherman', hometown: 'Jaffa' });
+    expect(me.appearance.hairColor).toBe('silver');
+    expect(me.appearance.palette).toBeUndefined();
+    expect(me.persona.backstory).toContain('fisherman');
+    expect(s.characters[s.playerId].occupation).not.toBe('fisherman'); // the input is untouched
+    expect(() => editPlayer(s, { age: 12 })).toThrow(/20/);
+  });
+});
+
 describe('typed talk', () => {
+  it('never appends an arbitrary echoed word to a fallback reply', () => {
+    const s = createGame({ seed: 1 });
+    for (let seed = 0; seed < 50; seed++) {
+      const reply = mockReply(s, mulberry32(seed), 'kaito', { text: "We're already filmed. Anyone want coffee?", intent: 'joke' });
+      expect(reply).not.toMatch(/About \w+\.\.\. yeah|^Already\?/i);
+    }
+  });
   it('reads an intent from free text, limited to what the scene offers', () => {
     expect(classifyIntent('I really like you. I have for weeks.', all)).toBe('confess');
     expect(classifyIntent("I'm sorry about yesterday, that was my fault", all)).toBe('apologize');
@@ -66,9 +114,23 @@ describe('typed talk', () => {
 });
 
 describe('time in a block', () => {
+  it('keeps conversation participants present when their activity expires', () => {
+    const s = createGame({ seed: 3 });
+    s.characters.mio.location = 'living';
+    s.characters.mio.lastAction = 'hangout';
+    s.characters.mio.activityUntil = 0;
+    const talked = passTime(s, 25, [s.playerId, 'mio']);
+    expect(talked.characters.mio.location).toBe('living');
+    expect(talked.characters.mio.lastAction).toBe('hangout');
+    expect(talked.world.minutes).toBe(150);
+    expect(Object.values(talked.characters).some(c => !c.isPlayer && c.id !== 'mio' && c.activityUntil > 0)).toBe(true);
+  });
+
   it('talk lasts as long as the conversation; short actions do not repeat the block needs decay', () => {
     const s0 = createGame({ seed: 3 });
     s0.world.slot = 'slot1';
+    // Ren has an unfinished activity; other housemates may now independently replan at their deadlines.
+    s0.characters.ren.lastAction = 'hobby'; s0.characters.ren.activityUntil = 180;
     const first = planSlot(s0, { type: 'talk', target: 'mio' }).state;
     expect(blockOver(first)).toBe(false);
     const talked = passTime(first, 8);

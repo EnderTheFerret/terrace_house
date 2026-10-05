@@ -47,7 +47,7 @@ export function ActivityStatus({ spritePending = 0 }: { spritePending?: number }
   if (!text && !image && !preparingSprites) return null;
   const name = image?.characterId && view?.characters.find(c => c.id === image.characterId)?.name;
   return (
-    <aside aria-label="Game activity" className="pointer-events-none fixed right-3 top-16 z-50 max-w-[min(26rem,calc(100vw-1.5rem))] px-panel bg-paper p-3 text-xs shadow-lg">
+    <aside aria-label="Game activity" title="Images load in the background; outfit and expression steps may follow." className="pointer-events-none fixed bottom-2 right-2 z-50 max-w-[min(20rem,calc(100vw-1rem))] px-panel bg-paper/90 px-2 py-1 text-[0.7rem] leading-tight shadow-lg">
       {text && <div>
         <p role="status" aria-live="polite">{offline ? 'Cannot reach server · still waiting' : text.label}…</p>
         <p aria-live="off" className="caption">{eta(text, now)}</p>
@@ -56,7 +56,7 @@ export function ActivityStatus({ spritePending = 0 }: { spritePending?: number }
       {image && <div className={text ? 'mt-2 border-t border-ink pt-2' : ''}>
         <p role="status" aria-live="polite">{image.waiting ? `${image.waiting} · ` : ''}{image.label}{name ? ` · ${name}` : ''}…</p>
         <p aria-live="off" className="caption">{eta(image, now, !!image.waiting)}{typeof image.progress === 'number' && image.progress > 0 ? ` · sampling ${Math.round(image.progress * 100)}%` : ''}{image.queued > (image.waiting ? 1 : 0) ? ` · ${image.queued - (image.waiting ? 1 : 0)} more queued` : ''}</p>
-        <p className="caption mt-1">{screen === 'episode' && spritePending > 0 ? `Episode begins when ${spritePending} remaining housemate sprites are ready.` : 'Images load in the background; outfit and expression steps may follow.'}</p>
+        {screen === 'episode' && spritePending > 0 && <p className="caption mt-1">Episode begins when {spritePending} remaining housemate sprites are ready.</p>}
       </div>}
     </aside>
   );

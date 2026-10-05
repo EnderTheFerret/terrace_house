@@ -98,6 +98,28 @@ describe('prompt builder', () => {
     expect(out).toContain('OUTPUT');
     expect(out).not.toContain('xxxx');
   });
+  it('preserves output instructions when required context exceeds the budget', () => {
+    const output = 'Return exactly one line for each allowed speaker: ren, mio.';
+    const result = assemble([
+      { text: 'RULES', priority: 100, required: true },
+      { text: 'BACKGROUND ' + 'x'.repeat(2000), priority: 90, required: true },
+      { text: output, priority: 100, required: true },
+    ], 100);
+    expect(approxTokens(result)).toBeLessThanOrEqual(100);
+    expect(result).toContain(output);
+  });
+  it('keeps every group responder on the latest typed topic without cutting the output contract', () => {
+    const speakers = Object.keys(s.characters).filter(id => id !== s.playerId);
+    const group = { ...ev, participants: [s.playerId, ...speakers] };
+    const beats = speakers.map(speaker => ({ speaker, intent: 'answer the player', emotion: 'neutral' as const, beatType: 'smalltalk' as const, subtext: '', depth: 'smalltalk' as const, topic: 'unrelated scripted topic' }));
+    const words = 'Anyone want coffee before I sit outside?';
+    const prompt = linesPrompt(s, group, beats, [{ speaker: s.playerId, text: words }], beats.map(() => undefined), words);
+    expect(approxTokens(prompt)).toBeLessThanOrEqual(TOKEN_BUDGET.lines);
+    expect(prompt).not.toContain('unrelated scripted topic');
+    expect(prompt).toContain(`Allowed speaker ids: ${speakers.join(', ')}`);
+    expect(prompt).toContain(`Return all ${speakers.length} required lines`);
+    expect(prompt).toContain('Only an actual refusal needs a boundary acknowledgment');
+  });
   it('never includes facts the speaker does not know', () => {
     const p = beatSheetPrompt(s, ev);
     expect(p).not.toContain(s.characters.kaito.persona.secret!.content);
@@ -194,6 +216,16 @@ describe('ComfyUI workflow patching', () => {
     expect(out[map.width.node].inputs.width).toBe(832);
     expect(wf[map.positive.node].inputs.text).toBe('positive prompt');
   });
+  it('crops standing portraits to knees before outfit edits without stretching or recropping references', () => {
+    const out = patchWorkflow(wf, map, { ...req, framing: 'knees' });
+    expect(out.portraitCrop.inputs).toEqual({ image: wf[map.output.node].inputs.images, crop_region: { x: 0, y: 0, width: 832, height: 973 } });
+    expect(out.portraitScale.inputs).toMatchObject({ image: ['portraitCrop', 0], width: 832, height: 1216, upscale_method: 'nearest-exact', crop: 'center' });
+    expect(out.portraitMatte.inputs).toMatchObject({ destination: ['portraitBackground', 0], source: ['portraitScale', 0], mask: ['portraitMask', 0], resize_source: false });
+    expect(out[map.output.node].inputs.images).toEqual(['portraitMatte', 0]);
+    const outfit = outfitPortraitRequest(createGame({ seed: 1 }).characters.ren, 'navy suit', '/approved.png');
+    expect(patchWorkflow(wf, map, outfit, undefined, 'approved.png').portraitCrop).toBeUndefined();
+    expect(cacheKey('w', req)).not.toBe(cacheKey('w', { ...req, framing: 'knees' }));
+  });
   it('group workflow has no portrait references or placeholder image dependencies', () => {
     const wf = JSON.parse(readFileSync(resolve(ROOT, 'workflows/group_ref.api.json'), 'utf8'));
     const map = JSON.parse(readFileSync(resolve(ROOT, 'workflows/group_ref_mapping.json'), 'utf8'));
@@ -228,6 +260,23 @@ describe('ComfyUI workflow patching', () => {
   });
   it('rejects mappings that point at missing nodes', () => {
     expect(() => patchWorkflow(wf, { positive: { node: '999', input: 'text' } }, req)).toThrow(/missing node/);
+  });
+  it('copies expression edits only inside the detected face and preserves the approved reference body', () => {
+    const workflow = JSON.parse(readFileSync(resolve(ROOT, 'workflows/ref_edit.api.json'), 'utf8'));
+    const mapping = JSON.parse(readFileSync(resolve(ROOT, 'workflows/ref_mapping.json'), 'utf8'));
+    const out = patchWorkflow(workflow, mapping, { ...req, reference: '/approved.png', editRegion: 'face' }, undefined, 'approved.png');
+    expect(out.faceSegments.inputs.image).toEqual([mapping.reference.node, 0]);
+    expect(out.faceForeground.inputs.images).toEqual([mapping.reference.node, 0]);
+    expect(out.faceSolid.inputs).toEqual({ mask: ['faceForeground', 1], value: 0.5 });
+    expect(out.faceEditMask.inputs).toMatchObject({ destination: ['faceMask', 0], source: ['faceSolid', 0], operation: 'multiply' });
+    expect(out.faceComposite.inputs).toMatchObject({ destination: [mapping.reference.node, 0], source: workflow[mapping.output.node].inputs.images, mask: ['faceEditMask', 0] });
+    expect(out[mapping.output.node].inputs.images).toEqual(['faceComposite', 0]);
+    expect(patchWorkflow(workflow, mapping, req, undefined, 'approved.png').faceComposite).toBeUndefined();
+    expect(cacheKey('w', req)).not.toBe(cacheKey('w', { ...req, editRegion: 'face' }));
+    const fallback = patchWorkflow(workflow, mapping, { ...req, editRegion: 'face' }, undefined, 'outfit.png', 'original.png');
+    expect(fallback.faceGuide.inputs.image).toBe('original.png');
+    expect(fallback.faceChoice.inputs).toEqual({ cond: ['faceFound', 0], tt_value: ['faceSegments', 0], ff_value: ['faceGuideSegments', 0] });
+    expect(fallback.faceMask.inputs.segs).toEqual(['faceChoice', 0]);
   });
   it('requests with a reference portrait upload it and run the reference workflow; others use the base one', async () => {
     const dir = tmp();
@@ -473,7 +522,7 @@ async function playEpisode(session: GameSession) {
       for (let i = 0; i < 4 && session.runs.get(sc.id)!.phase !== 'done'; i++) {
         await session.stream(sc.id, (e) => events.push(e));
         const run = session.runs.get(sc.id)!;
-        if (run.phase === 'awaiting-choice') session.choose(sc.id, run.ev.intents[0]);
+        if (run.phase === 'awaiting-choice') session.choose(sc.id, run.said.length ? { done: true } : run.ev.intents[0]);
       }
       expect(session.runs.get(sc.id)!.phase).toBe('done');
     }
@@ -496,9 +545,9 @@ describe('game session (mock + failing adapters)', () => {
     expect(session.state!.world.weekday).toBe(5);
     for (let i = 0; i < 3; i++) { await session.act({ type: 'skip' }); await session.endSlot(); }
     expect(session.state!.world.slot).toBe('slot3');
-    // Clock fixture: advance to 17:50 with the same logged engine operation replay uses.
-    session.state = passTime(session.state!, 110 / 3);
-    session.logSeq = store.appendEvent(session.state.gameId, 'time', { lines: 110 / 3 });
+    // Leave one six-minute reply after the five-minute action; legacy time logs still use three minutes per line.
+    session.state = passTime(session.state!, 105 / 3, [], 3);
+    session.logSeq = store.appendEvent(session.state.gameId, 'time', { lines: 105 / 3 });
     const target = Object.values(session.state.characters).find(c => !c.isPlayer && c.status === 'inHouse' && c.persona.keepsShabbat)!;
     expect(target).toBeDefined();
     generatedKinds.length = 0;
@@ -619,12 +668,33 @@ describe('game session (mock + failing adapters)', () => {
     const events: { e: string; d: any }[] = [];
     while (run.phase !== 'awaiting-choice' && run.phase !== 'done') await session.stream(run.id, (e, d) => events.push({ e, d }));
     expect(events.filter((x) => x.e === 'choice').at(-1)?.d.canListen).toBe(true);
+    session.choose(run.id, run.ev.intents[0]);
+    await session.stream(run.id, (e, d) => events.push({ e, d }));
+    expect(run.phase).toBe('awaiting-choice');
+    expect(events.at(-1)).toMatchObject({ e: 'choice', d: { canType: true, canEnd: true, canListen: true } });
+    session.choose(run.id, { text: 'Everyone, shall we cook together?' });
+    await session.stream(run.id, (e, d) => events.push({ e, d }));
+    expect(run.phase).toBe('awaiting-choice');
+    expect(run.transcript.filter(l => l.source === 'player').at(-1)?.text).toBe('Everyone, shall we cook together?');
     const before = run.transcript.length;
+    const prompts: string[] = [];
+    session.gen.linesLlm = {
+      name: 'test-lines', health: async () => true,
+      complete: async () => '...',
+      async *stream(req) {
+        prompts.push(req.prompt);
+        yield [...req.prompt.matchAll(/^\d+\. ([\w-]+) \(/gm)].map(m => `${m[1]}: Sounds good.`).join('\n');
+      },
+    };
     session.choose(run.id, { listen: true });
     await session.stream(run.id, (e, d) => events.push({ e, d }));
     const said = run.transcript.slice(before);
     expect(said).toHaveLength(2);
     expect(said.every((l) => l.speaker !== session.state!.playerId)).toBe(true);
+    expect(said.every((l) => l.source === 'llm')).toBe(true);
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]).toContain('intent "answer them"');
+    expect(prompts[0]).toContain('reacts to the preceding speaker');
     expect(said[0].speaker).not.toBe(said[1].speaker);
     expect(events.at(-1)).toMatchObject({ e: 'choice', d: { canEnd: true } });
     session.choose(run.id, { done: true });

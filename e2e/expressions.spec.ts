@@ -31,8 +31,7 @@ test('expression icons generate only on click and the bible shows shared history
   await page.getByLabel('say something in your own words').fill('I will bring bread on Sunday.');
   await page.getByRole('button', { name: 'say', exact: true }).click();
   await page.getByRole('button', { name: "that's all", exact: true }).click();
-  await page.getByRole('button', { name: 'to the studio', exact: true }).click();
-  await page.getByRole('button', { name: 'continue', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'hang out', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'bible', exact: true }).click();
   const history = page.getByText('your shared history', { exact: true }).first();
   await history.click();

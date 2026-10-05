@@ -18,7 +18,7 @@ export function sanitizePromptText(text: string): string {
 }
 
 const SHOT_TAGS: Record<ShotType, string> = {
-  portrait: 'character portrait, upper body, fully clothed, facing viewer, plain pastel background, centered',
+  portrait: 'one single adult standing upright with straight legs and arms relaxed at the sides, solo pixel-art visual novel character, full-length standing reference with the entire head and feet visible, balanced adult body proportions, small proportional head with a longer torso and thighs, shoulders wider than the head, facing viewer, centered standing figure fills the image height with a small margin above the hair and below the feet, plain solid pastel background, no other people or duplicate figures',
   bust: 'bust shot, head and shoulders, plain pastel background',
   full: 'full body, standing, plain background',
   scene: 'medium shot, candid documentary framing',
@@ -59,15 +59,16 @@ export function compileAppearancePrompt(
   opts: { stylePrefix?: string; scene?: string; expression?: string } = {},
 ): CompiledPrompt {
   const parts = [
+    shotType === 'portrait' ? SHOT_TAGS.portrait : '',
     sanitizePromptText(opts.stylePrefix ?? DEFAULT_STYLE_PREFIX),
     'adult, age 20+',
     ...compileAppearanceTags(c),
     c.appearanceText ? sanitizePromptText(c.appearanceText) : '',
     opts.expression ? sanitizePromptText(opts.expression) : 'calm natural expression',
-    SHOT_TAGS[shotType],
+    shotType === 'portrait' ? '' : SHOT_TAGS[shotType],
   ];
   if (opts.scene) parts.push(sanitizePromptText(opts.scene));
-  return { positive: parts.filter(Boolean).join(', '), negative: GLOBAL_NEGATIVE };
+  return { positive: parts.filter(Boolean).join(', '), negative: `${GLOBAL_NEGATIVE}${shotType === 'portrait' ? ', chibi, super-deformed, oversized head, giant head, short torso, short legs, kneeling, seated, duplicate figures' : ''}` };
 }
 
 /** Prompt for a location background (no people). */

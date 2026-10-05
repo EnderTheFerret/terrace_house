@@ -14,7 +14,7 @@ export function TopBar() {
   const { view, setScreen, settings, phoneRead } = useGame();
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return;
+      if ((e.target as HTMLElement)?.closest('input,textarea,select,dialog')) return;
       const map: Record<string, Parameters<typeof setScreen>[0]> = { p: 'phone', b: 'board', i: 'bible', f: 'fridge', m: 'map' };
       if (e.key === '`' && settings.author) setScreen('debug');
       const s = map[e.key.toLowerCase()];
@@ -42,9 +42,13 @@ export function TopBar() {
         <HealthBadge />
         <button aria-label="phone" className="px-btn text-xs" onClick={() => setScreen('phone')} title={`phone (p)${notifications ? ` · ${notifications} notifications` : ''}`}>phone{notifications > 0 && <span aria-hidden> ●</span>}</button>
         <button className="px-btn text-xs" onClick={() => setScreen('board')} title="relationships (b)">board</button>
+        <button className="px-btn text-xs" onClick={() => setScreen('chatlog')} title="today's conversations, and let the model re-read them">chat log</button>
         <button className="px-btn text-xs" onClick={() => setScreen('bible')} title="housemates (i)">bible</button>
         <button className="px-btn text-xs" onClick={() => setScreen('fridge')} title="fridge & chores (f)">fridge</button>
+        <button className="px-btn text-xs" onClick={() => setScreen('editme')} title="change your job, background and looks">edit character</button>
         <button className="px-btn text-xs" onClick={() => setScreen('saves')}>save</button>
+        <button className="px-btn text-xs" onClick={() => setScreen('gallery')}>scene gallery</button>
+        <button className="px-btn text-xs" onClick={() => setScreen('sprites')}>sprite library</button>
         <button className="px-btn text-xs" onClick={() => setScreen('settings')}>settings</button>
         {settings.author && <button className="px-btn text-xs" onClick={() => setScreen('debug')}>debug</button>}
       </span>

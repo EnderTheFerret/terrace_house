@@ -23,6 +23,18 @@ it('stages current dialogue by participant ID and ignores invalid or unknown pos
   expect(await new Generator(mock).shot(s, ev, lines)).toEqual({});
 });
 
+it("stages the player's typed action alongside the NPC who answered", async () => {
+  const s = createGame({ seed: 21 });
+  const ev = makeEvent(s, eventTemplate('casual-chat'), { a: s.playerId, b: 'ren' }, 'kitchen');
+  let request: LlmRequest | undefined;
+  const mock = new MockLlm();
+  const gen = new Generator({ name: 'test', health: async () => true, complete: async (r) => { request = r; return JSON.stringify({ ren: 'shrugging', [s.playerId]: 'lighting a cigarette' }); }, stream: (r) => mock.stream(r) });
+  const lines = [{ speaker: s.playerId, text: 'I light up a cigarette. "You smoke?"', source: 'player' as const }, { speaker: 'ren', text: 'No, go ahead.', source: 'llm' as const }];
+  expect(await gen.shot(s, ev, lines)).toEqual({ ren: 'shrugging', [s.playerId]: 'lighting a cigarette' });
+  expect(request?.schema).toMatchObject({ required: ['ren', s.playerId] });
+  expect(request?.prompt).toContain('own typed action');
+});
+
 it('describes six distinct characters exactly once, with actions inline and only the room referenced', () => {
   const s = createGame({ seed: 21 });
   const ev = makeEvent(s, eventTemplate('casual-chat'), { a: s.playerId, b: 'ren' }, 'backyard');

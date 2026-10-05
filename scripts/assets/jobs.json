@@ -1,63 +1,80 @@
 [
  {
-  "out": "apps/web/public/assets/portraits/tel-aviv-ren.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, reality show still, adult, age 20+, 28-year-old adult man, short messy black hair, dark brown eyes, lean build, light tan skin, wearing white cook t-shirt and canvas apron, kitchen towel over shoulder, calm natural expression, character portrait, upper body, fully clothed, facing viewer, plain pastel background, centered",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers",
+  "out": "apps/web/public/assets/portraits/tel-aviv-ren-knees-up-v3.png",
+  "prompt": "one single adult standing upright with straight legs and arms relaxed at the sides, solo pixel-art visual novel character, full-length standing reference with the entire head and feet visible, balanced adult body proportions, small proportional head with a longer torso and thighs, shoulders wider than the head, facing viewer, centered standing figure fills the image height with a small margin above the hair and below the feet, plain solid pastel background, no other people or duplicate figures, pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, reality show still, adult, age 20+, 28-year-old adult man, short messy black hair, dark brown eyes, lean build, light tan skin, wearing white cook t-shirt and canvas apron, kitchen towel over shoulder, calm natural expression",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, chibi, super-deformed, oversized head, giant head, short torso, short legs, kneeling, seated, duplicate figures",
   "seed": 1101,
   "width": 832,
   "height": 1216,
   "pixel": 8,
-  "colors": 32
+  "colors": 32,
+  "framing": "knees"
  },
  {
-  "out": "apps/web/public/assets/portraits/tel-aviv-kaito.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, reality show still, adult, age 20+, 24-year-old adult man, wavy shoulder-length sun-bleached brown hair, brown eyes, athletic build, tan skin, wearing oversized graphic tee and board shorts, shell necklace, calm natural expression, character portrait, upper body, fully clothed, facing viewer, plain pastel background, centered",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers",
+  "out": "apps/web/public/assets/portraits/tel-aviv-kaito-knees-up-v3.png",
+  "prompt": "one single adult standing upright with straight legs and arms relaxed at the sides, solo pixel-art visual novel character, full-length standing reference with the entire head and feet visible, balanced adult body proportions, small proportional head with a longer torso and thighs, shoulders wider than the head, facing viewer, centered standing figure fills the image height with a small margin above the hair and below the feet, plain solid pastel background, no other people or duplicate figures, pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, reality show still, adult, age 20+, 24-year-old adult man, wavy shoulder-length sun-bleached brown hair, brown eyes, athletic build, tan skin, wearing oversized graphic tee and board shorts, shell necklace, calm natural expression",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, chibi, super-deformed, oversized head, giant head, short torso, short legs, kneeling, seated, duplicate figures",
   "seed": 1202,
   "width": 832,
   "height": 1216,
   "pixel": 8,
-  "colors": 32
+  "colors": 32,
+  "framing": "knees"
  },
  {
-  "out": "apps/web/public/assets/portraits/tel-aviv-shun.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, reality show still, adult, age 20+, 31-year-old adult man, neat side part dark brown hair, brown eyes, tall and slim build, fair skin, wearing navy knit sweater over collared shirt, thin round glasses, calm natural expression, character portrait, upper body, fully clothed, facing viewer, plain pastel background, centered",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers",
+  "out": "apps/web/public/assets/portraits/tel-aviv-shun-knees-up-v3.png",
+  "prompt": "one single adult standing upright with straight legs and arms relaxed at the sides, solo pixel-art visual novel character, full-length standing reference with the entire head and feet visible, balanced adult body proportions, small proportional head with a longer torso and thighs, shoulders wider than the head, facing viewer, centered standing figure fills the image height with a small margin above the hair and below the feet, plain solid pastel background, no other people or duplicate figures, pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, reality show still, adult, age 20+, 31-year-old adult man, neat side part dark brown hair, brown eyes, tall and slim build, fair skin, wearing navy knit sweater over collared shirt, thin round glasses, calm natural expression",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, chibi, super-deformed, oversized head, giant head, short torso, short legs, kneeling, seated, duplicate figures",
   "seed": 1303,
   "width": 832,
   "height": 1216,
   "pixel": 8,
-  "colors": 32
+  "colors": 32,
+  "framing": "knees"
  },
  {
-  "out": "apps/web/public/assets/portraits/tel-aviv-mio.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, reality show still, adult, age 20+, 25-year-old adult woman, long with soft bangs chestnut brown hair, hazel eyes, petite build, fair skin, wearing pastel cardigan over a long skirt, small hair clip, calm natural expression, character portrait, upper body, fully clothed, facing viewer, plain pastel background, centered",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers",
+  "out": "apps/web/public/assets/portraits/tel-aviv-mio-knees-up-v3.png",
+  "prompt": "one single adult standing upright with straight legs and arms relaxed at the sides, solo pixel-art visual novel character, full-length standing reference with the entire head and feet visible, balanced adult body proportions, small proportional head with a longer torso and thighs, shoulders wider than the head, facing viewer, centered standing figure fills the image height with a small margin above the hair and below the feet, plain solid pastel background, no other people or duplicate figures, pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, reality show still, adult, age 20+, 25-year-old adult woman, long with soft bangs chestnut brown hair, hazel eyes, petite build, fair skin, wearing pastel cardigan over a long skirt, small hair clip, calm natural expression",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, chibi, super-deformed, oversized head, giant head, short torso, short legs, kneeling, seated, duplicate figures",
   "seed": 1404,
   "width": 832,
   "height": 1216,
   "pixel": 8,
-  "colors": 32
+  "colors": 32,
+  "framing": "knees"
  },
  {
-  "out": "apps/web/public/assets/portraits/tel-aviv-sora.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, reality show still, adult, age 20+, 26-year-old adult woman, asymmetric bob black with teal tips hair, dark brown eyes, slim build, light skin, wearing vintage band tee, denim jacket, cargo pants, silver ear cuffs, calm natural expression, character portrait, upper body, fully clothed, facing viewer, plain pastel background, centered",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers",
+  "out": "apps/web/public/assets/portraits/tel-aviv-sora-knees-up-v3.png",
+  "prompt": "one single adult standing upright with straight legs and arms relaxed at the sides, solo pixel-art visual novel character, full-length standing reference with the entire head and feet visible, balanced adult body proportions, small proportional head with a longer torso and thighs, shoulders wider than the head, facing viewer, centered standing figure fills the image height with a small margin above the hair and below the feet, plain solid pastel background, no other people or duplicate figures, pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, reality show still, adult, age 20+, 26-year-old adult woman, asymmetric bob black with teal tips hair, dark brown eyes, slim build, light skin, wearing vintage band tee, denim jacket, cargo pants, silver ear cuffs, calm natural expression",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, chibi, super-deformed, oversized head, giant head, short torso, short legs, kneeling, seated, duplicate figures",
   "seed": 1505,
   "width": 832,
   "height": 1216,
   "pixel": 8,
-  "colors": 32
+  "colors": 32,
+  "framing": "knees"
  },
  {
-  "out": "apps/web/public/assets/portraits/tel-aviv-player.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, reality show still, adult, age 20+, 24-year-old adult woman, shoulder-length bob dark brown hair, brown eyes, average build, light skin, wearing oversized cardigan and jeans, calm natural expression, character portrait, upper body, fully clothed, facing viewer, plain pastel background, centered",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers",
+  "out": "apps/web/public/assets/portraits/tel-aviv-hana-knees-up-v3.png",
+  "prompt": "one single adult standing upright with straight legs and arms relaxed at the sides, solo pixel-art visual novel character, full-length standing reference with the entire head and feet visible, balanced adult body proportions, small proportional head with a longer torso and thighs, shoulders wider than the head, facing viewer, centered standing figure fills the image height with a small margin above the hair and below the feet, plain solid pastel background, no other people or duplicate figures, pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, reality show still, adult, age 20+, 23-year-old adult woman, long wavy, half up honey blonde hair, green eyes, athletic build, tan skin, wearing oversized linen shirt, bike shorts, sandals, stack of beaded bracelets, calm natural expression",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, chibi, super-deformed, oversized head, giant head, short torso, short legs, kneeling, seated, duplicate figures",
+  "seed": 1606,
+  "width": 832,
+  "height": 1216,
+  "pixel": 8,
+  "colors": 32,
+  "framing": "knees"
+ },
+ {
+  "out": "apps/web/public/assets/portraits/tel-aviv-player-knees-up-v3.png",
+  "prompt": "one single adult standing upright with straight legs and arms relaxed at the sides, solo pixel-art visual novel character, full-length standing reference with the entire head and feet visible, balanced adult body proportions, small proportional head with a longer torso and thighs, shoulders wider than the head, facing viewer, centered standing figure fills the image height with a small margin above the hair and below the feet, plain solid pastel background, no other people or duplicate figures, pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, reality show still, adult, age 20+, 24-year-old adult woman, shoulder-length bob dark brown hair, brown eyes, average build, light skin, wearing oversized cardigan and jeans, calm natural expression",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, chibi, super-deformed, oversized head, giant head, short torso, short legs, kneeling, seated, duplicate figures",
   "seed": 85508,
   "width": 832,
   "height": 1216,
   "pixel": 8,
-  "colors": 32
+  "colors": 32,
+  "framing": "knees"
  },
  {
   "out": "apps/web/public/assets/panel/nagumo.png",
@@ -580,180 +597,30 @@
   "colors": 40
  },
  {
-  "out": "apps/web/public/assets/locations/tel-aviv-bedroomW-morning.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a bright upstairs shared bedroom in a sleek Tokyo-style share house, three single beds with rumpled white linen and blush throws, large floor cushions, a clothing rail with dresses, plants, pale oak floor, soft daylight, a glass door to a private balcony, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "out": "apps/web/public/assets/locations/tel-aviv-backyard-morning.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, indoor pool deck of a sleek modern share house, a rectangular swimming pool with turquoise water, pale stone pavers, white sun loungers with striped towels, tall plants, black metal lanterns, a floor-to-ceiling glass wall separating it from the living room, high white walls, open sky above, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
   "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 76841,
+  "seed": 12059,
   "width": 832,
   "height": 576,
   "pixel": 4,
   "colors": 40
  },
  {
-  "out": "apps/web/public/assets/locations/tel-aviv-bedroomW-day.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a bright upstairs shared bedroom in a sleek Tokyo-style share house, three single beds with rumpled white linen and blush throws, large floor cushions, a clothing rail with dresses, plants, pale oak floor, soft daylight, a glass door to a private balcony, day lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "out": "apps/web/public/assets/locations/tel-aviv-backyard-day.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, indoor pool deck of a sleek modern share house, a rectangular swimming pool with turquoise water, pale stone pavers, white sun loungers with striped towels, tall plants, black metal lanterns, a floor-to-ceiling glass wall separating it from the living room, high white walls, open sky above, day lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
   "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 90907,
+  "seed": 7841,
   "width": 832,
   "height": 576,
   "pixel": 4,
   "colors": 40
  },
  {
-  "out": "apps/web/public/assets/locations/tel-aviv-bedroomW-night.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a bright upstairs shared bedroom in a sleek Tokyo-style share house, three single beds with rumpled white linen and blush throws, large floor cushions, a clothing rail with dresses, plants, pale oak floor, soft daylight, a glass door to a private balcony, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "out": "apps/web/public/assets/locations/tel-aviv-backyard-night.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, indoor pool deck of a sleek modern share house, a rectangular swimming pool with turquoise water, pale stone pavers, white sun loungers with striped towels, tall plants, black metal lanterns, a floor-to-ceiling glass wall separating it from the living room, high white walls, open sky above, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
   "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 61903,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-bathroom-morning.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of the upstairs shared bathroom, blue ceramic wall tiles, shower enclosure, bathtub, two washbasins, towels and toiletries, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 60442,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-bathroom-day.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of the upstairs shared bathroom, blue ceramic wall tiles, shower enclosure, bathtub, two washbasins, towels and toiletries, day lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 62328,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-bathroom-night.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of the upstairs shared bathroom, blue ceramic wall tiles, shower enclosure, bathtub, two washbasins, towels and toiletries, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 37668,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-bedroomM-morning.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a cabin-like upstairs shared bedroom, dark wood panelled walls, three single beds with plaid blankets, a guitar, a clothing rail, dumbbells and a rolled yoga mat on the floor, warm lamplight, a glass door to a private balcony, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 32179,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-bedroomM-day.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a cabin-like upstairs shared bedroom, dark wood panelled walls, three single beds with plaid blankets, a guitar, a clothing rail, dumbbells and a rolled yoga mat on the floor, warm lamplight, a glass door to a private balcony, day lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 16921,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-bedroomM-night.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a cabin-like upstairs shared bedroom, dark wood panelled walls, three single beds with plaid blankets, a guitar, a clothing rail, dumbbells and a rolled yoga mat on the floor, warm lamplight, a glass door to a private balcony, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 47221,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-balconyM-morning.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, view from inside a small private second-floor bedroom balcony, two chairs and small table, potted herbs, simple railing overlooking a Tel Aviv street, bedroom door behind, no roof deck, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 58211,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-balconyM-day.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, view from inside a small private second-floor bedroom balcony, two chairs and small table, potted herbs, simple railing overlooking a Tel Aviv street, bedroom door behind, no roof deck, day lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 87913,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-balconyM-night.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, view from inside a small private second-floor bedroom balcony, two chairs and small table, potted herbs, simple railing overlooking a Tel Aviv street, bedroom door behind, no roof deck, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 23525,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-entrance-morning.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior entry hallway of a modern share house viewed from inside, front door, a genkan step with sneakers kicked off, an oak shoe rack crowded with shoes, a coat stand with jackets, a tall plant, pale stone floor, passage to the living room, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 19978,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-entrance-day.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior entry hallway of a modern share house viewed from inside, front door, a genkan step with sneakers kicked off, an oak shoe rack crowded with shoes, a coat stand with jackets, a tall plant, pale stone floor, passage to the living room, day lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 52072,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-entrance-night.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior entry hallway of a modern share house viewed from inside, front door, a genkan step with sneakers kicked off, an oak shoe rack crowded with shoes, a coat stand with jackets, a tall plant, pale stone floor, passage to the living room, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 59668,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-living-morning.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a sleek Terrace House style living room, long light grey fabric sofa with mustard cushions and a knitted throw, shaggy cream sheepskin rug, low oak coffee table with magazines and an air plant, mid-century furniture, fiddle leaf fig, brass arc floor lamp, floor-to-ceiling glass wall looking onto an indoor pool, natural oak floor, lived-in details, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 34465,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-living-day.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a sleek Terrace House style living room, long light grey fabric sofa with mustard cushions and a knitted throw, shaggy cream sheepskin rug, low oak coffee table with magazines and an air plant, mid-century furniture, fiddle leaf fig, brass arc floor lamp, floor-to-ceiling glass wall looking onto an indoor pool, natural oak floor, lived-in details, day lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 11891,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-living-night.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a sleek Terrace House style living room, long light grey fabric sofa with mustard cushions and a knitted throw, shaggy cream sheepskin rug, low oak coffee table with magazines and an air plant, mid-century furniture, fiddle leaf fig, brass arc floor lamp, floor-to-ceiling glass wall looking onto an indoor pool, natural oak floor, lived-in details, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 29095,
+  "seed": 13821,
   "width": 832,
   "height": 576,
   "pixel": 4,
@@ -790,6 +657,66 @@
   "colors": 40
  },
  {
+  "out": "apps/web/public/assets/locations/tel-aviv-living-morning.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a sleek Terrace House style living room, long light grey fabric sofa with mustard cushions and a knitted throw, shaggy cream sheepskin rug, low oak coffee table with magazines and an air plant, mid-century furniture, fiddle leaf fig, brass arc floor lamp, floor-to-ceiling glass wall looking onto an indoor pool, natural oak floor, lived-in details, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 34465,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-living-day.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a sleek Terrace House style living room, long light grey fabric sofa with mustard cushions and a knitted throw, shaggy cream sheepskin rug, low oak coffee table with magazines and an air plant, mid-century furniture, fiddle leaf fig, brass arc floor lamp, floor-to-ceiling glass wall looking onto an indoor pool, natural oak floor, lived-in details, day lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 11891,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-living-night.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a sleek Terrace House style living room, long light grey fabric sofa with mustard cushions and a knitted throw, shaggy cream sheepskin rug, low oak coffee table with magazines and an air plant, mid-century furniture, fiddle leaf fig, brass arc floor lamp, floor-to-ceiling glass wall looking onto an indoor pool, natural oak floor, lived-in details, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 29095,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-entrance-morning.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior entry hallway of a modern share house viewed from inside, front door, a genkan step with sneakers kicked off, an oak shoe rack crowded with shoes, a coat stand with jackets, a tall plant, pale stone floor, passage to the living room, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 19978,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-entrance-day.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior entry hallway of a modern share house viewed from inside, front door, a genkan step with sneakers kicked off, an oak shoe rack crowded with shoes, a coat stand with jackets, a tall plant, pale stone floor, passage to the living room, day lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 52072,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-entrance-night.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior entry hallway of a modern share house viewed from inside, front door, a genkan step with sneakers kicked off, an oak shoe rack crowded with shoes, a coat stand with jackets, a tall plant, pale stone floor, passage to the living room, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 59668,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
   "out": "apps/web/public/assets/locations/tel-aviv-smallBathroom-morning.png",
   "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a compact downstairs bathroom, pale ceramic tiles, toilet, small washbasin, mirror, hand towel, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
   "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
@@ -814,96 +741,6 @@
   "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a compact downstairs bathroom, pale ceramic tiles, toilet, small washbasin, mirror, hand towel, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
   "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
   "seed": 45145,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-backyard-morning.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, indoor pool deck of a sleek modern share house, a rectangular swimming pool with turquoise water, pale stone pavers, white sun loungers with striped towels, tall plants, black metal lanterns, a floor-to-ceiling glass wall separating it from the living room, high white walls, open sky above, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 12059,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-backyard-day.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, indoor pool deck of a sleek modern share house, a rectangular swimming pool with turquoise water, pale stone pavers, white sun loungers with striped towels, tall plants, black metal lanterns, a floor-to-ceiling glass wall separating it from the living room, high white walls, open sky above, day lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 7841,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-backyard-night.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, indoor pool deck of a sleek modern share house, a rectangular swimming pool with turquoise water, pale stone pavers, white sun loungers with striped towels, tall plants, black metal lanterns, a floor-to-ceiling glass wall separating it from the living room, high white walls, open sky above, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 13821,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-balconyW-morning.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, view from inside a small private second-floor bedroom balcony, two chairs and small table, bougainvillea in pots, simple railing overlooking a Tel Aviv street, bedroom door behind, no roof deck, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 26233,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-balconyW-day.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, view from inside a small private second-floor bedroom balcony, two chairs and small table, bougainvillea in pots, simple railing overlooking a Tel Aviv street, bedroom door behind, no roof deck, day lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 66027,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-balconyW-night.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, view from inside a small private second-floor bedroom balcony, two chairs and small table, bougainvillea in pots, simple railing overlooking a Tel Aviv street, bedroom door behind, no roof deck, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 48191,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-hallW-morning.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, background scene, no people, empty, share house upstairs hall, interior of a Tel Aviv share house upstairs hall, morning lighting, clear weather",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 50894,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-hallW-day.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, background scene, no people, empty, share house upstairs hall, interior of a Tel Aviv share house upstairs hall, day lighting, clear weather",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 41436,
-  "width": 832,
-  "height": 576,
-  "pixel": 4,
-  "colors": 40
- },
- {
-  "out": "apps/web/public/assets/locations/tel-aviv-hallW-night.png",
-  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, background scene, no people, empty, share house upstairs hall, interior of a Tel Aviv share house upstairs hall, night lighting, clear weather",
-  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
-  "seed": 21080,
   "width": 832,
   "height": 576,
   "pixel": 4,
@@ -940,6 +777,126 @@
   "colors": 40
  },
  {
+  "out": "apps/web/public/assets/locations/tel-aviv-bedroomW-morning.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a bright upstairs shared bedroom in a sleek Tokyo-style share house, three single beds with rumpled white linen and blush throws, large floor cushions, a clothing rail with dresses, plants, pale oak floor, soft daylight, a glass door to a private balcony, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 76841,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-bedroomW-day.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a bright upstairs shared bedroom in a sleek Tokyo-style share house, three single beds with rumpled white linen and blush throws, large floor cushions, a clothing rail with dresses, plants, pale oak floor, soft daylight, a glass door to a private balcony, day lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 90907,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-bedroomW-night.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a bright upstairs shared bedroom in a sleek Tokyo-style share house, three single beds with rumpled white linen and blush throws, large floor cushions, a clothing rail with dresses, plants, pale oak floor, soft daylight, a glass door to a private balcony, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 61903,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-bedroomM-morning.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a cabin-like upstairs shared bedroom, dark wood panelled walls, three single beds with plaid blankets, a guitar, a clothing rail, dumbbells and a rolled yoga mat on the floor, warm lamplight, a glass door to a private balcony, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 32179,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-bedroomM-day.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a cabin-like upstairs shared bedroom, dark wood panelled walls, three single beds with plaid blankets, a guitar, a clothing rail, dumbbells and a rolled yoga mat on the floor, warm lamplight, a glass door to a private balcony, day lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 16921,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-bedroomM-night.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of a cabin-like upstairs shared bedroom, dark wood panelled walls, three single beds with plaid blankets, a guitar, a clothing rail, dumbbells and a rolled yoga mat on the floor, warm lamplight, a glass door to a private balcony, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 47221,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-bathroom-morning.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of the upstairs shared bathroom, blue ceramic wall tiles, shower enclosure, bathtub, two washbasins, towels and toiletries, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 60442,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-bathroom-day.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of the upstairs shared bathroom, blue ceramic wall tiles, shower enclosure, bathtub, two washbasins, towels and toiletries, day lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 62328,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-bathroom-night.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, interior of the upstairs shared bathroom, blue ceramic wall tiles, shower enclosure, bathtub, two washbasins, towels and toiletries, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 37668,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-hallW-morning.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, background scene, no people, empty, share house upstairs hall, interior of a Tel Aviv share house upstairs hall, morning lighting, clear weather",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 50894,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-hallW-day.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, background scene, no people, empty, share house upstairs hall, interior of a Tel Aviv share house upstairs hall, day lighting, clear weather",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 41436,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-hallW-night.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, background scene, no people, empty, share house upstairs hall, interior of a Tel Aviv share house upstairs hall, night lighting, clear weather",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 21080,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
   "out": "apps/web/public/assets/locations/tel-aviv-stairsUp-morning.png",
   "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, second-floor landing of a sleek modern share house, pale oak floor, a glass balustrade around a large opening looking down into the double-height living room below, a reading corner with a grey sofa and sheepskin rug, bookshelf with records, bedroom doors, warm light, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
   "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
@@ -964,6 +921,66 @@
   "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, second-floor landing of a sleek modern share house, pale oak floor, a glass balustrade around a large opening looking down into the double-height living room below, a reading corner with a grey sofa and sheepskin rug, bookshelf with records, bedroom doors, warm light, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
   "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
   "seed": 77961,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-balconyW-morning.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, view from inside a small private second-floor bedroom balcony, two chairs and small table, bougainvillea in pots, simple railing overlooking a Tel Aviv street, bedroom door behind, no roof deck, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 26233,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-balconyW-day.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, view from inside a small private second-floor bedroom balcony, two chairs and small table, bougainvillea in pots, simple railing overlooking a Tel Aviv street, bedroom door behind, no roof deck, day lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 66027,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-balconyW-night.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, view from inside a small private second-floor bedroom balcony, two chairs and small table, bougainvillea in pots, simple railing overlooking a Tel Aviv street, bedroom door behind, no roof deck, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 48191,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-balconyM-morning.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, view from inside a small private second-floor bedroom balcony, two chairs and small table, potted herbs, simple railing overlooking a Tel Aviv street, bedroom door behind, no roof deck, morning lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 58211,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-balconyM-day.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, view from inside a small private second-floor bedroom balcony, two chairs and small table, potted herbs, simple railing overlooking a Tel Aviv street, bedroom door behind, no roof deck, day lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 87913,
+  "width": 832,
+  "height": 576,
+  "pixel": 4,
+  "colors": 40
+ },
+ {
+  "out": "apps/web/public/assets/locations/tel-aviv-balconyM-night.png",
+  "prompt": "pixel art, 16-bit retro game art, clean pixel clusters, limited pastel palette, soft lighting, wide game background, view from inside a small private second-floor bedroom balcony, two chairs and small table, potted herbs, simple railing overlooking a Tel Aviv street, bedroom door behind, no roof deck, night lighting, unoccupied space, all walls and surfaces unlettered, no captions, no typography, no people",
+  "negative": "child, kid, teen, teenager, minor, loli, shota, childlike, school uniform, nsfw, nude, explicit, cleavage, shirtless, bare midriff, revealing clothes, underwear, gore, blood, blurry, photo, photorealistic, 3d render, text, watermark, signature, logo, deformed hands, extra fingers, people, person, crowd",
+  "seed": 23525,
   "width": 832,
   "height": 576,
   "pixel": 4,

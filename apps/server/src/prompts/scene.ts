@@ -53,6 +53,7 @@ export function beatSheetPrompt(s: GameState, ev: EventInstance): string {
           `Suggested shape: ${t.beats.filter((b) => b !== 'choice').join(' → ')}.`,
           `speaker must be one of: ${ids.join(', ')}. beatType one of: open, smalltalk, probe, reveal, deflect, tease, flirt, conflict, comfort, silence, interrupt, confess, accept, reject, apologize, joke, close.`,
           'Each beat: speaker, intent (what they try to do), emotion, beatType, subtext (what they mean vs say), depth (smalltalk|personal|vulnerable, never deeper than allowed), topic.',
+          'In group scenes, give multiple housemates turns addressing and reacting to each other. Do not make every turn a question to the player.',
           'Output JSON only: {"beats":[...]}',
         ].join('\n'),
         priority: 100,
@@ -79,17 +80,17 @@ export function linesPrompt(
   const beatLines = beats.map((b, i) => {
     const who = s.characters[b.speaker] ? firstName(s, b.speaker) : b.speaker;
     const intent = intents[i] ? ` PLAYER INTENT "${intents[i]}": ${INTENT_GUIDE[intents[i]!]} Say it in ${who}'s own voice, reacting to the previous line.` : '';
-    if (replyTo && i === 0) return `1. ${b.speaker} (${who}) — answer the player's exact words: ${JSON.stringify(replyTo)}. This response overrides the scripted topic and beat. Acknowledge refusals without bargaining, proposing the refused activity again, or speaking for the player.`;
-    return `${i + 1}. ${b.speaker} (${who}) — ${b.beatType}, ${b.emotion}, topic "${b.topic}", depth ${b.depth}${b.subtext ? `, subtext: ${b.subtext}` : ''}.${intent}`;
+    if (replyTo) return `${i + 1}. ${b.speaker} (${who}) — ${b.intent}; ${i === 0 ? `answer the player's exact words: ${JSON.stringify(replyTo)}` : 'react to the player and the preceding housemate, adding your own response'}. This response overrides the scripted topic and beat. Acknowledge refusals without bargaining, proposing the refused activity again, or speaking for the player.`;
+    return `${i + 1}. ${b.speaker} (${who}) — ${b.beatType}, ${b.emotion}, intent "${b.intent}", topic "${b.topic}", depth ${b.depth}${b.subtext ? `, subtext: ${b.subtext}` : ''}.${intent}`;
   });
   const sofar = transcript.slice(-6).map((l) => `${l.speaker}: ${l.text}`).join('\n');
   return assemble(
     [
       ...contextSections(s, ev, last, beats.map(b => b.speaker), [ev.premise, ...transcript.slice(-4).map(l => l.text), replyTo ?? ''].join(' '), recalled),
-      { text: sofar ? `Conversation so far:\n${sofar}` : '', priority: replyTo ? 99 : 60, required: !!replyTo },
+      { text: sofar ? `Conversation so far (continue this exchange; the premise describes how it began):\n${sofar}` : '', priority: 99, required: !!sofar },
       {
         text: replyTo
-          ? `${firstName(s, s.playerId)} just said, in their own words: "${replyTo.replace(/"/g, "'")}". Line 1 answers exactly that, the way this person really would given how they feel about ${firstName(s, s.playerId)}: they may agree, push back, dodge, tease or open up. Never ignore it, never repeat it back verbatim, never speak for ${firstName(s, s.playerId)}.`
+          ? `Continue the latest turn from ${firstName(s, s.playerId)}. Housemates may agree, push back, dodge, tease or open up as fits their relationship. Never ignore it, repeat it back verbatim, or speak for the player.`
           : '',
         priority: 100,
         required: !!replyTo,
@@ -97,12 +98,16 @@ export function linesPrompt(
       {
         text: [
           'Write exactly one line per beat, in order, each on its own line formatted as `speaker_id: text`.',
-          `Allowed speaker ids: ${[...new Set(beats.map(b => b.speaker))].join(', ')}. Use these exact ids, never display names. No extra turns or narration.`,
+          `Allowed speaker ids: ${[...new Set(beats.map(b => b.speaker))].join(', ')}. Use these exact ids, never display names. Each line is only the words the person says aloud: no asterisks, no stage directions, no narration, no quotation marks, no backticks, no blank lines between lines. No extra turns.`,
           beats.some(b => b.speaker === s.playerId) ? '' : `Never write ${s.playerId}'s speech, actions, thoughts or agreement. The player speaks for themselves.`,
-          'Each line 1–3 short sentences in that speaker\'s voice. Silence beats can be "..." or a tiny action in parentheses.',
+          replyTo
+            ? 'Each line 2–4 short sentences in that speaker\'s voice. Give something real: a concrete detail from their own life or work, an honest opinion, a feeling, or a pointed question back that moves the talk on. Do not just agree or echo. If the player\'s words include an action (lighting a cigarette, waving, pouring coffee), the housemate notices and reacts to it in character.'
+            : 'Each line 1–3 short sentences in that speaker\'s voice. Silence beats can be "..." or a tiny action in parentheses.',
+          'Housemates can address each other. Each later beat reacts to the preceding speaker rather than restarting the topic or always addressing the player.',
+          'Answer practical offers with a concrete preference or choice. Prefer specific reactions to stock praise like "a total vibe", "that is a move" or "that was actually funny". Slang and jokes are optional, even for an outgoing speaker.',
           'Beats:',
           ...beatLines,
-          replyTo ? `Return all ${beats.length} required lines. In the first line, explicitly acknowledge the player's request or boundary: ${JSON.stringify(replyTo)}. Then write the remaining listed beats.` : '',
+          replyTo ? `Return all ${beats.length} required lines. Answer a practical question, react to a joke, or give your own opinion as appropriate. Only an actual refusal needs a boundary acknowledgment. Each housemate adds something rather than repeating the same acknowledgment.` : '',
         ].join('\n'),
         priority: 100,
         required: true,
@@ -125,6 +130,7 @@ export function deltaPrompt(s: GameState, ev: EventInstance, transcript: { speak
         text: [
           'Propose how this scene changed feelings. Use only these ids: ' + ids + '.',
           'Directed deltas from→to, small integers between -15 and 15 (most |delta| ≤ 6). moodDeltas between -0.3 and 0.3.',
+          'Read the transcript: a sincere compliment, kindness or shared laugh raises the listener\'s affinity toward the speaker (about +2 to +4); rudeness or dismissal lowers it. Do not return empty arrays for a real exchange.',
           'newMemories: one short memory per participant who would remember this, salience 0..1.',
           'Output JSON only: {"affinityDeltas":[],"romanceDeltas":[],"tensionDeltas":[],"trustDeltas":[],"newMemories":[],"moodDeltas":[]}',
         ].join('\n'),
@@ -136,19 +142,33 @@ export function deltaPrompt(s: GameState, ev: EventInstance, transcript: { speak
   );
 }
 
-/** Parse `speaker_id: text` lines; returns texts aligned to beats (missing → null). */
+/** Spoken words only: roleplay models wrap lines in quotes/backticks and add *stage directions*. Longer than four sentences is cut. */
+const spoken = (t: string) => {
+  const plain = t.replace(/\*[^*\n]*\*/g, ' ').replace(/[*`"“”]/g, '').replace(/\s+/g, ' ').trim();
+  return (plain.match(/[^.!?]+(?:[.!?]+|$)/g) ?? [plain]).slice(0, 4).join('').trim();
+};
+
+/**
+ * Parse `speaker_id: text` lines; returns texts aligned to beats (missing → null). Tolerates bold/backticked or capitalised
+ * ids, `*actions*`, quote wrapping, narration paragraphs, and a speaker's quoted words continuing on the next paragraph.
+ */
 export function parseLines(raw: string, beats: Beat[]): (string | null)[] {
   const rows = raw.split('\n').map((l) => l.trim()).filter(Boolean);
   const out: (string | null)[] = beats.map(() => null);
   let bi = 0;
+  let open = -1; // the beat whose words a quoted, unlabeled paragraph would continue
   for (const row of rows) {
-    if (bi >= beats.length) break;
-    const m = row.match(/^\**\s*(?:\d+[.)]\s*)?([\w-]+)\**\s*(?:\([^)]*\))?\s*[:：]\s*(.+)$/);
-    if (!m) continue;
-    const text = m[2].replace(/^["“]|["”]$/g, '').trim();
-    if (!text) continue;
-    if (m[1] !== beats[bi].speaker) continue;
-    out[bi++] = text;
+    const m = row.match(/^[`*\s]*(?:\d+[.)]\s*)?([\w-]+)[`*]*\s*(?:\([^)]*\))?\s*[:：]\s*(.+)$/);
+    if (m && bi < beats.length) {
+      const text = spoken(m[2]);
+      if (!text) continue;
+      if (m[1].toLowerCase() !== beats[bi].speaker.toLowerCase()) { open = -1; continue; }
+      out[bi] = text;
+      open = bi++;
+    } else if (!m && open >= 0 && /^[`]?["“]/.test(row)) {
+      const more = spoken(row);
+      if (more) out[open] = spoken(`${out[open]} ${more}`);
+    }
   }
   return out;
 }

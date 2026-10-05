@@ -76,7 +76,7 @@ Choices made where the spec was silent or where the user overrode it. Newest at 
 ## Free-text talk and the player's next character
 - Typed words become an intent through keyword cues (`classifyIntent`), restricted to the intents the scene offers, so
   the engine and replay stay deterministic; the LLM still reads the exact words when writing the reply. Each typed
-  exchange gets its own LLM call on top of the slot budget (it is the player's explicit action). Max 4 exchanges.
+  exchange gets its own LLM call on top of the slot budget (it is the player's explicit action). Max 30 exchanges.
 - What the player typed is stored as a memory for every listener and logged as a `words` event; phone transcripts are
   logged as `chat` events. Replay applies both, so `npm run replay` still reproduces saves exactly.
 - Graduating no longer ends the season: the player's character departs like any housemate (their partner too, whose

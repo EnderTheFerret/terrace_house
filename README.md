@@ -14,6 +14,10 @@ confession that went wrong. A studio panel of five commentators watches everythi
 
 See [the feature list and latest additions](features.md), [the implementation audit](IMPLEMENTATION.md) and [dialogue model research](docs/ROLEPLAY.md).
 
+Open **sprite library** from the main menu or game toolbar to browse each character's walking sheet and conversation expressions by outfit and day. Select artwork, describe a correction and use **apply edit**, or choose **new variation**. Edits are saved with the season and used by walking animations and dialogue; expression edits keep their named emotion and apply across outfits. Finish active conversations before saving edits. Browsing uses cached art; generation needs the image service. During dialogue, the latest revealed line selects the speaker's expression, with neutral shown while that face is being prepared.
+
+During a visual novel scene, use **character artwork** to select a participant and generate an expression or outfit. Choose **formal / suit** for suits, tuxedos and evening wear, or enter a **custom outfit** description. Group conversations let you choose the character. Write the exact clothing and facial expression in the custom description fields, then choose **generate expression**, **generate clothing**, or **generate both**. A custom expression overrides the preset; expression-only uses the character's currently displayed clothing, and clothing-only uses the neutral face without generating an expression. The finished expression previews until the next dialogue line, then follows dialogue again; outfit choices stay for the current scene. The sprite library supports the same formal and custom outfit filters. Conversation figures keep the original pixel-art faces, palette and outlines, with balanced adult proportions and knees-up framing; date dress presets use tailored midi silhouettes and formal dresses use evening gowns. Portrait backgrounds are cleaned before outfit edits. Updated portrait/outfit/expression cache keys regenerate older artwork with oversized heads, incorrect framing or unwanted clothes and accessories.
+
 ## Quick start (mock mode, no services)
 
 Requires Node.js 20+ (tested on 24).
@@ -82,7 +86,9 @@ leaving ComfyUI idle makes dialogue near-instant.
 ## How to play
 
 - **House** — walk with arrow keys / WASD, press **E** at people or hotspots. Take the stairs to the bedrooms and private balconies; the backyard is shared. Buttons cover the same actions.
-- **Time** — morning → three daytime blocks → evening → late night. Short actions and conversations use minutes; NPC activities change during a block. Skip a block or sleep until morning when ready.
+- **Time** — morning → three daytime blocks → evening → late night. Conversations advance six game minutes per spoken line. Watching the house or city advances five game minutes every 20 seconds; dialogs, active scenes and hidden tabs pause this clock. Skip a block or sleep until morning when ready.
+- **Housemates** — when an activity finishes, the local language model chooses their next activity from their personality, needs, memories and messages they have read. They can visit common rooms or explore the city, alone or with a mutually agreed companion. Conversations face the listener; outings use walking paths through the house. Mock mode or an unavailable model uses the existing rules as a fallback.
+- **Move-in day** — you and one housemate start at 07:00. The remaining four arrive at 07:30, 10:30, 14:00 and 20:00, in a seeded random order. Introductions happen one at a time, including during conversations. Everyone is home by the evening introduction.
 - **Plans** — use the phone to make/accept invitations, share photos/stories, or read messages. Learn routines, buy gifts, make coffee, keep promises and pursue career goals. Friendship and staying single are valid outcomes.
 - **Season** — open-ended by default. After episode 3, wrap the season to announce the next full episode as the finale, or choose a fixed length in the creator.
 - **City** — go out for dates, wandering, gifts, part-time shifts and karaoke. Round-trip travel must fit the minutes left, and weekday openings matter. Far spots need the shared car.

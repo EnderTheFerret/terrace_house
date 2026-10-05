@@ -1,5 +1,5 @@
 // Top-down pixel renderer for the share house (procedural tiles + furniture), driven by content/house.json.
-import { content, hashSeed, mulberry32, shade, type HouseContent } from '@shared-roof/shared';
+import { content, hashSeed, mulberry32, shade, type HouseContent, type CharView } from '@shared-roof/shared';
 
 export const TILE = 32;
 
@@ -339,7 +339,8 @@ const FLAT = new Set(['rug', 'sheepskin', 'sneakers', 'magazines', 'floorcushion
 const ASSETS = new Map<string, HTMLImageElement>();
 /** Embedded game sprites from 0_mem0ry's Midcentury Modern set; licence/source in docs/HOUSE-UPGRADE.md. */
 function furnitureFrame(f: HouseContent['furniture'][number]): [number, number, number, number] | null {
-  if (f.type === 'chair') return f.dir === 'down' ? [128, 32, 32, 32] : [96, 16, 32, 48];
+  // a chair faces the way its sitter does: facing down shows its front, facing up shows its back, heads show a side
+  if (f.type === 'chair') return f.dir === 'down' ? [96, 16, 32, 48] : f.dir === 'left' || f.dir === 'right' ? [160, 16, 32, 48] : [128, 32, 32, 32];
   if (f.type === 'sofa') return f.dir === 'down' ? [192, 432, 48, 48] : [256, 448, 48, 32];
   return null;
 }
@@ -448,6 +449,8 @@ export function renderHouse(floor = 0): HTMLCanvasElement {
         ctx.drawImage(atlas, sx + sw - 12, sy, 12, sh, X + W - 16, top, 16, height);
         for (let i = 1; i < 3; i++) px(ctx, '#b8aca1', X + 12 + Math.round((W - 24) * i / 3), top + height / 3, 1, height / 3);
         px(ctx, '#d5a0a4', X + 14, top + 13, 11, 9); px(ctx, '#96b4b1', X + W - 26, top + 13, 11, 9);
+      } else if (f.type === 'chair' && f.dir === 'right') { // the side frame faces left: mirror it
+        ctx.save(); ctx.translate(X + W, Y); ctx.scale(-1, 1); ctx.drawImage(atlas, ...rect, 0, 0, W, Hh); ctx.restore();
       } else ctx.drawImage(atlas, ...rect, X, Y, W, Hh);
     }
     else if (img) {
@@ -637,6 +640,35 @@ export function swimSolids(floor = 0): Set<string> {
 }
 
 export type Pose = 'sit' | 'sleep' | 'cook' | 'swim';
+export function facing(from: [number, number], to: [number, number]): 'up' | 'down' | 'left' | 'right' {
+  const dx = to[0] - from[0], dy = to[1] - from[1];
+  return Math.abs(dx) > Math.abs(dy) ? dx > 0 ? 'right' : 'left' : dy > 0 ? 'down' : 'up';
+}
+
+/** Standing conversation partners share two reachable neighbouring tiles. Busy furniture users stay put. */
+export function conversationPlaces(room: string, chars: CharView[], reserved: Set<string>): Map<string, [number, number]> {
+  const result = new Map<string, [number, number]>();
+  const r = house().rooms.find(r => r.id === room);
+  if (!r) return result;
+  const solid = solidTiles(r.floor);
+  const origin = spotFor(room, 0);
+  const free: [number, number][] = [];
+  for (let y = r.y + 1; y < r.y + r.h - 1; y++) for (let x = r.x + 1; x < r.x + r.w - 1; x++)
+    if (!solid.has(`${x},${y}`) && !reserved.has(`${x},${y}`) && findPath(origin, [x, y], solid, r.floor)) free.push([x, y]);
+  free.sort((a, b) => Math.hypot(a[0] - origin[0], a[1] - origin[1]) - Math.hypot(b[0] - origin[0], b[1] - origin[1]));
+  for (const c of chars) {
+    const partner = chars.find(p => p.id === c.talkingTo);
+    if (c.isPlayer || !partner || partner.isPlayer || partner.swimming || result.has(c.id) || result.has(partner.id)) continue;
+    if (['work', 'sleep', 'nap', 'shower', 'cook', 'eat'].includes(partner.activity ?? '')) continue;
+    const first = free.find(a => !reserved.has(`${a[0]},${a[1]}`) && free.some(b => !reserved.has(`${b[0]},${b[1]}`) && Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1]) === 1));
+    const second = first && free.find(b => !reserved.has(`${b[0]},${b[1]}`) && Math.abs(b[0] - first[0]) + Math.abs(b[1] - first[1]) === 1);
+    if (first && second) {
+      result.set(c.id, first); result.set(partner.id, second);
+      reserved.add(`${first[0]},${first[1]}`); reserved.add(`${second[0]},${second[1]}`);
+    }
+  }
+  return result;
+}
 export interface Seat { x: number; y: number; pose: Pose; dir: 'up' | 'down' | 'left' | 'right' }
 
 /**
@@ -644,6 +676,7 @@ export interface Seat { x: number; y: number; pose: Pose; dir: 'up' | 'down' | '
  * sides for meals, the sofa for anyone lounging in the living room. Null = no free seat (stand at a normal spot).
  */
 export function seatFor(room: string, activity: string | null, index: number): Seat | null {
+  if (['seek', 'gossip', 'apologize', 'confess'].includes(activity ?? '')) return null;
   const r = house().rooms.find((x) => x.id === room);
   if (!r) return null;
   const inRoom = house().furniture.filter((f) => f.floor === r.floor && f.x >= r.x && f.x < r.x + r.w && f.y >= r.y && f.y < r.y + r.h);

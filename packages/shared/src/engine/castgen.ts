@@ -400,6 +400,8 @@ export interface PlayerSetup {
   hobbies: string[];
   appearance: Appearance;
   portraitSeed?: number;
+  spriteSeed?: number;
+  spriteInstructions?: string;
   appearanceText?: string;
   kashrut?: Persona['kashrut'];
   diet?: Persona['diet'];
@@ -473,7 +475,30 @@ export function playerFromSetup(p: PlayerSetup, id = 'player'): Character {
     { isPlayer: true, quirks: p.quirks },
   );
   character.appearanceText = p.appearanceText ?? '';
+  if (p.spriteSeed !== undefined) character.spriteSeed = p.spriteSeed;
+  if (p.spriteInstructions) character.spriteInstructions = p.spriteInstructions;
   return character;
+}
+
+/** What the player may change about their character mid-run (looks, job and background; not who they are underneath). */
+export type PlayerEdit = Partial<Pick<PlayerSetup, 'name' | 'age' | 'hometown' | 'occupation' | 'interestedIn' | 'hobbies' | 'appearance' | 'appearanceText'>>;
+
+export function editPlayer(s0: GameState, e: PlayerEdit): GameState {
+  if (e.age !== undefined && (e.age < 20 || e.age > 35)) throw new Error('player age must be 20–35');
+  if (e.name !== undefined && !e.name.trim()) throw new Error('your character needs a name');
+  const s = structuredClone(s0);
+  const c = s.characters[s.playerId];
+  if (e.name !== undefined) c.name = e.name.trim();
+  if (e.age !== undefined) c.age = e.age;
+  if (e.hometown !== undefined) c.hometown = e.hometown;
+  if (e.occupation !== undefined) c.occupation = e.occupation.trim() || c.occupation;
+  if (e.interestedIn?.length) c.interestedIn = e.interestedIn;
+  if (e.hobbies?.length) c.persona.routine.hobbies = (e.hobbies.length >= 3 ? e.hobbies : [...e.hobbies, 'reading', 'walks', 'music']).slice(0, 3);
+  if (e.appearance) c.appearance = { ...e.appearance, palette: undefined }; // the portrait is redrawn, so its sampled colours are too
+  if (e.appearanceText !== undefined) c.appearanceText = e.appearanceText;
+  c.persona.backstory = `${c.name} is a ${c.occupation} from ${c.hometown} who moved into the share house.`;
+  c.appearanceTags = compileAppearanceTags(c);
+  return s;
 }
 
 export const DEFAULT_PLAYER: PlayerSetup = {

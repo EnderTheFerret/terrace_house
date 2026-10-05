@@ -6,6 +6,8 @@ import { clamp, dk } from '../util';
 import { content } from '../content';
 
 export const MAX_SCENE_DELTA = 15;
+/** Affinity and romance from a scene or chat count for this share of the proposed change, so friendships and crushes build over days. */
+export const FEELING_SCALE = 0.5;
 
 export function cloneState(s: GameState): GameState {
   return structuredClone(s);
@@ -81,7 +83,7 @@ export function placeName(loc: string): string {
 export const SLOT_START: Record<Slot, number> = { morning: 7, slot1: 10, slot2: 13, slot3: 16, evening: 20, lateNight: 23 };
 export const SLOT_MINUTES = 180;
 /** In-game minutes one spoken line takes: talking lasts as long as the conversation. Calibration knob. */
-export const MINUTES_PER_LINE = 3;
+export const MINUTES_PER_LINE = 6;
 /** Clock time in the current block, e.g. "11:20". */
 export const clockLabel = (slot: Slot, minutes: number) => {
   const t = SLOT_START[slot] * 60 + minutes;

@@ -1,8 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { content } from '@shared-roof/shared';
-import { findPath, passable, poolPlaces, poolSeat, seatFor, solidTiles, swimSolids, withinPoolWater } from './house';
+import { content, createGame, projectForPlayer } from '@shared-roof/shared';
+import { conversationPlaces, facing, findPath, passable, poolPlaces, poolSeat, seatFor, solidTiles, swimSolids, withinPoolWater } from './house';
 
 describe('house layout', () => {
+  it('stages conversation partners on adjacent reachable floor tiles and faces them toward each other', () => {
+    const s = createGame({ seed: 9, moveInDay: false });
+    s.characters.ren.lastAction = 'seek'; s.characters.ren.actionTarget = 'mio';
+    const chars = projectForPlayer(s).characters.filter(c => ['ren', 'mio'].includes(c.id));
+    const places = conversationPlaces('living', chars, new Set());
+    const a = places.get('ren')!, b = places.get('mio')!;
+    expect(places.size).toBe(2);
+    expect(Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1])).toBe(1);
+    expect(solidTiles(0).has(a.join(','))).toBe(false);
+    expect(findPath(a, b, solidTiles(0))).toEqual([b]);
+    expect(facing(a, b)).not.toBe(facing(b, a));
+    expect(seatFor('living', 'seek', 0)).toBeNull();
+    expect(findPath(a, [1, 12], solidTiles(0))).not.toBeNull();
+    expect(findPath(b, [2, 12], solidTiles(0))).not.toBeNull();
+  });
+  it('leaves the living room kitchen doorway clear in both directions', () => {
+    const solid = solidTiles(0);
+    expect(passable(15, 8, 16, 8, solid)).toBe(true);
+    expect(passable(16, 8, 15, 8, solid)).toBe(true);
+    expect(findPath([14, 10], [18, 8], solid)).toContainEqual([15, 8]);
+  });
   it('keeps the player visible when new swimmers precede them in occupancy', () => {
     const first = poolSeat(0)!;
     const group = poolPlaces(['kai', 'ron', 'player'], 'player', [first.x, first.y]);

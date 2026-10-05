@@ -10,12 +10,12 @@ Everything below exists in the current code. Where a feature only works in one m
 - A bright, cream women's room and a cabin-like men's room with dark wood panelling.
 - Everyday clutter: kicked-off sneakers, magazines, a guitar, clothes rails, a washer, weights, floor cushions, and framed prints and shelves on the walls.
 - About 40 furniture sprites and the visual-novel room backgrounds were drawn with ComfyUI (`scripts/assets/house_assets.py`, `comfy_gen.py`). The floors are procedural oak, dark wood and cream carpet.
-- The house view zooms to at least 3× and the camera follows you. Housemates walk real paths around furniture and through doors.
+- The house view starts at least 3×, expands to the available viewport, and follows you. Zoom controls allow a closer or wider view. Housemates walk real paths around furniture and through doors.
 - Walking through a doorway never freezes input.
 
 **Move-in day**
-- Every season starts with the six arriving one at a time, you included, at a random place in the order.
-- Each arrival is a doorstep scene where everyone already home introduces themselves (name, age, job).
+- Day one starts in the morning with you and one housemate. The second housemate arrives after a little conversation; the rest arrive one at a time through evening.
+- The second housemate joins an ongoing conversation. Later arrivals pause it for introductions, then you choose a housemate to keep talking with or continue exploring.
 - Tutorial tips appear when a system first matters: walking and E, the time blocks, talking, the phone, the board, the map, cooking. Skip them in the creator or on any tip; replay them from Settings → "how to play".
 
 **Budget levels instead of money**
@@ -157,7 +157,7 @@ Start by walking with **WASD/arrows**, pressing **E** at a person or hotspot, an
 1. Identity: name, age (20–35 enforced), gender, who you're interested in, hometown, occupation (77 jobs from the catalogue, or custom).
 2. Personality: start from any of the 24 personality types (sets the sliders and a matching job, shows your closest type), five trait sliders, three quirks (16 to choose from, each with a real effect), and a generated summary sentence.
 3. Tastes: six food-preference sliders and three hobbies.
-4. Appearance: hair style/color, eyes, build, outfit, accessory and skin; describe your look in free text and map it to those fields. Generate a portrait when the look is ready, using the same full-size rendering as the housemates. Editing keeps the last portrait visible and creates no image jobs; reroll generates another variation. The default player uses prebaked artwork immediately. The generated portrait supplies a sampled sprite palette; custom portraits show a labeled temporary preview while generating or offline.
+4. Appearance: hair style/color, eyes, build, outfit, accessory and skin; describe your look in free text and map it to those fields. Generate a portrait and walking sprite when the look is ready, using the same rendering as the housemates. Preview the walk animation in four directions beside the portrait; reduced-motion settings pause the animation. Change the sprite independently or describe a correction and fix it while keeping the portrait. The selected sprite seed and corrections carry into the game and saves. Editing keeps the last preview visible and creates no image jobs; reroll portrait generates another variation. The default player uses prebaked artwork immediately. Custom artwork shows a labeled temporary preview while generating or offline.
 5. Housemates: preview or randomize the cast; optional seed, open-ended default or fixed season length.
 
 ## The house (top-down pixel view)
@@ -172,7 +172,7 @@ Start by walking with **WASD/arrows**, pressing **E** at a person or hotspot, an
 - "Who's where" panel: each housemate's portrait, room (or "out"), mood word, new/leaving tags and a talk button.
 
 ## Scenes and dialogue
-- **Type to the characters**: at your turn in any scene you can pick a response *or type your own words* (up to 200 characters). The housemate who spoke last answers what you actually said, in their own voice and according to how they feel about you; then it's your turn again (up to 4 exchanges) until you press "that's all". The engine reads an intent from your words (confess, apologize, confront, flirt, support, joke, tease, deflect, listen, honest) so relationships move just as with the buttons, and everyone present remembers what you said (it comes back in later dialogue). In real mode the LLM sees your exact words; in mock mode template replies echo them.
+- **Type to the characters**: at your turn in any scene you can pick a response *or type your own words* (up to 200 characters). The housemate who spoke last answers what you actually said, in their own voice and according to how they feel about you; then it's your turn again (up to 30 exchanges) until you press "that's all". The engine reads an intent from your words (confess, apologize, confront, flirt, support, joke, tease, deflect, listen, honest) so relationships move just as with the buttons, and everyone present remembers what you said (it comes back in later dialogue). In real mode the LLM sees your exact words; in mock mode template replies echo them.
 - **Typed phone messages**: write the message yourself on the phone; it opens the chat and the reply thread is kept in the chat history.
 - Two-stage generation: a beat sheet (speaker, intent, emotion, beat type, subtext, depth, topic), then the lines.
 - Lines stream token by token over SSE, shown with a typewriter effect that can be skipped (Space/Enter/click).

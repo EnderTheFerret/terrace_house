@@ -7,6 +7,7 @@ export interface Activity {
   estimatedMs: number;
 }
 const stages = {
+  actions: ['Housemates are deciding what to do', 10000],
   beats: ['Planning the conversation', 15000],
   lines: ['Generating response', 8000],
   deltas: ['Updating relationships', 15000],

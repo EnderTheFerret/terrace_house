@@ -1,5 +1,5 @@
 // Agent tick (Section 5.5D): needs, utility-based action choice with Gumbel sampling, movement.
-import type { Character, GameState, Need, NeedVec, Slot } from '../model';
+import type { Character, GameState, Need, NeedVec, Slot, NpcAction } from '../model';
 import { budgetOf } from './budget';
 import type { Job } from '../contentSchema';
 import { NEEDS } from '../model';
@@ -17,12 +17,7 @@ export type ActionKind =
   | 'sleep' | 'cook' | 'eat' | 'tidy' | 'work' | 'exercise' | 'hobby' | 'goOut' | 'swim'
   | 'seek' | 'avoid' | 'text' | 'gossip' | 'apologize' | 'confess' | 'retreat' | 'shower' | 'snack' | 'nap';
 
-export interface AgentAction {
-  kind: ActionKind;
-  target?: string;
-  third?: string;
-  node?: string;
-  useCar?: boolean;
+export interface AgentAction extends NpcAction {
   utility?: number;
   duration?: number;
 }
@@ -276,11 +271,69 @@ export function utility(s: GameState, c: Character, a: AgentAction): number {
 
 export const AGENT_TEMPERATURE = 0.35;
 
+export const npcPlanBlock = (s: GameState) => `${s.world.episode}:${s.world.slot}`;
+export const SOCIAL_ACTIONS = ['seek', 'gossip', 'apologize', 'confess'];
+const COMMON_ROOMS = ['living', 'kitchen', 'entrance', 'backyard', 'stairsUp'] as const;
+export function availableForCompany(s: GameState, c: Character) {
+  return !c.isPlayer && c.status === 'inHouse' && !hasJobNow(s, c) &&
+    !s.world.flags[`away_${c.id}`] &&
+    !(c.activityUntil > s.world.minutes && ['work', 'sleep', 'nap', 'shower'].includes(c.lastAction ?? ''));
+}
+
+/** The model chooses from these engine-validated options, never arbitrary destinations. */
+export function autonomyOptions(s: GameState, c: Character): AgentAction[] {
+  const away = s.world.flags[`away_${c.id}`];
+  if (typeof away === 'string') return [{ kind: 'goOut', node: away, duration: SLOT_MINUTES }];
+  if (hasJobNow(s, c) && s.world.cityEvent !== 'heatwave') return [{ kind: 'work', node: jobNode(c) }];
+  const rooms = COMMON_ROOMS.filter(r => r !== 'backyard' || s.world.weather !== 'typhoon');
+  const base = candidateActions(s, c).filter(a => {
+    if (a.kind === 'exercise' && s.world.weather === 'typhoon') return false;
+    if (!SOCIAL_ACTIONS.includes(a.kind)) return true;
+    const target = s.characters[a.kind === 'gossip' ? a.third! : a.target!];
+    return target && availableForCompany(s, target) && rooms.includes(target.location as typeof rooms[number]);
+  });
+  const options = base.flatMap(a => a.kind === 'hobby' ? rooms.map(room => ({ ...a, room })) : [a]);
+  const companions = housemates(s).filter(o => o.id !== c.id && availableForCompany(s, o) && o.activityUntil <= s.world.minutes + 5)
+    .map(o => ({ id: o.id, trips: candidateActions(s, o).filter(a => a.kind === 'goOut') }));
+  for (const a of base.filter(a => a.kind === 'goOut')) {
+    for (const other of companions) {
+      if (other.trips.some(b => b.node === a.node && b.useCar === a.useCar)) options.push({ ...a, companion: other.id });
+    }
+  }
+  return options;
+}
+
+export function queueNpcPlans(s: GameState, plans: Record<string, NpcAction>) {
+  for (const [id, action] of Object.entries(plans)) {
+    const c = s.characters[id];
+    if (!c || c.isPlayer || c.status !== 'inHouse') continue;
+    const valid = autonomyOptions(s, c).find(a => sameAction(a, action));
+    if (valid) s.npcPlans[id] = { block: npcPlanBlock(s), action: valid };
+  }
+}
+const sameAction = (a: NpcAction, b: NpcAction) =>
+  (['kind', 'target', 'third', 'node', 'room', 'companion', 'useCar'] as const).every(k => a[k] === b[k]);
+
+export function coordinateOutings(actions: Record<string, AgentAction>) {
+  for (const [id, a] of Object.entries(actions)) {
+    const partner = a.companion && actions[a.companion];
+    if (a.companion && (!partner || partner.companion !== id || partner.node !== a.node || partner.kind !== 'goOut')) a.companion = undefined;
+    else if (partner) a.duration = Math.max(durationFor(a), durationFor(partner));
+  }
+}
+
 /** Choose an action for one agent: Gumbel-max over U/τ. */
 export function chooseAction(s: GameState, rng: Rng, c: Character): AgentAction {
   // away on an overnight trip: stays at the trip spot until the group comes home
   const away = s.world.flags[`away_${c.id}`];
   if (typeof away === 'string') return { kind: 'goOut', node: away, duration: SLOT_MINUTES, utility: 1 };
+  const plan = s.npcPlans?.[c.id];
+  if (plan) {
+    delete s.npcPlans[c.id];
+    const valid = plan.block === npcPlanBlock(s) && autonomyOptions(s, c).find(a => sameAction(a, plan.action));
+    if (valid) return { ...valid, utility: utility(s, c, valid), duration: durationFor(valid) };
+    if (hasJobNow(s, c) && s.world.cityEvent !== 'heatwave') return { kind: 'work', node: jobNode(c), duration: SLOT_MINUTES };
+  }
   const acts = candidateActions(s, c);
   const scores = acts.map((a) => utility(s, c, a));
   const i = softmaxSample(rng, scores, AGENT_TEMPERATURE);
@@ -289,6 +342,7 @@ export function chooseAction(s: GameState, rng: Rng, c: Character): AgentAction 
 
 /** Default room for an action (before relational resolution). */
 export function roomFor(s: GameState, c: Character, a: AgentAction): string {
+  if (a.room && a.kind === 'hobby') return a.room;
   switch (a.kind) {
     case 'sleep':
     case 'nap': return bedroomOf(c);
@@ -331,8 +385,10 @@ export function resolveLocations(s: GameState, actions: Record<string, AgentActi
       const ownPrivate = ['bedroomM','balconyM'].includes(tl ?? '') ? cGender(s,id) === 'man' : ['bedroomW','balconyW'].includes(tl ?? '') ? cGender(s,id) !== 'man' : false;
       const priv = content().house.rooms.find((r) => r.id === tl)?.private;
       const working = actions[tgt]?.kind === 'work' || (!actions[tgt] && s.characters[tgt]?.lastAction === 'work');
-      if (tl && !working && (!priv || ownPrivate)) loc[id] = tl;
-      else if (tl && (priv || working)) loc[id] = 'living';
+      const home = content().house.rooms.some(r => r.id === tl);
+      const busy = working || ['sleep', 'nap', 'shower'].includes(actions[tgt]?.kind ?? s.characters[tgt]?.lastAction ?? '');
+      if (tl && home && !busy && (!priv || ownPrivate)) loc[id] = tl;
+      else if (tl && (!home || priv || busy)) loc[id] = 'living';
       else if (pass === 2 && !loc[id]) loc[id] = 'living';
     }
   }

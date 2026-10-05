@@ -3,10 +3,11 @@ import { Recall } from './llm/recall';
 import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import { existsSync, mkdirSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { z } from 'zod';
-import { Appearance, Emotion, Gender, outfitFor, Slot, type Character, type ImageBackend, type ImageRequest, type LlmClient, type Occasion as OccasionName } from '@shared-roof/shared';
+import { Appearance, ArtworkEdit, Emotion, EMOTIONS, Gender, OCCASIONS, outfitFor, Slot, type Character, type ImageBackend, type ImageRequest, type LlmClient } from '@shared-roof/shared';
 
-const Occasion = z.enum(['daily', 'date', 'outdoor', 'beach', 'sleep'] satisfies [OccasionName, ...OccasionName[]]);
+const Occasion = z.enum(OCCASIONS);
 import { config } from './config';
 import { TextActivity } from './activity';
 import { Store } from './db';
@@ -105,6 +106,8 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     hobbies: z.array(z.string().max(30)).max(3),
     appearance: Appearance,
     portraitSeed: z.number().int().optional(),
+    spriteSeed: z.number().int().optional(),
+    spriteInstructions: z.string().max(500).optional(),
     appearanceText: z.string().max(500).optional(),
     kashrut: z.enum(['strict', 'style', 'none']).optional(),
     diet: z.enum(['omnivore', 'vegetarian', 'vegan']).optional(),
@@ -119,11 +122,18 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     const b = z.object({ player: PlayerSetupSchema }).parse(req.body ?? {});
     return { view: session.newPlayer(b.player), scenes: [] };
   });
+  app.post('/api/game/player', async (req) => {
+    const b = PlayerSetupSchema.pick({ name: true, age: true, hometown: true, occupation: true, interestedIn: true, hobbies: true, appearance: true, appearanceText: true }).partial().parse(req.body ?? {});
+    return { view: session.editPlayer(b) };
+  });
   app.get('/api/game', async (_req, reply) => {
     if (!session.state) return reply.status(404).send({ error: 'no game' });
     return { view: session.view(), scenes: session.summaries() };
   });
   app.post('/api/game/action', async (req) => session.act((req.body as { action?: unknown })?.action));
+  app.get('/api/game/log', async () => session.dayLog());
+  app.post('/api/game/reread/:id', async (req) => session.reread((req.params as { id: string }).id));
+  app.post('/api/game/world-pulse', async () => session.worldPulse());
   app.post('/api/game/end-slot', async () => session.endSlot());
   app.post('/api/studio/intermission', async () => session.intermission());
   app.post('/api/scene/:id/respond', async (req) => ({ scene: session.respond((req.params as { id: string }).id, (req.body as { response?: unknown })?.response) }));
@@ -163,6 +173,15 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     const b = z.object({ id: z.string().max(40).default('player'), age: z.number().int().min(20).max(80), gender: Gender, appearance: Appearance, appearanceText: z.string().max(500).optional(), portraitSeed: z.number().int(), lowRes: z.boolean().optional() }).parse(req.body);
     return queue.request(portraitRequest(b, b.lowRes), PRIORITY.playerPortrait);
   });
+  app.post('/api/image/sprite', async (req, reply) => {
+    const b = z.object({ id: z.string().max(40).default('player'), age: z.number().int().min(20).max(80), gender: Gender, appearance: Appearance, appearanceText: z.string().max(500).optional(), portraitSeed: z.number().int(), spriteSeed: z.number().int().optional(), spriteInstructions: z.string().max(500).optional() }).parse(req.body);
+    const portrait = queue.localFile(portraitRequest(b));
+    if (!portrait && !queue.offline) {
+      queue.request(portraitRequest(b), PRIORITY.playerPortrait);
+      return reply.status(409).send({ error: 'Portrait not ready yet.' });
+    }
+    return queue.request(spriteRequest(b, portrait ?? undefined), PRIORITY.playerPortrait);
+  });
   app.post('/api/appearance/describe', async (req) => {
     const b = z.object({ text: z.string().trim().min(1).max(500), appearance: Appearance }).parse(req.body);
     return { appearance: await describeAppearance(gen.llm, b.text, b.appearance), appearanceText: b.text };
@@ -198,13 +217,13 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     }
     return queue.request(spriteRequest(c, dressed ?? undefined, outfit), priority);
   });
-  const OutfitQuery = z.object({ occasion: Occasion.default('daily'), day: z.coerce.number().int().min(0).optional() });
+  const OutfitQuery = z.object({ occasion: Occasion.default('daily'), day: z.coerce.number().int().min(0).optional(), outfit: z.string().trim().min(1).max(300).optional(), customExpression: z.string().trim().min(1).max(500).optional() });
   /** Character dressed for an occasion: the outfit portrait's request and its local file once it exists. */
   const dressed = (c: Character, o: z.infer<typeof OutfitQuery>) => {
-    const outfit = outfitFor(c, c.swimming && c.location === 'backyard' ? 'beach' : o.occasion, o.day ?? session.state!.world.day);
+    const outfit = o.outfit ?? outfitFor(c, c.swimming && c.location === 'backyard' ? 'beach' : o.occasion, o.day ?? session.state!.world.day);
     const base = queue.localFile(portraitRequest(c));
     const req = base ? outfitPortraitRequest(c, outfit, base) : null;
-    return { c: { ...c, appearance: { ...c.appearance, outfit } }, req, file: req ? queue.localFile(req) : null };
+    return { c: { ...c, appearance: { ...c.appearance, outfit, accessory: outfit === c.appearance.outfit ? c.appearance.accessory : 'none' } }, req, file: req ? queue.localFile(req) : null };
   };
   app.get('/api/image/character/:id/outfit', async (req, reply) => {
     const c = session.state?.characters[(req.params as { id: string }).id];
@@ -220,12 +239,13 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     const { emotion, ...o } = OutfitQuery.extend({ emotion: Emotion.default('neutral') }).parse(req.query);
     // chain: portrait -> outfit portrait -> expression -> cutout; queue whichever step is missing
     const d = dressed(c, o);
-    const source = d.req && d.file && emotion !== 'neutral' ? expressionRequest(d.c, emotion, d.file) : d.req;
+    const source = d.req && d.file && (emotion !== 'neutral' || o.customExpression) ? expressionRequest(d.c, emotion, d.file, d.req.reference, o.customExpression) : d.req;
     const file = source === d.req ? d.file : source && queue.localFile(source);
     if (queue.offline) {
       // saved figures stay available offline: this exact one, else the neutral one in these clothes, else a placeholder
-      const saved = [source && file ? cutoutRequest(file, source) : null, d.req && d.file ? cutoutRequest(d.file, d.req) : null].find((r) => r && queue.localFile(r));
-      return queue.request(saved ?? cutoutRequest('', portraitRequest(c)), PRIORITY.currentScene);
+      const exact = source && file && source !== d.req ? cutoutRequest(file, source) : null;
+      const saved = [exact, d.req && d.file ? cutoutRequest(d.file, d.req) : null].find((r) => r && queue.localFile(r));
+      return { ...queue.request(saved ?? cutoutRequest('', portraitRequest(c)), PRIORITY.currentScene), emotion: saved && saved === exact ? emotion : 'neutral' };
     }
     if (!source || !file) {
       queue.request(source ?? portraitRequest(c), PRIORITY.currentScene);
@@ -239,8 +259,46 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     if (!c) return reply.status(404).send({ error: 'unknown character' });
     // expressions are drawn from the portrait in the clothes the scene calls for
     const d = dressed(c, o);
-    if (emotion !== 'neutral' && !d.file) return reply.status(409).send({ error: 'Wait for the original portrait to finish before generating an expression.' });
-    return queue.request(expressionRequest(d.c, emotion, d.file), PRIORITY.portrait);
+    if ((emotion !== 'neutral' || o.customExpression) && !d.file) return reply.status(409).send({ error: 'Wait for the original portrait to finish before generating an expression.' });
+    return queue.request(emotion === 'neutral' && !o.customExpression ? d.req ?? portraitRequest(c) : expressionRequest(d.c, emotion, d.file, d.req?.reference, o.customExpression), PRIORITY.portrait);
+  });
+  app.get('/api/image/library', async (req, reply) => {
+    if (!session.state) return reply.status(404).send({ error: 'Start or load a season to browse character sprites.' });
+    const o = OutfitQuery.parse(req.query);
+    return { characters: session.view().characters.map(c => {
+      const character = session.state!.characters[c.id];
+      const d = dressed(character, o);
+      return {
+        id: c.id, name: c.name, outfit: d.c.appearance.outfit,
+        walk: queue.peek(spriteRequest(character, d.file ?? undefined, d.c.appearance.outfit)),
+        expressions: EMOTIONS.map(emotion => {
+          const source = emotion === 'neutral' && !o.customExpression ? d.req ?? portraitRequest(character) : expressionRequest(d.c, emotion, d.file, d.req?.reference, o.customExpression);
+          const file = queue.localFile(source);
+          return { emotion, image: (file && queue.peek(cutoutRequest(file, source))) || queue.peek(source) };
+        }),
+      };
+    }) };
+  });
+  app.post('/api/image/character/:id/artwork', async (req, reply) => {
+    const id = (req.params as { id: string }).id;
+    const edit = ArtworkEdit.parse(req.body);
+    if (!session.state?.characters[id]) return reply.status(404).send({ error: 'unknown character' });
+    return { view: session.setArtwork(id, edit) };
+  });
+  app.post('/api/image/character/:id/artwork/generate', async (req, reply) => {
+    const c = session.state?.characters[(req.params as { id: string }).id];
+    if (!c) return reply.status(404).send({ error: 'unknown character' });
+    const { kind, emotion, ...o } = OutfitQuery.extend({ kind: z.enum(['walk', 'expression']), emotion: Emotion.default('neutral') }).parse(req.body);
+    const base = portraitRequest(c);
+    const d = dressed(c, o);
+    const result = (request: ImageRequest, complete: boolean) => ({ image: queue.request(request, PRIORITY.portrait), complete });
+    if (!queue.localFile(base) && !queue.offline) return result(base, false);
+    if (!d.file && !queue.offline) return result(d.req ?? base, false);
+    if (kind === 'walk') return result(spriteRequest(c, d.file ?? undefined, d.c.appearance.outfit), true);
+    const source = emotion === 'neutral' && !o.customExpression ? d.req ?? base : expressionRequest(d.c, emotion, d.file, d.req?.reference, o.customExpression);
+    const file = queue.localFile(source);
+    if (!file && !queue.offline) return result(source, false);
+    return result(cutoutRequest(file ?? '', source), true);
   });
   // phone photos: house feed posts and selfies in chat threads, drawn on first view with everyone's real face
   const portraitOf = (r: ImageRequest) => queue.localFile(r);
@@ -261,6 +319,7 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
   app.get('/api/broadcast', async () => session.broadcast());
   app.get('/api/image/panel', async () => Object.fromEntries(content().panel.map((p) => [p.id, queue.request(avatarRequest(p.id), PRIORITY.prefetch)])));
   app.get('/api/image/status/:key', async (req) => queue.status((req.params as { key: string }).key));
+  app.get('/api/gallery', async () => ({ scenes: deps.store.sceneImages().filter((r) => existsSync(resolve(cacheDir, r.path))).map((r) => ({ url: `/images/${r.path}`, createdAt: r.created_at })) }));
   app.post('/api/image/cancel/:key', async (req) => ({ cancelled: queue.cancel((req.params as { key: string }).key) }));
 
   app.get('/api/debug', async (_req, reply) => (session.state ? session.debug() : reply.status(404).send({ error: 'no game' })));

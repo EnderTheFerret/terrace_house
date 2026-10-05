@@ -4,6 +4,29 @@ The core is six people with independent daily lives, relationships and ambitions
 
 Design inference: the valuable missing layer was follow-through. An invitation creates something to anticipate; showing up or missing it changes trust; career progress creates a reason to stay or graduate. Let ordinary chores, quiet talks, friendships and refusals matter. The player should discover routines, choose whom to spend limited time with, and see how the house responds. No score for dating everyone or forcing drama. A shared calendar, visible mess, small favors, career arcs, notification/feed callbacks and a player-chosen finale make these existing systems easier to enjoy.
 
+## October 4 conversation investigation
+
+The screenshot's "About already... yeah" is deterministic fallback text, not necessarily Gemma's reply. The fallback selected the longest non-stopword in the player's message and appended it to a generic intent acknowledgment. This word echo is removed. The voice validator also rejected any mention of "the show" or "the camera", even ordinary dialogue answering the player's filming joke. It now rejects camera narration and audience/panel commentary while allowing relevant filming dialogue. AI, prompt and character meta checks remain.
+
+The line prompt previously forced every first response to acknowledge a request or boundary, and only the first group responder received the latest typed topic. All responders now follow the current exchange; ordinary offers get a practical answer and only actual refusals need a boundary acknowledgment. Persona cards present mannerisms as occasional tendencies and omit forced tells. Required context is shortened before final output instructions can be cut off. Conversation time is doubled to six minutes per spoken line and updates at each turn, with legacy time logs retaining three minutes per line.
+
+`scripts/conversation-probe.ts` runs three fixed two-turn fixtures: Kai's filming/coffee exchange, Ren's breakfast disagreement and a two-housemate coffee offer. Baseline: `logs/conversation-probe-before-1791116052695.json`. Final matched comparison: `logs/conversation-probe-verified-1791116676504.json`. Gemma returned all eight required NPC lines; group replies answered the coffee offer and carrying question. Kai still uses exaggerated slang ("vibes", "move", "bro"); this prompt pass does not establish fully natural dialogue. The installed Stheno RP model was tested at temperature 1.15 and its production sampler settings: it invented player speech in two turns, omitted Ren's required answer in one, and added actions and unsupported details. Keep Gemma as the current model. These six turns per model are a small semantic probe, not a comprehensive benchmark or a stable speed comparison.
+
+For a new specialist to evaluate, [Rocinante X 12B v1](https://huggingface.co/TheDrummer/Rocinante-X-12B-v1) is the successor to Rocinante v1.1; its author explicitly targets roleplay and dialogue. Its card specifies Mistral v3 Tekken (without `[SYSTEM_PROMPT]`) or Metharme. This is a candidate based on the author's description, not a measured improvement here; it was not installed or selected. [Stheno's original card](https://huggingface.co/Sao10K/L3-8B-Stheno-v3.2) also explicitly covers roleplaying and supplies sampler recommendations, so the comparison does include a specialist rather than another generic chat model.
+
+### Verification of the October 4 changes
+
+VERIFIED WITH CAVEATS.
+
+| Claim | Observed evidence |
+|---|---|
+| Filming dialogue can remain a real model response | Production `Generator.lines` answered the screenshot-style filming/coffee turn with `source: llm`; camera narration and audience commentary still fail their regression checks. |
+| Conversation time advances each turn without counting it twice | Session tests observe time increasing at the opening and reply, then staying unchanged when the player ends the talk. First-day arrival interruption and complete replay tests pass. |
+| Old replay timing remains valid | A mixed legacy/new time log reaches exactly 90 minutes (30 old + 60 new), matching the full engine state. |
+| Surrounding code works | `SIM_SEEDS=20 npm test -- --reporter=dot`: 184/184 tests across 30 files pass, including 20 idle-season seeds and the existing active-season cases. Production build/typecheck and lint of all touched TypeScript files pass. |
+
+The default 200-seed run exceeded the MCP tool's 300-second timeout and was stopped; it is unverified. Repository-wide lint reports 136 errors and 8 warnings, all in existing `logs/scene-probe/` scripts. The recipient test fixture now mutates the current state after turn-time advancement rather than a stale character object; its rejection assertions remain intact. Intermediate probe reports were removed; the baseline and final comparison remain as evidence. Naturalness is still a small-sample semantic assessment, and Kai remains slang-heavy.
+
 ## Current selection: October 3, one model
 
 `gemma4:12b` now handles every call (`OLLAMA_MODEL_LINES` empty), so only one model reloads after an image job (~7 s). The GPU contention that made it feel slow is handled by unloading it before images and holding images during each call. Its 20-scene rerun (`logs/roleplay-benchmark-1791015374495.json`, ComfyUI unloaded): 97.7% mechanical pass, 2 missing lines, 0 player or unexpected labels, 38.8 tokens/s, 10.7 GB peak. `MN-12B-Mag-Mell-R1` (a Mistral-Nemo merge recommended for 12–16 GB roleplay) was tried as a challenger: 59% pass over 11 scenes, 26 missing lines, and two Ollama 500s, so it was not adopted. The section below is the earlier October 2 split-model setup.

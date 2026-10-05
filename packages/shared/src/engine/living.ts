@@ -3,7 +3,7 @@ import type { Rng } from '../rng';
 import { content } from '../content';
 import { clamp, uk } from '../util';
 import { addFact, addLog, addMemory, addRel, clockLabel, firstName, housemates, isRoom, learn, nextId, npcs, player, rel, SLOT_MINUTES } from './core';
-import { bedroomOf, chooseAction, durationFor, isShabbat, resolveLocations, satisfy, type AgentAction } from './agents';
+import { bedroomOf, chooseAction, coordinateOutings, durationFor, isShabbat, resolveLocations, satisfy, type AgentAction } from './agents';
 import { logInteraction, resolveColocation, resolveRemote } from './interactions';
 import { applyProposal, sanitizeProposal } from './relationships';
 import { apologize } from './social';
@@ -40,6 +40,8 @@ export function scheduleActivity(s: GameState, c: GameState['characters'][string
   c.lastAction = a.kind;
   c.actionTarget = a.target;
   c.actionNode = a.node;
+  c.actionCompanion = a.companion;
+  c.actionThird = a.third;
   c.activityUntil = Math.min(SLOT_MINUTES, start + durationFor(a));
 }
 
@@ -125,7 +127,7 @@ export function startPlans(s: GameState) {
 
 function hourlyLife(s: GameState, rng: Rng) {
   const P = player(s);
-  const actions: Record<string, AgentAction> = Object.fromEntries(npcs(s).map((c) => [c.id, { kind: (c.lastAction ?? 'retreat') as AgentAction['kind'], target: c.actionTarget, node: c.actionNode }]));
+  const actions: Record<string, AgentAction> = Object.fromEntries(npcs(s).map((c) => [c.id, { kind: (c.lastAction ?? 'retreat') as AgentAction['kind'], target: c.actionTarget, third: c.actionThird, node: c.actionNode }]));
   for (const ix of resolveColocation(s, rng, actions, P.id)) {
     // Short overheard moments grow relationships more slowly than full conversations.
     for (const changes of [ix.proposal.affinityDeltas, ix.proposal.romanceDeltas, ix.proposal.trustDeltas, ix.proposal.tensionDeltas, ix.proposal.moodDeltas]) for (const d of changes) d.delta *= 0.12;
@@ -168,11 +170,12 @@ export function advanceLiving(s: GameState, rng: Rng, to: number, protectedIds: 
     const due = npcs(s).filter((c) => !protectedIds.has(c.id) && c.activityUntil <= s.world.minutes);
     const fixed = Object.fromEntries(housemates(s).filter((c) => c.isPlayer || !due.includes(c)).map((c) => [c.id, c.location]));
     const actions: Record<string, AgentAction> = {};
+    for (const c of due) actions[c.id] = chooseAction(s, rng, c);
+    coordinateOutings(actions);
     for (const c of due) {
-      actions[c.id] = chooseAction(s, rng, c);
       if (actions[c.id].useCar) {
         if (s.world.carUsedBy === null) s.world.carUsedBy = c.id;
-        else actions[c.id] = { kind: 'hobby' };
+        else if (s.world.carUsedBy !== actions[c.id].companion) actions[c.id] = { kind: 'hobby' };
       }
       if (actions[c.id].kind === 'cook') {
         const recipe = npcRecipe(c, s, rng);

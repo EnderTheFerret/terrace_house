@@ -49,6 +49,18 @@ def generate(job):
     patch(wf, 'width', job.get('width', 1024))
     patch(wf, 'height', job.get('height', 1024))
     patch(wf, 'batch', 1)
+    if job.get('framing') == 'knees':
+        saved = wf[MAP['output']['node']]
+        width, height = job['width'], job['height']
+        wf['portraitCrop'] = {'class_type': 'ImageCropV2', 'inputs': {'image': saved['inputs']['images'], 'crop_region': {'x': 0, 'y': 0, 'width': width, 'height': round(height * 0.8)}}}
+        wf['portraitScale'] = {'class_type': 'ImageScale', 'inputs': {'image': ['portraitCrop', 0], 'upscale_method': 'nearest-exact', 'width': width, 'height': height, 'crop': 'center'}}
+        wf['portraitRemBg'] = {'class_type': 'easy imageRemBg', 'inputs': {'images': ['portraitScale', 0], 'rem_mode': 'BEN2', 'image_output': 'Hide', 'save_prefix': 'rembg', 'torchscript_jit': False, 'add_background': 'none', 'refine_foreground': False}}
+        wf['portraitSolid'] = {'class_type': 'ThresholdMask', 'inputs': {'mask': ['portraitRemBg', 1], 'value': 0.5}}
+        wf['portraitContours'] = {'class_type': 'MaskToSEGS', 'inputs': {'mask': ['portraitSolid', 0], 'combined': False, 'crop_factor': 1, 'bbox_fill': False, 'drop_size': 32, 'contour_fill': True}}
+        wf['portraitMask'] = {'class_type': 'SegsToCombinedMask', 'inputs': {'segs': ['portraitContours', 0]}}
+        wf['portraitBackground'] = {'class_type': 'EmptyImage', 'inputs': {'width': width, 'height': height, 'batch_size': 1, 'color': 0xf4eee4}}
+        wf['portraitMatte'] = {'class_type': 'ImageCompositeMasked', 'inputs': {'destination': ['portraitBackground', 0], 'source': ['portraitScale', 0], 'mask': ['portraitMask', 0], 'x': 0, 'y': 0, 'resize_source': False}}
+        saved['inputs']['images'] = ['portraitMatte', 0]
     pid = post('/prompt', {'prompt': wf, 'client_id': str(uuid.uuid4())})['prompt_id']
     while True:
         h = json.loads(get('/history/' + pid))

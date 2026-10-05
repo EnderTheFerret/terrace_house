@@ -2,6 +2,32 @@ import { expect, it } from 'vitest';
 import { createGame, DAILY_ROTATION, DEFAULT_PLAYER, occasionFor, outfitFor, playerFromSetup, palette, spritePixels, makeEvent, eventTemplate, planSlot } from '@shared-roof/shared';
 import { freezeRequest, outfitPortraitRequest, portraitRequest, spriteRequest } from './requests';
 import { placeholderSvg } from './mock';
+import { AssetLibrary } from './queue';
+import { config } from '../config';
+
+it('requests proportional knees-up portraits and bypasses old full-body artwork for portraits and outfits', () => {
+  const c = createGame({ seed: 1 }).characters.ren;
+  const portrait = portraitRequest(c);
+  expect(portrait.prompt).toContain('full-length standing reference');
+  expect(portrait.framing).toBe('knees');
+  expect(portrait.prompt).toContain('small proportional head');
+  expect(portrait.prompt).toContain(config.stylePrefix);
+  const corrected = portraitRequest(c, false, '/approved-original.png');
+  expect(corrected.prompt).toContain('exact original 16-bit pixel art style');
+  expect(corrected.reference).toBe('/approved-original.png');
+  expect(portrait.negative).toContain('oversized head');
+  expect(portrait.subjectKey).toContain(':knees-up-v3');
+  const assets = new AssetLibrary(config.assetsDir);
+  const oldKey = portrait.subjectKey.replace(':knees-up-v3', ':thigh-up-v1');
+  expect(assets.file(oldKey)).toBeTruthy();
+  expect(assets.file(portrait.subjectKey)).not.toBe(assets.file(oldKey));
+  const outfit = outfitPortraitRequest(c, 'blue jacket', '/new-portrait.png');
+  expect(outfit.subjectKey).toContain(':knees-up-v3');
+  expect(outfit.prompt).toContain('entire head through both knees');
+  expect(outfit.prompt).toContain('small proportional head');
+  expect(outfit.framing).toBeUndefined();
+  expect(spriteRequest(c).subjectKey).not.toContain(':knees-up-v3');
+});
 
 it('draws every character sheet from its own portrait without palette feedback regenerating sheets', () => {
   const original = createGame({ seed: 1 }).characters.ren;
@@ -19,6 +45,32 @@ it('draws every character sheet from its own portrait without palette feedback r
   }
   expect(spriteRequest(custom).prompt).toContain('embroidered sleeves');
   expect(spriteRequest({ ...custom, appearance: { ...custom.appearance, outfit: 'red jacket' } }).subjectKey).not.toBe(spriteRequest(custom).subjectKey);
+});
+
+it('does not reuse default player artwork for another age or gender', () => {
+  const original = playerFromSetup(DEFAULT_PLAYER);
+  const portrait = portraitRequest(original);
+  expect(portrait.subjectKey).not.toContain(':identity:');
+  for (const patch of [{ age: 30 }, { gender: 'man' as const }]) {
+    const changed = playerFromSetup({ ...DEFAULT_PLAYER, ...patch });
+    expect(portraitRequest(changed).subjectKey).not.toBe(portrait.subjectKey);
+    expect(spriteRequest(changed).subjectKey).not.toBe(spriteRequest(original).subjectKey);
+  }
+});
+
+it('changes and fixes walking sprites independently of the portrait', () => {
+  const original = playerFromSetup(DEFAULT_PLAYER);
+  const setup = { ...DEFAULT_PLAYER, spriteSeed: 1234, spriteInstructions: 'Keep the glasses visible and fix the feet' };
+  const changed = playerFromSetup(setup);
+  const request = spriteRequest(changed, '/approved-portrait.png');
+  expect(portraitRequest(changed)).toEqual(portraitRequest(original));
+  expect(request.seed).toBe(1234);
+  expect(request.reference).toBe('/approved-portrait.png');
+  expect(request.prompt).toContain(setup.spriteInstructions);
+  expect(request.subjectKey).not.toBe(spriteRequest(original).subjectKey);
+  expect(spriteRequest({ ...changed, spriteSeed: 5678 }).subjectKey).not.toBe(request.subjectKey);
+  expect(spriteRequest({ ...changed, spriteInstructions: 'Fix the hands' }).subjectKey).not.toBe(request.subjectKey);
+  expect(changed).toMatchObject({ spriteSeed: 1234, spriteInstructions: setup.spriteInstructions });
 });
 
 it('renders distinct swimwear silhouettes with bare arms and legs while preserving character identity', () => {
@@ -96,9 +148,30 @@ it('rotates daily outfits from the signature look and re-dresses the approved po
   expect(outfitPortraitRequest(ren, ren.appearance.outfit, '/p.png')).toEqual(portraitRequest(ren));
   const dressed = outfitPortraitRequest(ren, week[1], '/p.png');
   expect(dressed.reference).toBe('/p.png');
-  expect(dressed.prompt).toContain(`change only the clothing to ${week[1]}`);
+  expect(dressed.prompt).toContain(`Replace the entire outfit with ${week[1]}`);
   expect(dressed.subjectKey).not.toBe(portraitRequest(ren).subjectKey);
   const sheet = spriteRequest(ren, '/dressed.png', week[1]);
   expect(sheet.prompt).toContain(week[1]);
   expect(sheet.subjectKey).not.toBe(spriteRequest(ren, '/dressed.png').subjectKey);
+});
+
+it('redresses without carrying signature clothing or accessories into edits and bypasses old outfit assets', () => {
+  const c = { ...createGame({ seed: 21 }).characters.ren, appearanceText: 'wearing an apron and a kitchen towel' };
+  const outfit = outfitFor(c, 'formal');
+  expect(outfit).toMatch(/suit|tuxedo/);
+  const r = outfitPortraitRequest(c, outfit, '/approved.png');
+  expect(r.prompt).toContain(outfit);
+  expect(r.prompt).not.toContain(c.appearanceText);
+  expect(r.meta?.appearance).toMatchObject({ outfit, accessory: 'none' });
+  expect(r.subjectKey).toContain(':outfit:v2:');
+  expect(new AssetLibrary(config.assetsDir).file(r.subjectKey)).toBeNull();
+  const walk = spriteRequest(c, '/dressed.png', outfit);
+  expect(walk.prompt).not.toContain(c.appearanceText);
+  expect(walk.meta?.appearance).toMatchObject({ accessory: 'none' });
+  const s = createGame({ seed: 21 });
+  s.characters.ren = { ...c, swimming: true };
+  const ev = makeEvent(s, eventTemplate('casual-chat'), { a: 'ren', b: 'mio' }, 'backyard');
+  const still = freezeRequest(s, ev);
+  expect(still.prompt).not.toContain(c.appearanceText);
+  expect(still.meta?.people).toEqual(expect.arrayContaining([expect.objectContaining({ appearance: expect.objectContaining({ outfit: outfitFor(c, 'beach'), accessory: 'none' }) })]));
 });

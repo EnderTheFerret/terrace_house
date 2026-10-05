@@ -40,6 +40,8 @@ export function openDb(file = resolve(config.dataDir, 'shared-roof.sqlite')): DB
       created_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY (game_id, seq)
     );
   `);
+  // saves made mid-conversation carry the talk to pick up again
+  if (!(db.prepare('PRAGMA table_info(saves)').all() as { name: string }[]).some((c) => c.name === 'resume_json')) db.exec('ALTER TABLE saves ADD COLUMN resume_json TEXT');
   db.prepare(`INSERT OR IGNORE INTO meta(key, value) VALUES ('db_version', '1')`).run();
   return db;
 }
@@ -70,12 +72,12 @@ export interface SaveRow {
 export class Store {
   constructor(public db: DB) {}
 
-  save(slot: number, state: GameState, name: string, logSeq: number): number {
+  save(slot: number, state: GameState, name: string, logSeq: number, resume?: unknown): number {
     if (slot > 0) this.db.prepare('DELETE FROM saves WHERE slot = ?').run(slot);
     else this.db.prepare('DELETE FROM saves WHERE slot = 0 AND id NOT IN (SELECT id FROM saves WHERE slot = 0 ORDER BY id DESC LIMIT 4)').run();
     const r = this.db
-      .prepare('INSERT INTO saves(slot, game_id, name, schema_version, episode, log_seq, state_json) VALUES (?,?,?,?,?,?,?)')
-      .run(slot, state.gameId, name, state.schemaVersion, state.world.episode, logSeq, JSON.stringify(state));
+      .prepare('INSERT INTO saves(slot, game_id, name, schema_version, episode, log_seq, state_json, resume_json) VALUES (?,?,?,?,?,?,?,?)')
+      .run(slot, state.gameId, name, state.schemaVersion, state.world.episode, logSeq, JSON.stringify(state), resume ? JSON.stringify(resume) : null);
     // denormalized memory export for querying/debugging
     const del = this.db.prepare('DELETE FROM memories WHERE game_id = ?');
     const ins = this.db.prepare('INSERT INTO memories(game_id, char_id, episode, tick, text, salience) VALUES (?,?,?,?,?,?)');
@@ -90,13 +92,13 @@ export class Store {
     return this.db.prepare('SELECT id, slot, game_id, name, schema_version, episode, log_seq, created_at FROM saves ORDER BY slot, id DESC').all() as SaveRow[];
   }
 
-  load(id: number): { row: SaveRow; state: GameState } | null {
-    const r = this.db.prepare('SELECT * FROM saves WHERE id = ?').get(id) as (SaveRow & { state_json: string }) | undefined;
+  load(id: number): { row: SaveRow; state: GameState; resume?: any } | null {
+    const r = this.db.prepare('SELECT * FROM saves WHERE id = ?').get(id) as (SaveRow & { state_json: string; resume_json: string | null }) | undefined;
     if (!r) return null;
-    return { row: r, state: migrateState(JSON.parse(r.state_json)) };
+    return { row: r, state: migrateState(JSON.parse(r.state_json)), resume: r.resume_json ? JSON.parse(r.resume_json) : undefined };
   }
 
-  latestAutosave(): { row: SaveRow; state: GameState } | null {
+  latestAutosave(): { row: SaveRow; state: GameState; resume?: any } | null {
     const r = this.db.prepare('SELECT id FROM saves WHERE slot = 0 ORDER BY id DESC LIMIT 1').get() as { id: number } | undefined;
     return r ? this.load(r.id) : null;
   }
@@ -126,6 +128,10 @@ export class Store {
 
   imagePut(key: string, path: string, kind: string, prompt: string, seed: number, placeholder: boolean) {
     this.db.prepare('INSERT OR REPLACE INTO images(key, path, kind, prompt, seed, placeholder) VALUES (?,?,?,?,?,?)').run(key, path, kind, prompt, seed, placeholder ? 1 : 0);
+  }
+
+  sceneImages(): { path: string; created_at: string }[] {
+    return this.db.prepare("SELECT path, MAX(created_at) AS created_at FROM images WHERE kind = 'freeze' AND placeholder = 0 GROUP BY path ORDER BY created_at DESC, path").all() as { path: string; created_at: string }[];
   }
 
   /** Cached memory embedding (key = model + text hash). */

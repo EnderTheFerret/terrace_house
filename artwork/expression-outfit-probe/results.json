@@ -1,0 +1,104 @@
+{
+  "at": "2026-10-05T13:45:40.006Z",
+  "backend": "comfyui",
+  "dialogue": "scripted only for reproducible browser screenshots; all artwork uses real ComfyUI",
+  "results": [
+    {
+      "id": "ren",
+      "occasion": "date",
+      "emotion": "happy",
+      "custom": "tailored navy two-piece suit with matching suit jacket and trousers, white dress shirt and dark tie",
+      "name": "Ron Azulay",
+      "outfit": "tailored navy two-piece suit with matching suit jacket and trousers, white dress shirt and dark tie",
+      "neutral": "/images/cf-68c38474193a3b78fab69fee.png",
+      "expression": "/images/cf-5d22de34de5e2da4aade20f4.png",
+      "elapsedMs": 9,
+      "placeholder": false,
+      "routeVerified": false
+    },
+    {
+      "id": "kaito",
+      "occasion": "date",
+      "emotion": "annoyed",
+      "name": "Kai Levi",
+      "outfit": "light blazer over a black tee and dark jeans",
+      "neutral": "/images/cf-fe441cbe78c563161dd0d14c.png",
+      "expression": "/images/cf-ccaa27b69bb264ded222e0d0.png",
+      "elapsedMs": 53,
+      "placeholder": false,
+      "routeVerified": true
+    },
+    {
+      "id": "mio",
+      "occasion": "date",
+      "emotion": "shy",
+      "name": "Maya Cohen",
+      "outfit": "floral wrap dress and white sneakers",
+      "neutral": "/images/cf-a19f34d4a93c93e003cb574c.png",
+      "expression": "/images/cf-321338f296bc807cb1a678eb.png",
+      "elapsedMs": 25,
+      "placeholder": false,
+      "routeVerified": true
+    },
+    {
+      "id": "sora",
+      "occasion": "date",
+      "emotion": "nervous",
+      "name": "Shira Mizrahi",
+      "outfit": "red knee-length summer dress and sandals",
+      "neutral": "/images/cf-579a092e2e7ad04d808e60fd.png",
+      "expression": "/images/cf-8f32ff1a0e73b50438242224.png",
+      "elapsedMs": 22,
+      "placeholder": false,
+      "routeVerified": true
+    },
+    {
+      "id": "ren",
+      "occasion": "beach",
+      "emotion": "sad",
+      "name": "Ron Azulay",
+      "outfit": "black swim trunks, shirtless",
+      "neutral": "/images/cf-b4a796bca9ee780e838d0645.png",
+      "expression": "/images/cf-cbc7cd3b6d9079443d8637fa.png",
+      "elapsedMs": 22,
+      "placeholder": false,
+      "routeVerified": true
+    },
+    {
+      "id": "kaito",
+      "occasion": "beach",
+      "emotion": "excited",
+      "name": "Kai Levi",
+      "outfit": "blue swim trunks, shirtless",
+      "neutral": "/images/cf-c22eff4adfe97689e6d70bd1.png",
+      "expression": "/images/cf-8c58b35935083cb29e112296.png",
+      "elapsedMs": 33,
+      "placeholder": false,
+      "routeVerified": true
+    },
+    {
+      "id": "mio",
+      "occasion": "beach",
+      "emotion": "tender",
+      "name": "Maya Cohen",
+      "outfit": "navy one-piece swimsuit",
+      "neutral": "/images/cf-6bc7c157a10f3d32f405010b.png",
+      "expression": "/images/cf-9b5039e156508bdd6e27a875.png",
+      "elapsedMs": 26,
+      "placeholder": false,
+      "routeVerified": true
+    },
+    {
+      "id": "sora",
+      "occasion": "beach",
+      "emotion": "angry",
+      "name": "Shira Mizrahi",
+      "outfit": "white bikini",
+      "neutral": "/images/cf-5871a00edb9e5949703131d0.png",
+      "expression": "/images/cf-548bfe190d69f53da3a499d5.png",
+      "elapsedMs": 23,
+      "placeholder": false,
+      "routeVerified": true
+    }
+  ]
+}

@@ -142,6 +142,9 @@ export const Character = z.object({
   appearanceText: z.string().max(600).default(''),
   appearanceTags: z.array(z.string()),
   portraitSeed: z.number().int(),
+  spriteSeed: z.number().int().optional(),
+  spriteInstructions: z.string().max(500).optional(),
+  expressionEdits: z.record(z.string(), z.object({ seed: z.number().int(), instructions: z.string().max(500) })).optional(),
   voiceNotes: z.string().max(200),
   persona: Persona,
   quirks: z.array(z.string()).default([]),
@@ -163,6 +166,8 @@ export const Character = z.object({
   swimming: z.boolean().default(false),
   actionTarget: z.string().optional(),
   actionNode: z.string().optional(),
+  actionCompanion: z.string().optional(),
+  actionThird: z.string().optional(),
   partnerId: z.string().optional(),
 });
 export type Character = z.infer<typeof Character>;
@@ -306,6 +311,13 @@ export type BeatType = z.infer<typeof BeatType>;
 export const EMOTIONS = ['neutral', 'happy', 'shy', 'awkward', 'annoyed', 'sad', 'excited', 'nervous', 'tender', 'angry'] as const;
 export const Emotion = z.enum(EMOTIONS);
 export type Emotion = z.infer<typeof Emotion>;
+export const ArtworkEdit = z.object({
+  kind: z.enum(['walk', 'expression']),
+  emotion: Emotion.optional(),
+  seed: z.number().int(),
+  instructions: z.string().trim().max(500),
+}).refine(b => b.kind === 'walk' || (b.emotion !== undefined && b.emotion !== 'neutral'), 'Choose a non-neutral expression to edit');
+export type ArtworkEdit = z.infer<typeof ArtworkEdit>;
 export const Depth = z.enum(['smalltalk', 'personal', 'vulnerable']);
 export type Depth = z.infer<typeof Depth>;
 
@@ -424,6 +436,14 @@ export const FeedPost = z.object({
 });
 export type FeedPost = z.infer<typeof FeedPost>;
 
+export const NpcAction = z.object({
+  kind: z.enum(['sleep', 'cook', 'eat', 'tidy', 'work', 'exercise', 'hobby', 'goOut', 'swim', 'seek', 'avoid', 'text', 'gossip', 'apologize', 'confess', 'retreat', 'shower', 'snack', 'nap']),
+  target: z.string().optional(), third: z.string().optional(), node: z.string().optional(),
+  room: z.enum(ROOMS).optional(), companion: z.string().optional(), useCar: z.boolean().optional(),
+  duration: z.number().positive().optional(),
+});
+export type NpcAction = z.infer<typeof NpcAction>;
+
 export const GameState = z.object({
   schemaVersion: z.number().int(),
   gameId: z.string(),
@@ -442,6 +462,7 @@ export const GameState = z.object({
   pairSummary: z.record(z.string(), z.string()),
   house: HouseState,
   chats: z.record(z.string(), z.array(ChatMsg)),
+  npcPlans: z.record(z.string(), z.object({ block: z.string(), action: NpcAction })).default({}),
   predictions: z.array(Prediction),
   arcs: z.record(z.string(), ArcState),
   references: z.array(SharedRef),
@@ -483,13 +504,15 @@ export type GameState = z.infer<typeof GameState>;
 export const PlayerAction = z.discriminatedUnion('type', [
   z.object({ type: z.literal('pool'), mode: z.enum(['enter', 'leave']), with: z.array(z.string()).max(5).refine((ids) => new Set(ids).size === ids.length, 'choose each housemate once').optional() }),
   z.object({ type: z.literal('house'), activity: z.enum(['hangout', 'cook', 'tidy', 'rest', 'backyard', 'hobby']), target: z.string().optional() }),
-  z.object({ type: z.literal('talk'), target: z.string() }),
+  z.object({ type: z.literal('talk'), target: z.string(), room: z.enum(ROOMS).optional(), guests: z.array(z.string()).max(3).refine((ids) => new Set(ids).size === ids.length, 'choose each housemate once').optional() }),
   z.object({
     type: z.literal('goOut'),
     node: z.string(),
     activity: z.enum(['date', 'wander', 'work', 'class', 'shop', 'karaoke', 'eat', 'invite', 'gift']),
     item: z.string().max(60).optional(),
     invite: z.string().optional(),
+    /** more housemates who come along on the outing (up to three besides `invite`) */
+    guests: z.array(z.string()).max(3).optional(),
     useCar: z.boolean().optional(),
     /** with activity 'work': sign a contract for this slot on fixed weekdays */
     contract: z.boolean().optional(),

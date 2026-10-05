@@ -161,9 +161,7 @@ export interface LineContext {
   recalled?: Record<string, string[]>;
 }
 
-const STOP = new Set(['about', 'actually', 'really', 'there', 'their', 'would', 'could', 'should', 'think', 'thing', 'things', 'something', 'because', 'honestly', 'maybe', 'little', 'today', 'going', 'where', 'which', 'these', 'those', 'being', 'right']);
-
-/** Template answer to typed words: what was said (intent + an echoed word) colored by how the speaker feels about the player. */
+/** Template answer to typed words, colored by how the speaker feels about the player. */
 export function mockReply(s: GameState, rng: Rng, speaker: string, replyTo: { text: string; intent: Intent }): string {
   const c = s.characters[speaker];
   const P = s.playerId;
@@ -187,9 +185,7 @@ export function mockReply(s: GameState, rng: Rng, speaker: string, replyTo: { te
     decline: ['...Oh.', 'Okay. I understand.', 'Right. Sorry I made it weird.'],
   };
   let line = rng.pick(pools[replyTo.intent]);
-  const word = replyTo.text.toLowerCase().match(/[a-z']{5,}/g)?.filter((w) => !STOP.has(w)).sort((a, b) => b.length - a.length)[0];
-  if (word && !['confess', 'decline'].includes(replyTo.intent) && rng.chance(0.45)) line = replyTo.text.trim().endsWith('?') ? `${cap(word)}? ${line}` : `${line} About ${word}... yeah.`;
-  else if (replyTo.text.trim().endsWith('?') && replyTo.intent !== 'listen') line = `${rng.pick(['Hm. ', 'Good question. ', 'Honestly? '])}${line}`;
+  if (replyTo.text.trim().endsWith('?') && !['listen', 'decline', 'confess'].includes(replyTo.intent)) line = `${rng.pick(['Hm. ', 'Good question. ', 'Honestly? '])}${line}`;
   return truncate(voiceTransform(line, c.persona.speech, rng, { allowCatchphrase: false }), 240);
 }
 

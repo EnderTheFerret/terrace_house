@@ -106,6 +106,10 @@ How it works: when an image request carries a `reference` file, `ComfyBackend.ge
 and runs the reference workflow. Requests with their own workflow, including scenes, use that workflow.
 Cache keys include the selected workflow and its reference inputs.
 
+Standing figures use `workflows/cutout.api.json`: Easy Use's BEN2 removal mask is thresholded and passed through Impact Pack's `MaskToSEGS` contour fill and `SegsToCombinedMask` before alpha is attached. This keeps skin and clothing opaque and removes enclosed mask holes. Easy Use and Impact Pack must be installed; both are present on the development machine. Updated cutout keys bypass earlier soft, perforated figures.
+
+Expression requests set `editRegion: 'face'`. The backend adds Impact Pack's face detector (`models/ultralytics/bbox/face_yolov8m.pt`, provided through Impact Subpack) and composites the generated face onto the approved reference. If an outfit hides the face from detection, the original approved portrait supplies its face position as a fallback. Clothing and body pixels outside the selected face stay unchanged. The detector and model are already installed on the development machine; custom reference workflows must expose an image output for this step.
+
 - Disable it with `COMFY_REF_WORKFLOW=off`.
 - Prefer SDXL + IP-Adapter (FaceID)? Export an API-format graph with a `LoadImage` → IPAdapter branch, point
   `COMFY_REF_WORKFLOW` / `COMFY_REF_MAPPING` at it, and give the mapping a `"reference": { "node", "input" }` entry.

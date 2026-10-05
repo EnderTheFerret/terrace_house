@@ -94,6 +94,10 @@ describe('voice', () => {
     const sp = s.characters.ren.persona.speech;
     expect(voiceCheck('Rice is ready...', sp).ok).toBe(true);
     expect(voiceCheck('As an AI language model I cannot cook.', sp).ok).toBe(false);
+    expect(voiceCheck('The camera pans to the kitchen.', sp).ok).toBe(false);
+    expect(voiceCheck('The audience will love this.', sp).ok).toBe(false);
+    expect(voiceCheck('Put the camera down. Coffee first.', sp).ok).toBe(true);
+    expect(voiceCheck('The show is enough filming for one morning.', sp).ok).toBe(true);
     expect(voiceCheck('I would like to take this opportunity to explain at very great length exactly how much I appreciate everyone in this lovely house today.', sp).ok).toBe(false);
   });
 });
@@ -104,7 +108,8 @@ describe('compileAppearancePrompt', () => {
     const p = compileAppearancePrompt(base, 'portrait');
     expect(p.positive).toContain('adult');
     expect(p.positive).toContain('24-year-old adult woman');
-    expect(p.negative).toBe(GLOBAL_NEGATIVE);
+    expect(p.negative.startsWith(`${GLOBAL_NEGATIVE}, `)).toBe(true);
+    expect(p.negative).toContain('oversized head');
     expect(p.negative).toContain('child');
   });
   it('strips minors-coded terms', () => {

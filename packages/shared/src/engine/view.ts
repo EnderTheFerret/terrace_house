@@ -1,5 +1,5 @@
 // Player-facing projection: only what the player knows, with reliability tags. Hidden state never leaves the server.
-import type { Appearance, BeliefEntry, Character, GameState, KnowledgeSource, Prediction, Invitation, FeedPost } from '../model';
+import type { Appearance, BeliefEntry, Character, Gender, GameState, KnowledgeSource, Prediction, Invitation, FeedPost } from '../model';
 import { tripOffer } from './trips';
 import { BUDGETS, playerBudget, type Budget } from './budget';
 import { carPlanNode } from './city';
@@ -7,7 +7,7 @@ import { ROOMS, TRAIT_NAMES } from '../model';
 import { content } from '../content';
 import { clockLabel, coupleOf, flag, housemates, isRoom, placeName, rel, SLOT_MINUTES } from './core';
 import { dateLabel } from './calendar';
-import { jobOf } from './agents';
+import { jobOf, SOCIAL_ACTIONS } from './agents';
 import { pairSummaryText, topMemories } from './memory';
 import { moodWord, teaserLine } from '../gen/mock';
 import { uk } from '../util';
@@ -21,10 +21,15 @@ export interface CharView {
   gender: string;
   occupation: string;
   hometown: string;
+  /** who they could fall for (public: it is how the housemates read each other) */
+  interestedIn: Gender[];
   appearance: Appearance;
   appearanceTags: string[];
   appearanceText: string;
   portraitSeed: number;
+  spriteSeed?: number;
+  spriteInstructions?: string;
+  expressionEdits?: Character['expressionEdits'];
   isPlayer: boolean;
   status: 'inHouse' | 'left';
   /** keeps Shabbat (the house knows: phones away Friday night, no driving) */
@@ -43,6 +48,11 @@ export interface CharView {
   floor: number | null;
   activityUntil: number;
   swimming: boolean;
+  talkingTo?: string;
+  companion?: string;
+  cityLocation?: string;
+  /** Observable threshold only; private room contents and activity remain hidden. */
+  doorway?: { x: number; y: number; floor: number };
 }
 
 export interface BoardEdge {
@@ -85,6 +95,7 @@ export interface PlayerView {
   seed: number;
   episode: number;
   seasonLength: number;
+  openingIntroduction?: boolean;
   finaleEpisode: number | null;
   forecast: string;
   timeline: GameState['timeline'];
@@ -169,12 +180,26 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
   const characters: CharView[] = Object.values(s.characters).filter((c) => c.status !== 'arriving').map((c) => {
     const room = content().house.rooms.find((r) => r.id === c.location);
     const visible = c.status === 'inHouse' && (c.isPlayer || (playerHome && isRoom(c.location) && !room?.private) || c.location === P.location);
+    const talkTarget = c.lastAction === 'gossip' ? c.actionThird : c.actionTarget;
+    const privateRoom = room?.id.startsWith('balcony') ? content().house.rooms.find(r => r.id === room.id.replace('balcony', 'bedroom')) : room;
+    const at = (x: number, y: number) => content().house.rooms.find(r => r.floor === privateRoom?.floor && x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+    const threshold = privateRoom?.private && content().house.doors.filter(d => d[2] === privateRoom.floor).map(([x, y]) => {
+      const a = at(x, y);
+      const horizontal = a?.id !== at(x, y - 1)?.id;
+      const [nx, ny] = horizontal ? [x, y - 1] : [x - 1, y];
+      const b = at(nx, ny);
+      if (a?.id === privateRoom.id && b && !b.private) return { x: nx, y: ny, floor: privateRoom.floor };
+      if (b?.id === privateRoom.id && a && !a.private) return { x, y, floor: privateRoom.floor };
+    }).find(Boolean);
     const cp = coupleOf(s, c.id);
     const partner = cp ? (cp.a === c.id ? cp.b : cp.a) : undefined;
     const partnerKnown = partner && (c.isPlayer || partner === P.id || Object.keys(kn).some((fid) => s.facts[fid]?.kind === 'couple' && [s.facts[fid].subject, s.facts[fid].about].includes(c.id)));
     return {
-      id: c.id, name: c.name, age: c.age, gender: c.gender, occupation: c.occupation, hometown: c.hometown, appearance: c.appearance,
+      id: c.id, name: c.name, age: c.age, gender: c.gender, occupation: c.occupation, hometown: c.hometown, interestedIn: c.interestedIn, appearance: c.appearance,
       appearanceTags: c.appearanceTags, appearanceText: c.appearanceText, portraitSeed: c.portraitSeed, isPlayer: c.isPlayer, status: c.status as CharView['status'], keepsShabbat: !!c.persona.keepsShabbat, leftReason: c.leftReason, arrivedEp: c.arrivedEp,
+      ...(c.spriteSeed !== undefined ? { spriteSeed: c.spriteSeed } : {}),
+      ...(c.spriteInstructions ? { spriteInstructions: c.spriteInstructions } : {}),
+      ...(c.expressionEdits ? { expressionEdits: c.expressionEdits } : {}),
       mood: visible ? moodWord(c.mood) : null,
       moodValue: visible ? Math.round(c.mood * 100) / 100 : null,
       location: visible ? c.location : c.status === 'inHouse' && !isRoom(c.location) ? 'out' : null,
@@ -186,6 +211,12 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
       floor: room && visible ? room.floor : null,
       activityUntil: visible ? c.activityUntil : 0,
       swimming: visible && c.swimming && c.location === 'backyard',
+      talkingTo: visible && SOCIAL_ACTIONS.includes(c.lastAction ?? '') && talkTarget &&
+        s.characters[talkTarget]?.location === c.location ? talkTarget : undefined,
+      companion: c.actionCompanion && s.characters[c.actionCompanion]?.location === c.location &&
+        (visible || !isRoom(c.location)) ? c.actionCompanion : undefined,
+      cityLocation: c.status === 'inHouse' && !isRoom(c.location) && content().city.nodes.some(n => n.id === c.location) ? c.location : undefined,
+      doorway: playerHome && !visible && c.status === 'inHouse' && threshold ? threshold : undefined,
     };
   });
   const occupancy = playerHome ? Object.fromEntries(ROOMS.map((r) => [r, hm.filter((c) => c.location === r && characters.find((v) => v.id === c.id)?.location === r).map((c) => c.id)])) : null;
@@ -256,6 +287,7 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
   const ce = s.world.cityEvent ? content().calendar.events.find((e) => e.id === s.world.cityEvent) : null;
   return {
     gameId: s.gameId,
+    openingIntroduction: s.world.episode === 1 && !!s.world.flags.gradualMoveIn && !s.world.flags[`introduced_${P.id}`],
     seed: s.seed,
     episode: s.world.episode,
     seasonLength: s.seasonLength,

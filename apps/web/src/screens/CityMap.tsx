@@ -3,6 +3,7 @@ import { Tip } from '../components/Tip';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { afford, content, reachability, shiftToday, ACTIVITY_MINUTES, GIFT_ITEMS, GIFT_PRICE, priceLabel, type PlayerAction, type CityNode } from '@shared-roof/shared';
 import { useGame } from '../store';
+import { useWorldClock } from '../useWorldClock';
 import { TopBar, StudioStrip, slotLabel } from '../components/layout';
 import { Btn, Modal, Panel } from '../components/ui';
 import { sprite } from '../pixel/sprites';
@@ -98,6 +99,7 @@ export function CityMap() {
   const [contract, setContract] = useState(false);
   const [item, setItem] = useState('flowers');
   const [scale, setScale] = useState(3);
+  useWorldClock(!!sel);
   const reach = useMemo(() => {
     if (!view) return [];
     const booked = view.carPlanNode ? reachability('house', view.slot as never, view.budget.level, true, 180 - view.minutesLeft, view.weekday).find((r) => r.node === view.carPlanNode) : undefined;
@@ -143,6 +145,10 @@ export function CityMap() {
       }
       const home = content().city.nodes.find((n) => n.id === 'house')!;
       ctx.drawImage(sprite(me, 'down', Math.floor(t / 400) % 2 ? 0 : 1), mx(home.x) - 8, my(home.y) - 26, 16, 20);
+      for (const node of content().city.nodes) {
+        const visitors = view.characters.filter(ch => !ch.isPlayer && ch.cityLocation === node.id);
+        visitors.forEach((ch, i) => ctx.drawImage(sprite(ch, ch.companion ? (i % 2 ? 'left' : 'right') : 'down', 1), mx(node.x) - 8 + (i - (visitors.length - 1) / 2) * 14, my(node.y) - 25, 16, 20));
+      }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -190,6 +196,7 @@ export function CityMap() {
         </div>
         <Panel title={`${slotLabel(view.slot)} · where to? (${Math.max(0, view.minutesLeft - ACTIVITY_MINUTES)} min for travel there and back)`} className="flex w-96 shrink-0 flex-col overflow-hidden">
           <ul className="flex-1 overflow-y-auto pr-1 text-sm scroll-thin">
+            {view.characters.filter(c => !c.isPlayer && c.cityLocation).map(c => <li key={`visitor-${c.id}`} className="mb-2 text-xs">{c.name.split(' ')[0]} · at {content().city.nodes.find(n => n.id === c.cityLocation)?.name}{c.companion ? ` with ${view.characters.find(p => p.id === c.companion)?.name.split(' ')[0]}` : ''}</li>)}
             {nodes
               .map((n) => ({ n, r: byNode[n.id] }))
               .sort((a, b) => Number(b.r?.reachable) - Number(a.r?.reachable) || (a.r?.minutes ?? 999) - (b.r?.minutes ?? 999))

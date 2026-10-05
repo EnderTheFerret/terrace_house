@@ -1,6 +1,6 @@
 // Adapter interfaces implemented by the server (ollama/mock LLM, comfyui/mock images).
 
-export type LlmKind = 'beats' | 'lines' | 'deltas' | 'commentary' | 'chat' | 'summary' | 'flavor';
+export type LlmKind = 'beats' | 'lines' | 'deltas' | 'commentary' | 'chat' | 'summary' | 'flavor' | 'actions';
 
 export interface LlmRequest {
   kind: LlmKind;
@@ -36,6 +36,10 @@ export interface ImageRequest {
   subjectKey: string;
   /** Local portrait or style reference (used by the reference workflow, if configured). */
   reference?: string;
+  /** Restrict a reference edit to the detected face, preserving the approved body pixels. */
+  editRegion?: 'face';
+  /** Crop an upright full-length source to a knees-up portrait before reference edits. */
+  framing?: 'knees';
   /** Optional second reference, e.g. a sprite direction/layout guide. */
   reference2?: string;
   /** Group images: every participant's approved portrait, in the order the prompt names them (image 1, image 2, ...). */

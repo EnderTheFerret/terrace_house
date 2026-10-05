@@ -1,6 +1,6 @@
 // Builds the prebaked asset job list + manifest from the same request builders the server uses,
 // so subject keys always match. Then run: python scripts/assets/comfy_gen.py scripts/assets/jobs.json
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { content, defaultCast, playerFromSetup, DEFAULT_PLAYER, TRIPS, type ImageRequest } from '@shared-roof/shared';
 import { avatarRequest, locationRequest, portraitRequest } from '../../apps/server/src/image/requests';
@@ -15,17 +15,19 @@ interface Job {
   height: number;
   pixel: number;
   colors: number;
+  framing?: ImageRequest['framing'];
 }
 
 const jobs: Job[] = [];
-const manifest: Record<string, string> = {};
+const manifestPath = resolve(ROOT, 'apps/web/public/assets/manifest.json');
+const manifest: Record<string, string> = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : {};
 const add = (r: ImageRequest, rel: string, pixel: number, colors: number) => {
   const background = r.kind === 'location';
-  jobs.push({ out: `apps/web/public/assets/${rel}`, prompt: r.prompt, negative: r.negative, seed: r.seed, width: background ? 832 : r.width, height: background ? 576 : r.height, pixel: background ? 4 : pixel, colors });
-  manifest[r.subjectKey] = rel;
+  jobs.push({ out: `apps/web/public/assets/${rel}`, prompt: r.prompt, negative: r.negative, seed: r.seed, width: background ? 832 : r.width, height: background ? 576 : r.height, pixel: background ? 4 : pixel, colors, framing: r.framing });
+  manifest[r.subjectKey] ??= rel;
 };
 
-for (const c of [...defaultCast(), playerFromSetup(DEFAULT_PLAYER)]) add(portraitRequest(c), `portraits/tel-aviv-${c.id}.png`, 8, 32);
+for (const c of [...defaultCast(), playerFromSetup(DEFAULT_PLAYER)]) add(portraitRequest(c), `portraits/tel-aviv-${c.id}-knees-up-v3.png`, 8, 32);
 for (const p of content().panel) add(avatarRequest(p.id), `panel/${p.id}.png`, 6, 32);
 const slotFor = { morning: 'morning', day: 'slot1', evening: 'slot3', night: 'evening' } as const;
 for (const n of content().city.nodes) {
@@ -49,5 +51,5 @@ jobs.push({
 
 mkdirSync(resolve(ROOT, 'apps/web/public/assets'), { recursive: true });
 writeFileSync(resolve(ROOT, 'scripts/assets/jobs.json'), JSON.stringify(jobs, null, 1));
-writeFileSync(resolve(ROOT, 'apps/web/public/assets/manifest.json'), JSON.stringify(manifest, null, 1));
+writeFileSync(manifestPath, JSON.stringify(manifest, null, 1));
 console.log(`${jobs.length} jobs, ${Object.keys(manifest).length} manifest keys`);

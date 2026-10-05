@@ -6,6 +6,8 @@ import { SLOT_MINUTES, SLOT_START } from './core';
 import { afford, nodePrice, type Budget, type Price } from './budget';
 
 export const ACTIVITY_MINUTES = 60;
+/** Latest you can walk into a lecture and still count as attending: this much of the block must remain on arrival. */
+export const LATE_LECTURE_MINUTES = 30;
 
 /** A player may share the car already booked for their accepted meeting. */
 export const carPlanNode = (s: GameState) => s.invitations.find((p) => p.status === 'accepted' && p.episode === s.world.episode && p.slot === s.world.slot && [p.from, p.to].includes(s.playerId) && [p.from, p.to].includes(s.world.carUsedBy ?? ''))?.node ?? null;
@@ -65,7 +67,7 @@ export interface Reach {
  * Outward journey + activity + return journey must fit the remaining block. Affordability is reported separately
  * (working somewhere never needs the budget for it).
  */
-export function reachability(from: string, slot: Slot, budget: Budget, carAvailable: boolean, elapsed = 0, weekday = 3, forceCar = false): Reach[] {
+export function reachability(from: string, slot: Slot, budget: Budget, carAvailable: boolean, elapsed = 0, weekday = 3, forceCar = false, lecture = false): Reach[] {
   const walk = shortestTimes(from, false);
   const drive = carAvailable ? shortestTimes(from, true) : null;
   return content()
@@ -74,7 +76,9 @@ export function reachability(from: string, slot: Slot, budget: Budget, carAvaila
       const wm = walk[n.id];
       const dm = drive ? drive[n.id] : Infinity;
       const left = Math.max(0, SLOT_MINUTES - elapsed);
-      const needsCar = forceCar || !Number.isFinite(wm) || wm * 2 + ACTIVITY_MINUTES > left;
+      // a lecture you can still catch the end of: the block closes on you there, so no return leg or full hour is needed
+      const need = (m: number) => (lecture ? m + LATE_LECTURE_MINUTES : m * 2 + ACTIVITY_MINUTES);
+      const needsCar = forceCar || !Number.isFinite(wm) || need(wm) > left;
       const minutes = needsCar ? dm : wm;
       const price = nodePrice(n);
       const arrival = SLOT_START[slot] + (elapsed + minutes) / 60;
@@ -83,7 +87,7 @@ export function reachability(from: string, slot: Slot, budget: Budget, carAvaila
       const open = fits(o, c) || fits(o - 24, c - 24);
       let reason: string | undefined;
       if (!Number.isFinite(minutes)) reason = carAvailable ? 'no route' : 'needs the car';
-      else if (minutes * 2 + ACTIVITY_MINUTES > left) reason = 'too far for this slot';
+      else if (need(minutes) > left) reason = lecture ? 'too late: the lecture is nearly over' : 'too far for this slot';
       else if (!open) reason = 'closed now';
       return { node: n.id, name: n.name, minutes, price, afford: afford(budget, price), open, reachable: !reason, needsCar, reason };
     });

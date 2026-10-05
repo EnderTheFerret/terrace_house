@@ -8,10 +8,14 @@ import { EpisodeCard } from './screens/Episode';
 import { Studio } from './screens/Studio';
 import { Phone } from './screens/Phone';
 import { Board } from './screens/Board';
+import { ChatLog } from './screens/ChatLog';
 import { Bible, Fridge, Saves, Settings, Summary } from './screens/Info';
 import { Debug } from './screens/Debug';
 import { CityMap } from './screens/CityMap';
 import { Cooking } from './screens/Cooking';
+import { Gallery } from './screens/Gallery';
+import { SpriteLibrary } from './screens/SpriteLibrary';
+import { EditCharacter } from './screens/EditCharacter';
 import { ErrorToast } from './components/ui';
 import { ActivityStatus } from './components/Activity';
 import { useCharacterSprites } from './pixel/sprites';
@@ -26,6 +30,7 @@ const screens: Record<Screen, () => ReactElement | null> = {
   practice: () => <Cooking practice />,
   phone: Phone,
   board: Board,
+  chatlog: ChatLog,
   bible: Bible,
   fridge: Fridge,
   debug: Debug,
@@ -34,13 +39,16 @@ const screens: Record<Screen, () => ReactElement | null> = {
   saves: Saves,
   episode: EpisodeCard,
   studio: Studio,
+  gallery: Gallery,
+  sprites: SpriteLibrary,
+  editme: EditCharacter,
 };
 
-const NEEDS_GAME: Screen[] = ['house', 'map', 'scene', 'cooking', 'phone', 'board', 'bible', 'fridge', 'debug', 'summary', 'episode', 'studio'];
+const NEEDS_GAME: Screen[] = ['house', 'map', 'scene', 'cooking', 'phone', 'board', 'chatlog', 'bible', 'fridge', 'debug', 'summary', 'episode', 'studio', 'editme'];
 
 export function App() {
   const { screen, settings, boot, view } = useGame();
-  const spritePending = useCharacterSprites(view?.characters ?? []);
+  const spritePending = useCharacterSprites(NEEDS_GAME.includes(screen) ? view?.characters.filter(c => c.status === 'inHouse') ?? [] : []);
   useEffect(() => {
     void boot();
     const t = setInterval(() => void useGame.getState().refreshHealth(), 30000);

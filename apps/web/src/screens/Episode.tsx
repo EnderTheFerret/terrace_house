@@ -3,7 +3,7 @@ import { useGame } from '../store';
 import { Btn } from '../components/ui';
 
 export function EpisodeCard({ pending = 0 }: { pending?: number } = {}) {
-  const { view, episodeCard, setScreen } = useGame();
+  const { view, episodeCard, setScreen, act } = useGame();
   // every housemate's walk sheet (new game, loaded save, arrivals) is ready before the episode starts
   if (!view) return null;
   if (episodeCard === 'end') {
@@ -35,6 +35,7 @@ export function EpisodeCard({ pending = 0 }: { pending?: number } = {}) {
         onClick={() => {
           useGame.setState({ episodeCard: null, showDigest: false });
           setScreen('house');
+          if (view.openingIntroduction) void act({ type: 'idle' });
         }}
       >
         {pending > 0 ? `drawing housemates… ${view.characters.length - pending}/${view.characters.length}` : 'begin'}

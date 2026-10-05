@@ -12,7 +12,7 @@ const imageStep = (req: ImageRequest) => req.kind === 'portrait' ? req.subjectKe
 export const PRIORITY = { playerPortrait: 100, portrait: 60, currentScene: 50, freeze: 45, location: 30, prefetch: 10 } as const;
 
 export function cacheKey(workflowHash: string, r: ImageRequest): string {
-  return createHash('sha256').update(`${workflowHash}\n${r.prompt}\n${r.negative}\n${r.seed}\n${r.width}x${r.height}${r.reference ? `\n${r.reference}` : ''}${r.reference2 ? `\n${r.reference2}` : ''}${r.references?.length ? `\n${r.references.join('\n')}` : ''}`).digest('hex');
+  return createHash('sha256').update(`${workflowHash}\n${r.prompt}\n${r.negative}\n${r.seed}\n${r.width}x${r.height}${r.reference ? `\n${r.reference}` : ''}${r.reference2 ? `\n${r.reference2}` : ''}${r.references?.length ? `\n${r.references.join('\n')}` : ''}${r.editRegion ? `\nedit:${r.editRegion}` : ''}${r.framing ? `\nframe:${r.framing}` : ''}`).digest('hex');
 }
 
 export interface ImageStatus {
@@ -94,6 +94,16 @@ export class ImageQueue {
 
   private key(req: ImageRequest) {
     return cacheKey(this.backend.workflowHashFor?.(req) ?? this.workflowHash, req);
+  }
+
+  /** Inspect a cached image without starting generation. */
+  peek(req: ImageRequest): ImageStatus | null {
+    const pre = this.assets?.lookup(req.subjectKey);
+    if (pre) return { key: req.subjectKey, status: 'ready', url: pre, placeholder: false };
+    const key = this.key(req);
+    const row = this.store.imageGet(key) ?? this.store.imageGet(cacheKey(this.workflowHash, req));
+    if (row && existsSync(resolve(this.cacheDir, row.path))) return { key, status: 'ready', url: `/images/${row.path}`, placeholder: !!row.placeholder };
+    return this.state.get(key) ?? null;
   }
 
   /** Request an image. Returns immediately: ready (cached/prebaked) or queued. */

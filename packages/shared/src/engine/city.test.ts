@@ -40,6 +40,12 @@ describe('city exploration', () => {
     expect(tight.filter((x) => x.price === 2).every((x) => x.afford === 'stretch')).toBe(true);
     expect(afford(2, 3)).toBe('ok');
   });
+  it('a late student can still catch the end of a lecture, but not once the block is nearly over', () => {
+    const uni = (elapsed: number, lecture: boolean) => reachability('house', 'slot1', 3, true, elapsed, 1, false, lecture).find((x) => x.node === 'university')!;
+    expect(uni(120, false).reason).toBe('too far for this slot'); // 28 min each way + an hour doesn't fit, even by car
+    expect(uni(120, true).reachable).toBe(true); // 28 min walk + 30 min of lecture still fits
+    expect(uni(150, true).reason).toBe('too late: the lecture is nearly over');
+  });
   it('going out uses the car for far trips and moves the player', () => {
     const s0 = createGame({ seed: 7 });
     s0.world.slot = 'slot1';
@@ -47,6 +53,13 @@ describe('city exploration', () => {
     expect(state.characters.player.location).toBe('lighthouse');
     expect(state.world.carUsedBy).toBe('player');
     expect(state.characters.ren.location).toBe('lighthouse');
+  });
+  it('an outing can bring several housemates, all in the scene', () => {
+    const s0 = createGame({ seed: 7 });
+    s0.world.slot = 'slot1';
+    const { state, plan } = planSlot(s0, { type: 'goOut', node: 'beach', activity: 'invite', invite: 'ren', guests: ['kaito'] });
+    expect(['ren', 'kaito'].map((id) => state.characters[id].location)).toEqual(['beach', 'beach']);
+    expect(plan.scenes.find((p) => p.event.isPlayerScene)!.event.participants).toEqual(expect.arrayContaining(['player', 'ren', 'kaito']));
   });
   it('part-time contract: fixed weekly shifts lift the budget a level; two missed shifts and you are let go', () => {
     const s0 = createGame({ seed: 7 });

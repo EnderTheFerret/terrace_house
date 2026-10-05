@@ -2,7 +2,7 @@
 import type { DeltaProposal, GameState } from '../model';
 import { DeltaProposal as DeltaProposalSchema } from '../model';
 import { clamp } from '../util';
-import { MAX_SCENE_DELTA, addMemory, addRel, asym, housemates, rel, romanceGap } from './core';
+import { FEELING_SCALE, MAX_SCENE_DELTA, addMemory, addRel, asym, housemates, rel, romanceGap } from './core';
 
 /** Clamp every delta to ±MAX_SCENE_DELTA (mood to ±0.3), drop unknown ids/self pairs, merge duplicates. */
 export function sanitizeProposal(raw: unknown, validIds: readonly string[], maxDelta = MAX_SCENE_DELTA): DeltaProposal {
@@ -35,8 +35,8 @@ export function sanitizeProposal(raw: unknown, validIds: readonly string[], maxD
 }
 
 export function applyProposal(s: GameState, p: DeltaProposal, participants: string[]) {
-  for (const d of p.affinityDeltas) addRel(s, d.from, d.to, 'affinity', d.delta);
-  for (const d of p.romanceDeltas) addRel(s, d.from, d.to, 'romance', d.delta);
+  for (const d of p.affinityDeltas) addRel(s, d.from, d.to, 'affinity', d.delta * FEELING_SCALE);
+  for (const d of p.romanceDeltas) addRel(s, d.from, d.to, 'romance', d.delta * FEELING_SCALE);
   for (const d of p.tensionDeltas) addRel(s, d.from, d.to, 'tension', d.delta);
   for (const d of p.trustDeltas) addRel(s, d.from, d.to, 'trust', d.delta);
   for (const m of p.moodDeltas) {
@@ -46,6 +46,40 @@ export function applyProposal(s: GameState, p: DeltaProposal, participants: stri
   for (const m of p.newMemories) addMemory(s, m.charId, m.text, participants, m.salience);
   // shared time raises closeness
   for (const a of participants) for (const b of participants) if (a !== b) addRel(s, a, b, 'closeness', 2);
+}
+
+type Directed = DeltaProposal['affinityDeltas'];
+/** a·ka − b·kb per from→to pair, dropping pairs that cancel out. */
+function minus(a: Directed, b: Directed, ka = 1, kb = 1): Directed {
+  const net = new Map<string, number>();
+  for (const [list, k] of [[a, ka], [b, -kb]] as const) for (const d of list) net.set(`${d.from}>${d.to}`, (net.get(`${d.from}>${d.to}`) ?? 0) + k * d.delta);
+  return [...net].filter(([, delta]) => Math.abs(delta) >= 0.05).map(([k, delta]) => { const [from, to] = k.split('>'); return { from, to, delta }; });
+}
+
+/**
+ * What re-reading a scene changes: the model's fresh read minus what the scene already applied, plus the fresh memories.
+ * `appliedScale` is the FEELING_SCALE the scene was applied under (1 before scaling existed), so older scenes are re-based
+ * to today's scale. The result is the exact change to apply; trust and tension are unscaled.
+ */
+export function rereadChange(next: DeltaProposal, applied: DeltaProposal, appliedScale = 1): DeltaProposal {
+  return {
+    affinityDeltas: minus(next.affinityDeltas, applied.affinityDeltas, FEELING_SCALE, appliedScale),
+    romanceDeltas: minus(next.romanceDeltas, applied.romanceDeltas, FEELING_SCALE, appliedScale),
+    tensionDeltas: minus(next.tensionDeltas, applied.tensionDeltas),
+    trustDeltas: minus(next.trustDeltas, applied.trustDeltas),
+    newMemories: next.newMemories,
+    moodDeltas: [], // ponytail: mood is not re-derived; add if re-reads should move moods too
+  };
+}
+
+/** Apply a re-read once per scene: the net change from rereadChange and fresh memories, without a second dose of shared-time closeness. */
+export function applyReread(s: GameState, sceneId: string, change: DeltaProposal, participants: string[]) {
+  for (const d of change.affinityDeltas) addRel(s, d.from, d.to, 'affinity', d.delta);
+  for (const d of change.romanceDeltas) addRel(s, d.from, d.to, 'romance', d.delta);
+  for (const d of change.tensionDeltas) addRel(s, d.from, d.to, 'tension', d.delta);
+  for (const d of change.trustDeltas) addRel(s, d.from, d.to, 'trust', d.delta);
+  for (const m of change.newMemories) addMemory(s, m.charId, m.text, participants, m.salience);
+  s.world.flags[`reread:${sceneId}`] = true;
 }
 
 /** Drama = Σ_ij tension + asym + romanceGap over in-house ordered pairs. */

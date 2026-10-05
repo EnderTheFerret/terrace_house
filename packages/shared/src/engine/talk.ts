@@ -2,9 +2,11 @@
 // same way as with the buttons), housemates remember the words, and phone conversations land in the chat thread.
 import type { BeatType, Character, Emotion, GameState, Intent } from '../model';
 import { addLog, addMemory, cloneState, firstName, rel } from './core';
+import { isShabbat } from './agents';
 import { truncate } from '../util';
 
-export const MAX_TYPED_EXCHANGES = 4;
+/** Replies (typed or picked) one conversation allows before it has to wrap up; "that's all" ends it sooner. */
+export const MAX_TYPED_EXCHANGES = 30;
 
 const EVERYONE = /\b(guys|everyone|everybody|you all|y'?all|all of you|you two|both of you)\b/i;
 
@@ -61,6 +63,30 @@ export function classifyIntent(text: string, offered: readonly Intent[]): Intent
   return fallback.find((i) => offered.includes(i)) ?? offered[0];
 }
 
+/**
+ * Would housemate `id` go along with the player's invitation? Reads how they feel about the player, their mood and
+ * personality, the tone of what they just said in this conversation, and whether they are free (or into a date).
+ * ponytail: a weighted score with a text-seeded wobble, not an LLM judgement; the reply line is written to match it.
+ */
+export function inviteDecision(s: GameState, id: string, transcript: { speaker: string; text: string }[], o: { date: boolean; seed: string }): { accept: boolean; reason: string } {
+  const c = s.characters[id];
+  const P = s.characters[s.playerId];
+  if (!c || c.status !== 'inHouse') return { accept: false, reason: 'is not around' };
+  if (['work', 'sleep', 'nap', 'shower'].includes(c.lastAction ?? '')) return { accept: false, reason: `is busy (${c.lastAction})` };
+  if (isShabbat(s, c)) return { accept: false, reason: 'is keeping Shabbat' };
+  if (o.date && P && !c.interestedIn.includes(P.gender)) return { accept: false, reason: 'only sees you as a friend' };
+  const feelings = rel(s, id, s.playerId);
+  const tone = transcript.filter(l => l.speaker === id).slice(-4).reduce((sum, l) => {
+    const e = feltEmotion(l.text);
+    return sum + (e === 'angry' || e === 'annoyed' ? -0.3 : e === 'sad' || e === 'awkward' || e === 'nervous' ? -0.1 : e ? 0.15 : 0);
+  }, 0);
+  const score = 0.1 + feelings.affinity / 100 + (o.date ? feelings.romance / 80 - 0.1 : feelings.romance / 300) - feelings.tension / 150
+    + c.mood * 0.2 + (c.persona.traits[3] - 0.5) * 0.3 + (c.persona.traits[2] - 0.5) * 0.2 + tone;
+  const roll = [...`${o.seed}:${id}`].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 11) % 1000 / 1000;
+  const accept = score + (roll - 0.5) * 0.3 >= (o.date ? 0.25 : 0.05);
+  return { accept, reason: accept ? 'is happy to go' : feelings.affinity < 0 || tone < 0 ? "isn't in the mood for you right now" : o.date ? "isn't ready for that yet" : 'would rather stay in today' };
+}
+
 /** How a housemate answers what the player just said, as a beat type. */
 export function replyBeatType(intent: Intent, listener: Character): BeatType {
   switch (intent) {
@@ -83,6 +109,18 @@ export function recordPlayerWords(s0: GameState, listeners: string[], words: str
   const P = s.playerId;
   const said = truncate(words.join(' / '), 180);
   for (const id of listeners) if (id !== P && s.characters[id]) addMemory(s, id, `${firstName(s, P)} told me: "${said}"`, [P, id], 0.55);
+  return s;
+}
+
+export function recordConversation(s0: GameState, listeners: string[], lines: { speaker: string; text: string }[]): GameState {
+  const s = cloneState(s0);
+  const heard = lines.filter(l => listeners.includes(l.speaker)).slice(-8);
+  for (const id of listeners) {
+    if (!s.characters[id] || s.characters[id].isPlayer) continue;
+    for (const line of heard.slice(-4)) addMemory(s, id,
+      `${line.speaker === id ? 'I said' : `${firstName(s, line.speaker)} said to us`}: ${truncate(line.text, 220)}`,
+      [...new Set([id, line.speaker])], 0.6);
+  }
   return s;
 }
 

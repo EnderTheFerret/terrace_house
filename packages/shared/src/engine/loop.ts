@@ -9,10 +9,10 @@ import { content } from '../content';
 import { applyPool, validatePool } from './pool';
 import {
   addFact, addLog, addMemory, attracted, ch, cloneState, coupleOf, departing, isCouple, depthCeiling, firstName, flag, housemates, isRoom, knows, learn,
-  nextId, npcs, placeName, player, rel, withRng, MINUTES_PER_LINE, SLOT_MINUTES, clockLabel,
+  nextId, npcs, placeName, player, rel, withRng, MINUTES_PER_LINE, SLOT_MINUTES, SLOT_START, clockLabel,
 } from './core';
 import { applyCalendar, chooseTyphoonDay } from './calendar';
-import { bedroomOf, chooseAction, decayNeeds, isShabbat, resolveLocations, satisfy, type AgentAction } from './agents';
+import { bedroomOf, chooseAction, coordinateOutings, decayNeeds, isShabbat, resolveLocations, satisfy, type AgentAction } from './agents';
 import { candidates, expectedDrama, housemateRoles, sample, type Candidate } from './director';
 import { logInteraction, resolveColocation, resolveRemote, type Interaction } from './interactions';
 import { arcCandidates, careerChanges, initArc, refreshJobArc } from './arcs';
@@ -47,11 +47,12 @@ export interface NewGameOptions {
   randomizeCast?: boolean;
   seasonLength?: number;
   gameId?: string;
-  /** episode 1 is move-in day: the six arrive one at a time (the player in a random place in the order) */
+  /** Episode 1 starts with the player and one housemate; the others arrive through evening. */
   moveInDay?: boolean;
+  moveInVersion?: 1 | 2;
 }
 
-/** Move-in day: which block each arrival (by order) comes through the door. */
+/** Legacy saves: which block each arrival comes through the door. */
 const MOVE_IN_BLOCK = [0, 1, 2, 3, 4, 4];
 
 /** Move-in day arrivals due by the current block come through the door. Returns who arrived. */
@@ -94,6 +95,7 @@ export function createGame(o: NewGameOptions): GameState {
     pairSummary: {},
     house: initHouse(all.map((c) => c.id).sort()),
     chats: {},
+    npcPlans: {},
     predictions: [],
     arcs: {},
     references: [],
@@ -129,16 +131,25 @@ export function createGame(o: NewGameOptions): GameState {
   applyCalendar(s, rng);
   rotateChores(s);
   s.world.flags[`new_${P.id}`] = 1; // the player is the newcomer at the door in episode 1
-  if (o.moveInDay) {
-    // move-in day: everyone arrives one at a time; whoever came before the player is already settled in
-    const order = rng.shuffle(all.map((c) => c.id));
+  if (o.moveInDay && o.moveInVersion === 1) {
+    const order = rng.shuffle(all.map(c => c.id));
     const mine = order.indexOf(P.id);
     s.world.flags.moveIn = order.join(',');
     s.world.slot = SLOTS[MOVE_IN_BLOCK[mine]] as Slot;
     order.forEach((id, i) => {
       if (id === P.id) return;
       if (i > mine) s.characters[id].status = 'arriving';
-      else s.world.flags[`introduced_${id}`] = true; // arrived earlier today and met the others already
+      else s.world.flags[`introduced_${id}`] = true;
+    });
+  } else if (o.moveInDay) {
+    const order = [P.id, ...rng.shuffle(cast.map((c) => c.id))];
+    s.world.flags.moveIn = order.join(',');
+    s.world.flags.gradualMoveIn = true;
+    P.location = 'entrance';
+    order.forEach((id, i) => {
+      if (id === P.id) return;
+      if (i > 1) s.characters[id].status = 'arriving';
+      else { s.characters[id].location = 'entrance'; s.world.flags[`introduced_${id}`] = true; }
     });
   }
   s.rngState = rng.state() | 0;
@@ -221,6 +232,59 @@ function gather(s: GameState, ev: EventInstance) {
   }
 }
 
+const MOVE_IN_MINUTES = [0, 0, 30, 210, 420, 780];
+
+/** One arrival at a time, including when a conversation crosses the scheduled minute. */
+export function planMoveInArrival(s0: GameState): { state: GameState; plan: SlotPlan } {
+  const s = cloneState(s0);
+  const plan: SlotPlan = { scenes: [], npcActions: {} };
+  if (s.world.episode !== 1 || !s.world.flags.gradualMoveIn) return { state: s, plan };
+  const order = String(s.world.flags.moveIn).split(',');
+  const now = (SLOT_START[s.world.slot] - 7) * 60 + s.world.minutes;
+  const id = !s.world.flags[`introduced_${s.playerId}`] ? s.playerId : order.find((id, i) => s.characters[id]?.status === 'arriving' && now >= MOVE_IN_MINUTES[i]);
+  if (!id) return { state: s, plan };
+  const c = s.characters[id];
+  if (c.status === 'arriving') {
+    c.status = 'inHouse';
+    s.world.flags[`new_${id}`] = 1;
+    addLog(s, { kind: 'arrival', text: `${c.name}, ${c.age}, ${c.occupation}, arrived at the house with a suitcase.`, participants: [id], salience: 0.7 });
+  }
+  const crowd = housemates(s);
+  const greeter = c.isPlayer ? crowd.find(o => !o.isPlayer)! : player(s);
+  const participants = [id, greeter.id, ...crowd.filter(o => o.id !== id && o.id !== greeter.id).map(o => o.id)];
+  const premise = c.isPlayer
+    ? `It is the first morning. Only ${c.name} and ${greeter.name} are home. They introduce themselves, learn each other's name, age and job, and begin a relaxed conversation. The other housemates have not arrived yet.`
+    : `The doorbell rings: ${c.name} (${c.age}, ${c.occupation}, from ${c.hometown}) arrives. ${participants.length === 3 ? 'They introduce themselves and join the conversation already in progress.' : 'The conversation pauses so everyone can welcome the new housemate. Afterwards the player chooses whom to keep talking with.'}`;
+  const ev = makeEvent(s, content().eventById.get('arrival-intro')!, { a: id, b: greeter.id }, 'entrance', {
+    participants, premise, isPlayerScene: true, playerPresent: true, freeze: false,
+    factRefs: Object.fromEntries(participants.map(p => [p, factRefsFor(s, p, participants)])),
+  });
+  s.world.flags[`introduced_${id}`] = true;
+  gather(s, ev);
+  for (const p of participants) if (p !== s.playerId) { s.characters[p].lastAction = 'seek'; s.characters[p].activityUntil = Math.min(SLOT_MINUTES, s.world.minutes + 30); }
+  plan.scenes.push({ event: ev, render: true, visible: false, priority: 4 });
+  return { state: s, plan };
+}
+
+function planMoveInDayAction(s: GameState, action: PlayerAction): { state: GameState; plan: SlotPlan } {
+  const pending = planMoveInArrival(s);
+  if (pending.plan.scenes.length) return pending;
+  const acts = Object.fromEntries(npcs(s).map(c => [c.id, { kind: 'retreat' as const }]));
+  const plan: SlotPlan = { scenes: [], npcActions: acts };
+  withRng(s, rng => {
+    const { invite, talk } = applyPlayerAction(s, action);
+    const order = String(s.world.flags.moveIn).split(',');
+    const next = order.findIndex(id => s.characters[id]?.status === 'arriving');
+    const due = next >= 0 ? MOVE_IN_MINUTES[next] - (SLOT_START[s.world.slot] - 7) * 60 : Infinity;
+    const end = Math.min(SLOT_MINUTES, s.world.minutes + actionMinutes(action), Math.max(s.world.minutes, due));
+    advanceLiving(s, rng, end, new Set(action.type === 'talk' ? [action.target, ...(action.guests ?? [])] : []));
+    const ev = planPlayerScene(s, rng, action, acts, invite, talk);
+    if (ev) { gather(s, ev); plan.scenes.push({ event: ev, render: true, visible: false, priority: 3 }); }
+  });
+  const arrival = planMoveInArrival(s);
+  return arrival.plan.scenes.length ? arrival : { state: s, plan };
+}
+
 const HOUSE_ROOM: Record<string, (c: Character) => string> = {
   hangout: () => 'living', cook: () => 'kitchen', tidy: () => 'kitchen', rest: (c) => bedroomOf(c), backyard: () => 'backyard', hobby: () => 'living',
 };
@@ -240,9 +304,11 @@ export function actionMinutes(a: PlayerAction): number {
 }
 
 /** Talking takes as long as the conversation: each spoken line the player was there for moves the clock. */
-export function passTime(s0: GameState, lines: number): GameState {
+export function passTime(s0: GameState, lines: number, participants: string[] = [], minutesPerLine = MINUTES_PER_LINE): GameState {
   const s = cloneState(s0);
-  withRng(s, (rng) => advanceLiving(s, rng, s.world.minutes + Math.max(0, lines) * MINUTES_PER_LINE));
+  const protectedIds = new Set<string>();
+  for (const id of participants) protectedIds.add(id);
+  withRng(s, (rng) => advanceLiving(s, rng, s.world.minutes + Math.max(0, lines) * minutesPerLine, protectedIds));
   return s;
 }
 
@@ -254,7 +320,18 @@ function validateAction(s: GameState, a: PlayerAction) {
   if (a.type === 'pool') validatePool(s, a);
   if (a.type === 'endSeason' && (s.world.episode < 3 || s.finaleEpisode !== null)) throw new Error('wrap is available after episode 3, once per season');
   if ('target' in a && a.target && (a.target === P.id || s.characters[a.target]?.status !== 'inHouse')) throw new Error('that housemate is not available');
-  if ((a.type === 'talk' || a.type === 'house' && a.target) && 'target' in a && a.target && (!isRoom(s.characters[a.target].location) || ['work', 'sleep', 'nap', 'shower'].includes(s.characters[a.target].lastAction ?? ''))) throw new Error('this housemate is busy; visit their workplace or message them later');
+  if ((a.type === 'talk' || a.type === 'house' && a.target) && 'target' in a && a.target && (!isRoom(s.characters[a.target].location) ||
+    s.characters[a.target].activityUntil > s.world.minutes && ['work', 'sleep', 'nap', 'shower'].includes(s.characters[a.target].lastAction ?? ''))) throw new Error('this housemate is busy; visit their workplace or message them later');
+  if (a.type === 'talk' && a.room) {
+    const room = content().house.rooms.find(r => r.id === a.room);
+    if (!room || room.private) throw new Error('choose a shared room to invite housemates');
+    if (a.room === 'backyard' && s.world.weather === 'typhoon') throw new Error('the storm keeps everyone indoors');
+    for (const id of a.guests ?? []) {
+      const c = s.characters[id];
+      if (id === P.id || id === a.target || c?.status !== 'inHouse' || !isRoom(c.location) || ['work', 'sleep', 'nap', 'shower'].includes(c.lastAction ?? '')) throw new Error('your guest is unavailable');
+    }
+  }
+  if (a.type === 'talk' && a.guests?.length && !a.room) throw new Error('choose a shared room for your guests');
   if (a.type === 'text' && (isShabbat(s, P) || isShabbat(s, s.characters[a.target]))) throw new Error('phone is put away for Shabbat');
   if (isShabbat(s, P) && (a.type === 'goOut' && (a.useCar || a.activity === 'work') || a.type === 'house' && a.activity === 'cook' || ['post', 'like'].includes(a.type))) throw new Error('this activity waits until after Shabbat');
   const later = { ...s, world: { ...s.world, minutes: Math.min(SLOT_MINUTES, s.world.minutes + actionMinutes(a)) } };
@@ -279,8 +356,8 @@ function validateAction(s: GameState, a: PlayerAction) {
     if (!n || !n.activities.includes(activity)) throw new Error('this place does not offer that activity');
     if (s.world.weather === 'heatwave' || s.world.weather === 'typhoon') throw new Error('the extreme weather keeps everyone indoors');
     if (s.world.weather === 'rain' && ['beach', 'park', 'scenic'].includes(n.type) && a.activity === 'date') throw new Error('rain cancelled the outdoor date; choose an indoor place');
-    if (a.invite && (a.invite === P.id || s.characters[a.invite]?.status !== 'inHouse' || ['work', 'sleep', 'nap', 'shower'].includes(s.characters[a.invite].lastAction ?? '') || isShabbat(s, s.characters[a.invite]))) throw new Error('your guest is unavailable');
-    const r = reachability('house', s.world.slot, playerBudget(s), canUseCar(s, a.node), s.world.minutes, s.world.weekday, a.useCar).find((r) => r.node === a.node);
+    for (const g of [a.invite, ...(a.guests ?? [])]) if (g && (g === P.id || s.characters[g]?.status !== 'inHouse' || ['work', 'sleep', 'nap', 'shower'].includes(s.characters[g].lastAction ?? '') || isShabbat(s, s.characters[g]))) throw new Error('your guest is unavailable');
+    const r = reachability('house', s.world.slot, playerBudget(s), canUseCar(s, a.node), s.world.minutes, s.world.weekday, a.useCar, a.activity === 'class').find((r) => r.node === a.node);
     if (!r?.reachable) throw new Error(r?.reason ?? 'no route');
     if (a.activity === 'gift' && (!a.item || !GIFT_ITEMS[a.item])) throw new Error('choose a gift');
     const fit = spendFit(s, a, r.price);
@@ -322,14 +399,14 @@ function applyPlayerAction(s: GameState, a: PlayerAction): { invite?: string; ta
       const t = s.characters[a.target];
       const priv = content().house.rooms.find((r) => r.id === t?.location)?.private;
       // you knock on a bedroom/bathroom door and talk in the living room instead
-      P.location = t && isRoom(t.location) && !priv ? t.location : 'living';
+      P.location = a.room ?? (t && isRoom(t.location) && !priv ? t.location : 'living');
       if (P.location !== 'backyard') P.swimming = false;
       s.world.playerNode = 'house';
       satisfy(P, 'seek');
       return { talk: a.target };
     }
     case 'goOut': {
-      const r = reachability('house', s.world.slot, playerBudget(s), canUseCar(s, a.node), s.world.minutes, s.world.weekday, a.useCar).find((x) => x.node === a.node)!;
+      const r = reachability('house', s.world.slot, playerBudget(s), canUseCar(s, a.node), s.world.minutes, s.world.weekday, a.useCar, a.activity === 'class').find((x) => x.node === a.node)!;
       P.location = a.node;
       s.world.playerNode = a.node;
       if (spendFit(s, a, r.price) === 'stretch') {
@@ -359,9 +436,9 @@ function applyPlayerAction(s: GameState, a: PlayerAction): { invite?: string; ta
         satisfy(P, 'work');
       } else satisfy(P, 'goOut');
       if (a.activity === 'gift' && a.item) s.inventory.push(a.item);
-      if (a.invite) {
-        s.characters[a.invite].location = a.node;
-        s.characters[a.invite].activityUntil = SLOT_MINUTES;
+      for (const g of [a.invite, ...(a.guests ?? [])]) if (g) {
+        s.characters[g].location = a.node;
+        s.characters[g].activityUntil = SLOT_MINUTES;
       }
       return { invite: a.invite && s.characters[a.invite]?.status === 'inHouse' ? a.invite : undefined };
     }
@@ -424,7 +501,8 @@ function planPlayerScene(s: GameState, rng: Rng, a: PlayerAction, acts: Record<s
   }
   if (a.type === 'goOut' && !isRoom(P.location)) {
     const node = P.location;
-    const here = housemates(s).filter((c) => c.id === P.id || c.id === invite || c.location === node);
+    const guests = a.type === 'goOut' ? (a.guests ?? []).filter((id) => s.characters[id]?.status === 'inHouse') : [];
+    const here = housemates(s).filter((c) => c.id === P.id || c.id === invite || guests.includes(c.id) || c.location === node);
     let cs = withPlayer(candidates(s, rng, { location: node, pool: here, isPlayerScene: true, activity: a.activity, focus: invite }));
     if (invite) cs = cs.filter((c) => Object.values(c.binding).includes(invite));
     const pick = sample(rng, cs);
@@ -434,6 +512,12 @@ function planPlayerScene(s: GameState, rng: Rng, a: PlayerAction, acts: Record<s
       const t = content().eventById.get(others.length ? 'chance-encounter' : 'solo-wander')!;
       out = makeEvent(s, t, others.length ? { a: P.id, b: invite ?? others[0].id } : { a: P.id }, node);
     } else out = ev(pick)!;
+    // everyone who came along is in the scene, not just the one who was asked first
+    const company = guests.filter((id) => !out.participants.includes(id));
+    if (company.length) {
+      const participants = [...out.participants, ...company];
+      out = { ...out, participants, factRefs: { ...out.factRefs, ...Object.fromEntries(company.map((id) => [id, factRefsFor(s, id, participants)])) } };
+    }
     // recurring outsiders keep their schedule: the café owner is at the café, the clerk at the konbini…
     const regular = content().npcs.find((n) => n.location === node && n.schedule.slots.includes(s.world.slot) && n.schedule.weekdays.includes(s.world.weekday) && !n.linkedTo);
     if (regular && !Object.values(out.roles).includes(regular.id)) out.roles = { ...out.roles, x: regular.id };
@@ -480,6 +564,20 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
   const plan: SlotPlan = { scenes: [], npcActions: {} };
   if (s.seasonOver) return { state: s, plan };
   validateAction(s, action);
+  if (action.type === 'talk' && action.room) {
+    const participants = [s.playerId, action.target, ...(action.guests ?? [])];
+    applyPlayerAction(s, action);
+    withRng(s, rng => advanceLiving(s, rng, Math.min(SLOT_MINUTES, s.world.minutes + actionMinutes(action)), new Set(participants)));
+    const ev = makeEvent(s, content().eventById.get('casual-chat')!, { a: s.playerId, b: action.target }, action.room, {
+      participants,
+      premise: `The housemates moved to the ${placeName(action.room)} together at the player's invitation. Continue their conversation here.`,
+      factRefs: Object.fromEntries(participants.map(id => [id, factRefsFor(s, id, participants)])),
+    });
+    gather(s, ev);
+    plan.scenes.push({ event: ev, render: true, visible: false, priority: 3 });
+    return { state: s, plan };
+  }
+  if (s.world.episode === 1 && s.world.flags.gradualMoveIn && !['pool', 'visit', 'goOut', 'trip', 'graduate', 'sleep'].includes(action.type)) return planMoveInDayAction(s, action);
   if (action.type === 'pool') {
     applyPool(s, action);
     return { state: s, plan };
@@ -500,7 +598,7 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
       const acts = Object.fromEntries(npcs(s).map((c) => [c.id, { kind: (c.lastAction ?? 'retreat') as AgentAction['kind'] }]));
       const { invite, talk } = applyPlayerAction(s, action);
       if (action.type === 'goOut' && action.activity === 'work') workCareerTick(s, rng, P);
-      advanceLiving(s, rng, end);
+      advanceLiving(s, rng, end, new Set(action.type === 'talk' ? [action.target, ...(action.guests ?? [])] : []));
       startPlans(s);
       plan.npcActions = acts;
       const ev = action.type === 'graduate' ? graduationFarewell(s) : planPlayerScene(s, rng, action, acts, invite, talk);
@@ -512,7 +610,7 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
     }
     s.world.carUsedBy = null;
     const moveInDay = s.world.episode === 1 && !!s.world.flags.moveIn;
-    if (moveInDay) moveInArrivals(s);
+    if (moveInDay && !s.world.flags.gradualMoveIn) moveInArrivals(s);
     for (const c of housemates(s)) decayNeeds(c);
     const { invite, talk } = applyPlayerAction(s, action);
     if (action.type === 'goOut' && action.activity === 'work') workCareerTick(s, rng, P);
@@ -523,13 +621,22 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
     const acts: Record<string, AgentAction> = {};
     for (const c of npcs(s)) {
       if (c.swimming && c.location === 'backyard' && c.activityUntil > began) acts[c.id] = { kind: 'swim', duration: c.activityUntil - began };
+      else if (action.type === 'talk' && c.id === action.target) acts[c.id] = { kind: 'seek', target: P.id };
+      else if (c.activityUntil > began && c.lastAction) acts[c.id] = {
+        kind: c.lastAction as AgentAction['kind'], target: c.actionTarget, third: c.actionThird, node: c.actionNode, companion: c.actionCompanion,
+        room: c.lastAction === 'hobby' && isRoom(c.location) ? c.location as AgentAction['room'] : undefined,
+        duration: c.activityUntil - began,
+      };
       else if (departing(s, c.id)) acts[c.id] = { kind: 'retreat' };
-      else if (c.id === invite && action.type === 'goOut') acts[c.id] = { kind: 'goOut', node: action.node };
+      else if (action.type === 'goOut' && (c.id === invite || action.guests?.includes(c.id))) acts[c.id] = { kind: 'goOut', node: action.node };
       else acts[c.id] = chooseAction(s, rng, c);
+    }
+    coordinateOutings(acts);
+    for (const c of npcs(s)) {
       const a = acts[c.id];
       if (a.kind === 'goOut' && a.useCar) {
         if (s.world.carUsedBy === null) s.world.carUsedBy = c.id;
-        else acts[c.id] = { kind: 'hobby' };
+        else if (s.world.carUsedBy !== a.companion) acts[c.id] = { kind: 'hobby' };
       }
     }
     resolveLocations(s, acts, { [P.id]: P.location });

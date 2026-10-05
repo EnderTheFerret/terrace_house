@@ -17,6 +17,17 @@ export function logFailure(prompt: string, error: string, kind: string) {
   }
 }
 
+/** One JSON line per conversation event (responses received, lines written) in logs/conversation.jsonl. */
+export function logTrace(kind: string, data: Record<string, unknown>) {
+  if (process.env.VITEST) return;
+  try {
+    mkdirSync(config.logsDir, { recursive: true });
+    appendFileSync(resolve(config.logsDir, 'conversation.jsonl'), JSON.stringify({ at: new Date().toISOString(), kind, ...data }) + '\n');
+  } catch {
+    /* logging must never break gameplay */
+  }
+}
+
 /** Pull the first JSON object out of a model response (models sometimes wrap JSON in prose/fences). */
 export function extractJson(text: string): unknown {
   const t = text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();

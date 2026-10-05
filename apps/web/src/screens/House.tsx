@@ -2,17 +2,19 @@
 // A full keyboard-accessible action list mirrors everything the map offers.
 import { Tip } from '../components/Tip';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { classToday, content, priceLabel, ROOMS, placeName, roomName, shiftToday, TRIPS, type CharView, type PlayerAction, type PlayerView } from '@shared-roof/shared';
+import { classToday, content, priceLabel, ROOMS, placeName, roomName, shiftToday, TRIPS, type CharView, type PlayerAction, type PlayerView, type Room } from '@shared-roof/shared';
 import { useGame } from '../store';
 import { TopBar, StudioStrip, DigestModal, slotLabel } from '../components/layout';
 import { Btn, Modal, Panel } from '../components/ui';
-import { drawLighting, drawWater, drawWeather, findPath, hotspots, houseSize, loadHouseAssets, passable, poolPlaces, renderHouse, roomAt, seatFor, solidTiles, spotFor, swimSolids, withinPoolWater, TILE, type Seat } from '../pixel/house';
+import { conversationPlaces, facing, drawLighting, drawWater, drawWeather, findPath, hotspots, houseSize, loadHouseAssets, passable, poolPlaces, renderHouse, roomAt, seatFor, solidTiles, spotFor, swimSolids, withinPoolWater, TILE, type Seat } from '../pixel/house';
 import { emote, MOOD_ICON, posedSprite, sprite } from '../pixel/sprites';
 import { Portrait } from '../components/pixel';
 import { api } from '../api';
 import { ambience } from '../audio';
+import { useWorldClock } from '../useWorldClock';
 
 type Dir = 'down' | 'up' | 'left' | 'right';
+const PLAYER_WALK_SPEED = 3.5;
 interface Actor {
   id: string;
   x: number;
@@ -29,6 +31,12 @@ interface Actor {
   /** remaining tile steps to (tx, ty), and which goal they were planned for */
   path?: [number, number][];
   pathFor?: string;
+  departing?: boolean;
+  goingPrivate?: boolean;
+  talkingTo?: string;
+  companion?: string;
+  /** when an idle housemate next strolls to another spot in their room (animation clock, ms) */
+  idleAt?: number;
 }
 
 function takeStairs(a: Actor, nextFloor: number, destination: [number, number]) {
@@ -55,11 +63,13 @@ function drawHouseLife(ctx: CanvasRenderingContext2D, house: PlayerView['house']
 }
 
 export function House() {
-  const { view, act, busy, setScreen, settings, setView } = useGame();
+  const { view, act, busy, setScreen, settings, setView, resume } = useGame();
+  const unfinished = useGame((st) => st.scenes.some((x) => x.rendered && x.phase !== 'done'));
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(2);
+  const [scale, setScale] = useState(3);
+  const [zoom, setZoom] = useState(1);
   const [prompt, setPrompt] = useState<{ label: string; run: () => void } | null>(null);
   const [confirm, setConfirm] = useState<{ title: string; action: PlayerAction } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -68,9 +78,12 @@ export function House() {
   const [walking, setWalking] = useState(false);
   const [balcony, setBalcony] = useState('');
   const [invite, setInvite] = useState('');
+  const [meetingRoom, setMeetingRoom] = useState<Room>('kitchen');
+  const [meetingGuest, setMeetingGuest] = useState('');
   const [poolOpen, setPoolOpen] = useState(false);
   const [poolGuests, setPoolGuests] = useState<string[]>([]);
   const [assetsReady, setAssetsReady] = useState(false);
+  useWorldClock(walking || !!confirm || !!balcony || poolOpen || unfinished);
   useEffect(() => { void loadHouseAssets().then(() => setAssetsReady(true)); }, []);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- re-render once the baked furniture has loaded
   const base = useMemo(() => renderHouse(floor), [floor, assetsReady]);
@@ -78,6 +91,9 @@ export function House() {
   const solids = useMemo(() => [solidTiles(0), solidTiles(1)], []);
   const waterSolid = useMemo(() => swimSolids(0), []);
   const actors = useRef<Map<string, Actor>>(new Map());
+  const labels = useRef<Map<string, HTMLDivElement>>(new Map());
+  const previousLocations = useRef<Map<string, string | null>>(new Map());
+  const previousDoorways = useRef<Map<string, { x: number; y: number; floor: number }>>(new Map());
   const doorAngles = useRef<Map<string, number>>(new Map());
   const keys = useRef<Set<string>>(new Set());
   const daySlot = !!view && view.slot !== 'morning';
@@ -95,6 +111,7 @@ export function House() {
   const visit = async (room: string, destinationFloor = floor, invitation?: string, position?: [number, number]) => {
     if (walking || busy || !view) return;
     setWalking(true);
+    useGame.setState({ busy: true });
     keys.current.clear();
     let traversing = false;
     try {
@@ -110,13 +127,14 @@ export function House() {
       setBalcony('');
       setPlaced((n) => n + 1);
     } catch (e) { setToast((e as Error).message); }
-    finally { if (!traversing) setWalking(false); }
+    finally { useGame.setState({ busy: false }); if (!traversing) setWalking(false); }
   };
   /** The other bedroom is closed: knock, and go in only if someone inside answers and lets you in. */
   const knockOn = async (room: string, position: [number, number]) => {
     if (walking || busy || !view) return;
     setWalking(true);
     setToast(`knock knock… (${roomName(room)})`);
+    useGame.setState({ busy: true });
     try {
       const r = await api.act({ type: 'visit', room, knock: true });
       const a = actors.current.get(view.playerId);
@@ -124,7 +142,7 @@ export function House() {
       setView(r.view);
       setToast(r.view.playerLocation === room ? 'come in.' : (r.view.log.at(-1)?.text ?? 'no answer.'));
     } catch (e) { setToast((e as Error).message); }
-    finally { setWalking(false); }
+    finally { useGame.setState({ busy: false }); setWalking(false); }
   };
   const stairs = () => {
     const next = floor === 0 ? 1 : 0;
@@ -139,6 +157,9 @@ export function House() {
     for (const room of ROOMS) {
       const taken = new Set<string>();
       const player = actors.current.get(view.playerId);
+      const people = view.characters.filter(c => view.occupancy?.[room]?.includes(c.id));
+      const reserved = new Set<string>(player && roomAt(player.tx, player.ty, player.floor) === room ? [`${player.tx},${player.ty}`] : []);
+      const conversation = conversationPlaces(room, people, reserved);
       const swimIds = (view.occupancy[room] ?? []).filter(id => view.characters.find(c => c.id === id)?.swimming);
       const swimPlaces = poolPlaces(swimIds, view.playerId, player?.seat?.pose === 'swim' ? [player.tx, player.ty] : undefined);
       (view.occupancy[room] ?? []).forEach((id, i) => {
@@ -149,12 +170,13 @@ export function House() {
         let seat = swimming ? swimPlaces.get(id) : id === view.playerId ? null : seatFor(room, activity, n);
         while (seat && taken.has(`${seat.x},${seat.y}`)) seat = seatFor(room, activity, ++n);
         let [sx, sy] = seat ? [seat.x, seat.y] : spotFor(room, i);
+        if (conversation.has(id)) { [sx, sy] = conversation.get(id)!; seat = null; }
         const spots = content().house.rooms.find(r => r.id === room)?.spots ?? [];
-        if (!seat && taken.has(`${sx},${sy}`)) [sx, sy] = spots.find(([x, y]) => !taken.has(`${x},${y}`)) ?? [sx, sy];
+        if (!seat && !conversation.has(id) && (taken.has(`${sx},${sy}`) || reserved.has(`${sx},${sy}`))) [sx, sy] = spots.find(([x, y]) => !taken.has(`${x},${y}`) && !reserved.has(`${x},${y}`)) ?? [sx, sy];
         taken.add(`${sx},${sy}`);
         const a = actors.current.get(id);
         const changedSwimming = a && (a.seat?.pose === 'swim') !== !!swimming;
-        if (a) a.seat = seat ?? undefined;
+        if (a) { a.seat = seat ?? undefined; a.departing = false; a.goingPrivate = false; }
         const level = content().house.rooms.find((r) => r.id === room)?.floor ?? 0;
         if (!a) { actors.current.set(id, { id, x: sx, y: sy, tx: sx, ty: sy, dir: 'down', moving: 0, floor: level, seat: seat ?? undefined }); if (id === view.playerId) setFloor(level); }
         else if (changedSwimming) { delete a.transfer; delete a.path; delete a.pathFor; Object.assign(a, { x: sx, y: sy, tx: sx, ty: sy, floor: level }); if (id === view.playerId) { setFloor(level); setWalking(false); } }
@@ -167,9 +189,43 @@ export function House() {
           delete a.transfer; delete a.finishingStairs;
           Object.assign(a, { x: sx, y: sy, tx: sx, ty: sy, floor: level }); setFloor(level); setWalking(false);
         }
+        const placed = actors.current.get(id)!;
+        const ch = view.characters.find(c => c.id === id)!;
+        placed.talkingTo = ch.talkingTo ?? people.find(c => c.talkingTo === id)?.id;
+        placed.companion = ch.companion;
+        if (!a && previousLocations.current.get(id) === 'out' && !settings.reducedMotion) {
+          Object.assign(placed, { x: 1, y: 12, floor: 0 });
+          if (level !== 0) takeStairs(placed, level, [sx, sy]);
+        }
+        else if (!a && previousLocations.current.has(id) && previousLocations.current.get(id) === null && !settings.reducedMotion) {
+          const entry = previousDoorways.current.get(id);
+          if (entry) {
+            Object.assign(placed, { x: entry.x, y: entry.y, floor: entry.floor });
+            if (level !== entry.floor) takeStairs(placed, level, [sx, sy]);
+          }
+        }
       });
     }
-    for (const id of [...actors.current.keys()]) if (!seen.has(id)) actors.current.delete(id);
+    for (const id of [...actors.current.keys()]) if (!seen.has(id)) {
+      const a = actors.current.get(id)!;
+      const c = view.characters.find(c => c.id === id);
+      if (c?.location === 'out' && !settings.reducedMotion) {
+        const exit: [number, number] = [c.companion && id > c.companion ? 2 : 1, 12];
+        a.departing = true; a.seat = undefined; a.talkingTo = undefined; a.companion = c.companion;
+        if (a.transfer?.floor === 0) Object.assign(a.transfer, { tx: exit[0], ty: exit[1] });
+        else if (a.floor !== 0) takeStairs(a, 0, exit);
+        else { delete a.transfer; a.tx = exit[0]; a.ty = exit[1]; }
+      } else if (c?.status === 'inHouse' && c.location === null && !settings.reducedMotion) {
+        const exit = c.doorway;
+        if (!exit) { actors.current.delete(id); continue; }
+        a.departing = true; a.goingPrivate = true; a.seat = undefined; a.talkingTo = undefined; a.companion = undefined;
+        if (a.transfer?.floor === exit.floor) Object.assign(a.transfer, { tx: exit.x, ty: exit.y });
+        else if (a.floor !== exit.floor) takeStairs(a, exit.floor, [exit.x, exit.y]);
+        else { delete a.transfer; a.tx = exit.x; a.ty = exit.y; }
+      } else actors.current.delete(id);
+    }
+    previousLocations.current = new Map(view.characters.map(c => [c.id, c.location]));
+    previousDoorways.current = new Map(view.characters.filter(c => c.doorway).map(c => [c.id, c.doorway!]));
     setPlaced((n) => n + 1); // re-render DOM labels
   }, [view, settings.reducedMotion]);
 
@@ -180,13 +236,13 @@ export function House() {
       if (!el) return;
       const [w, h] = houseSize();
       // Native furniture and characters share a 32px scale; the camera follows when the whole floor cannot fit.
-      setScale(Math.max(1, Math.floor(Math.min(el.clientWidth / w, el.clientHeight / h) * 2) / 2));
+      setScale(Math.max(3, Math.ceil(Math.max(el.clientWidth / w, el.clientHeight / h) * 2) / 2) * zoom);
     };
     fit();
     const ro = new ResizeObserver(fit);
     if (wrapRef.current) ro.observe(wrapRef.current);
     return () => ro.disconnect();
-  }, []);
+  }, [zoom]);
 
   const nearestInteraction = () => {
     const me = view && actors.current.get(view.playerId);
@@ -274,6 +330,7 @@ export function House() {
       ctx.imageSmoothingEnabled = false;
       // player movement (tile steps)
       const me = actors.current.get(view.playerId);
+      if (me) { c.dataset.playerX = String(me.x); c.dataset.playerY = String(me.y); }
       stepCd -= dt;
       if (me && !busy && !walking && !confirm && !balcony && !poolOpen && stepCd <= 0 && Math.abs(me.x - me.tx) < 0.01 && Math.abs(me.y - me.ty) < 0.01) {
         const k = keys.current;
@@ -296,11 +353,12 @@ export function House() {
               else {
                 // step through at once; the server catches up in the background (no input lock on every doorway)
                 me.tx += dx; me.ty += dy;
-                void api.act({ type: 'visit', room }).then((r) => setView(r.view), (e: Error) => setToast(e.message));
+                useGame.setState({ busy: true });
+                void api.act({ type: 'visit', room }).then((r) => setView(r.view), (e: Error) => setToast(e.message)).finally(() => useGame.setState({ busy: false }));
               }
             } else { me.tx += dx; me.ty += dy; }
           }
-          stepCd = 0.13;
+          stepCd = 1 / PLAYER_WALK_SPEED;
         }
       }
       ctx.clearRect(0, 0, c.width / 2, c.height / 2);
@@ -323,25 +381,40 @@ export function House() {
       }
       const list = [...actors.current.values()].sort((a, b) => a.y - b.y);
       for (const a of list) {
-        const speed = a.id === view.playerId ? 7.5 : 3;
+        const partner = a.companion && actors.current.get(a.companion);
+        const ahead = partner && partner.floor === a.floor && Math.hypot(a.x - partner.x, a.y - partner.y) > 2 && Math.hypot(a.tx - a.x, a.ty - a.y) < Math.hypot(partner.tx - partner.x, partner.ty - partner.y);
+        const speed = settings.reducedMotion ? 1000 : a.id === view.playerId ? PLAYER_WALK_SPEED : ahead ? 0 : 3;
         // housemates walk a tile path around furniture and through doors (the player steps tile by tile already)
         let [gx, gy] = [a.tx, a.ty];
+        let blocked = false;
         if (a.id !== view.playerId) {
+          // the server only re-places people when their activity changes; in between, idle ones stroll around their room
+          const ch = byId[a.id];
+          const still = a.moving === 0 && Math.abs(a.x - a.tx) < 0.01 && Math.abs(a.y - a.ty) < 0.01;
+          if (!still || !ch || ch.location === 'out' || ch.swimming || a.seat || a.transfer || a.departing || a.goingPrivate || a.finishingStairs || a.talkingTo || a.companion || settings.reducedMotion) a.idleAt = undefined;
+          else if (a.idleAt === undefined) a.idleAt = t + 3000 + Math.random() * 7000;
+          else if (t >= a.idleAt) {
+            a.idleAt = undefined;
+            const spots = (content().house.rooms.find((r) => r.id === roomAt(a.tx, a.ty, a.floor))?.spots ?? []).filter(([x, y]) => !(x === a.tx && y === a.ty) && ![...actors.current.values()].some((o) => o !== a && o.floor === a.floor && Math.round(o.tx) === x && Math.round(o.ty) === y));
+            const spot = spots[Math.floor(Math.random() * spots.length)];
+            if (spot) [a.tx, a.ty] = spot;
+          }
           const goal = `${a.floor}:${a.tx},${a.ty}`;
           if (a.pathFor !== goal) { a.pathFor = goal; a.path = findPath([Math.round(a.x), Math.round(a.y)], [a.tx, a.ty], byId[a.id]?.swimming ? waterSolid : solids[a.floor] ?? solid, a.floor) ?? undefined; }
           while (a.path?.length && Math.hypot(a.path[0][0] - a.x, a.path[0][1] - a.y) < 0.01) a.path.shift();
           if (a.path?.length) [gx, gy] = a.path[0];
+          else if (!a.path) { blocked = true; a.moving = 0; }
         }
         const ddx = gx - a.x;
         const ddy = gy - a.y;
         const dist = Math.hypot(ddx, ddy);
-        if (dist > 0.01) {
+        if (dist > 0.01 && !blocked) {
           const st = Math.min(dist, speed * dt);
           a.x += (ddx / dist) * st;
           a.y += (ddy / dist) * st;
           if (a.id !== view.playerId) a.dir = Math.abs(ddx) > Math.abs(ddy) ? (ddx > 0 ? 'right' : 'left') : ddy > 0 ? 'down' : 'up';
-          a.moving += dt;
-        } else {
+          a.moving = st > 0 ? a.moving + dt : 0;
+        } else if (!blocked) {
           a.x = a.tx;
           a.y = a.ty;
           a.moving = 0;
@@ -353,13 +426,27 @@ export function House() {
           } else if (a.finishingStairs) {
             delete a.finishingStairs;
             setWalking(false);
+          } else if (a.departing) {
+            actors.current.delete(a.id); setPlaced(n => n + 1); continue;
           }
+        }
+        const label = labels.current.get(a.id);
+        if (label) {
+          label.style.left = `${(a.x * TILE + TILE / 2) * scale}px`;
+          label.style.top = `${(a.y * TILE + TILE - 48) * scale - 4}px`;
+          label.dataset.moving = String(a.moving > 0);
         }
         if (a.floor !== floor) continue;
         const ch = byId[a.id];
         if (!ch) continue;
         const frame = a.moving > 0 ? [0, 1, 2, 1][Math.floor(a.moving * 8) % 4] : 1;
-        const pose = ch.swimming ? { ...a.seat, pose: 'swim' as const, dir: a.dir } : a.moving === 0 ? a.seat : undefined;
+        const talkingPartner = a.talkingTo && actors.current.get(a.talkingTo);
+        const talking = talkingPartner && !a.moving && !talkingPartner.moving && talkingPartner.floor === a.floor && Math.hypot(a.x - talkingPartner.x, a.y - talkingPartner.y) <= 2;
+        if (talking) a.dir = facing([a.x, a.y], [talkingPartner.x, talkingPartner.y]);
+        if (label) label.dataset.direction = a.dir;
+        const talkLabel = label?.querySelector<HTMLElement>('[data-conversation]');
+        if (talkLabel) talkLabel.textContent = `${talking ? 'talking with' : 'going to talk with'} ${byId[a.talkingTo!]?.name.split(' ')[0] ?? ''}`;
+        const pose = ch.swimming ? { ...a.seat, pose: 'swim' as const, dir: a.dir } : a.moving === 0 && !talking ? a.seat : undefined;
         // idle breathing; the cook stirs faster
         const bob = a.moving === 0 && pose?.pose !== 'sleep' && Math.floor(t / (pose?.pose === 'cook' ? 220 : 600) + a.x) % 2 === 0 ? 1 : 0;
         // 32x40 frames at 1:1 (about 1.5 tiles tall, like a handheld overworld): centred on the tile, feet on its bottom edge
@@ -385,6 +472,10 @@ export function House() {
         }
         const em = a.moving === 0 ? emote(ch.activity) : null;
         if (em) ctx.drawImage(em, tx + 13, head - 6 - (Math.floor(t / 500) % 2));
+        if (talking && Math.floor(t / 1500) % 2 === (a.id < talkingPartner.id ? 0 : 1)) {
+          ctx.fillStyle = '#fffaf3'; ctx.fillRect(tx + 8, head - 9, 15, 7);
+          ctx.fillStyle = '#64556c'; for (let i = 0; i < 3; i++) ctx.fillRect(tx + 11 + i * 4, head - 6, 1, 1);
+        }
         if (a.id === view.playerId) {
           ctx.fillStyle = '#e07a6a';
           ctx.fillRect(tx + TILE / 2 - 1, head - 5, 2, 2);
@@ -448,17 +539,25 @@ export function House() {
               if (!c || c.isPlayer || a.floor !== floor) return null;
               const m = c.mood ? MOOD_ICON[c.mood] : null;
               return (
-                <div key={a.id} className="pointer-events-none absolute -translate-x-1/2 text-center text-[0.65rem] leading-none" style={{ left: (a.tx * TILE + TILE / 2) * scale, top: (a.ty * TILE + TILE - 48) * scale - 4, transition: 'left 600ms linear, top 600ms linear' }}>
+                <div key={a.id} ref={el => { if (el) labels.current.set(a.id, el); else labels.current.delete(a.id); }} data-housemate={a.id} className="pointer-events-none absolute -translate-x-1/2 text-center text-[0.65rem] leading-none" style={{ left: (a.x * TILE + TILE / 2) * scale, top: (a.y * TILE + TILE - 48) * scale - 4 }}>
                   <span className="bg-paper/85 px-1" style={{ boxShadow: '0 0 0 1px var(--color-ink)' }}>
                     {m && <span style={{ color: m.color }} aria-hidden>{m.glyph} </span>}
                     {c.name.split(' ')[0]}
                   </span>
+                  {a.talkingTo && <span data-conversation className="mt-1 block bg-paper/85 px-1">going to talk with {byId[a.talkingTo]?.name.split(' ')[0]}</span>}
+                  {a.departing && <span className="mt-1 block bg-paper/85 px-1">{a.goingPrivate ? 'taking some private time' : 'heading out'}{a.companion ? ` with ${byId[a.companion]?.name.split(' ')[0]}` : ''}</span>}
                   {c.bark && a.id === speakingActor && <span className="mt-1 block max-w-40 bg-paper px-2 py-1 text-xs leading-tight">{c.bark}</span>}
                 </div>
               );
             })}
           </div>
           {/* pinned to the viewport, not the zoomed stage, so they stay on screen while the camera pans */}
+          <div className="absolute right-3 top-3 z-10 flex items-center gap-2 px-panel p-2" role="group" aria-label="house zoom">
+            <button className="px-btn" aria-label="zoom out" disabled={zoom <= 0.25} onClick={() => setZoom(z => Math.max(0.25, z - 0.25))}>−</button>
+            <span className="text-xs">{Math.round(zoom * 100)}%</span>
+            <button className="px-btn" aria-label="zoom in" disabled={zoom >= 2} onClick={() => setZoom(z => Math.min(2, z + 0.25))}>+</button>
+            <Btn onClick={() => setZoom(1)}>reset view</Btn>
+          </div>
           {prompt && (
             <div className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 px-panel px-3 py-1 text-sm" aria-live="polite">
               <kbd>E</kbd> {prompt.label}
@@ -474,9 +573,11 @@ export function House() {
           )}
         </div>
         <div className="flex w-80 shrink-0 flex-col gap-3 overflow-y-auto scroll-thin pr-1">
+          {unfinished && <Panel title="conversation in progress"><p className="caption mb-2 text-xs">You stepped away mid-scene. Finish it before doing anything else.</p><Btn primary disabled={busy} onClick={() => void resume()}>back to the conversation</Btn></Panel>}
           <Panel title="your life in the house"><p className="text-sm">{view.goals.short}</p><p className="caption mt-1 text-xs">long term: {view.goals.long}</p>{view.goals.career && <p className="mt-2 text-xs">work: {view.goals.career.title} · {view.goals.career.completed ? 'resolved' : `chapter ${view.goals.career.act + 1}`}</p>}</Panel>
           <Panel title={floor === 0 ? 'ground floor' : 'upstairs'}>
             <Btn disabled={busy || walking} onClick={stairs}>{floor === 0 ? 'take stairs upstairs' : 'take stairs downstairs'}</Btn>
+            <div className="mt-2 flex flex-wrap gap-2">{content().house.rooms.filter(r => r.floor === floor && !r.private && !r.id.startsWith('stairs')).map(r => <Btn key={r.id} disabled={busy || walking || currentRoom === r.id} onClick={() => void visit(r.id, r.floor)}>go to {r.name}</Btn>)}</div>
             <div className="mt-2 flex flex-wrap gap-2">{content().house.rooms.filter((r) => r.id.startsWith('balcony')).map((r) => <Btn key={r.id} disabled={busy || walking} onClick={() => { setBalcony(r.id); setInvite(''); }}>{r.name}</Btn>)}</div>
             <p className="caption mt-2 text-xs">Balconies belong to their bedrooms. Ask a roommate to invite you.</p>
           </Panel>
@@ -488,7 +589,7 @@ export function House() {
           </Panel>
           {view.approaches.map((a) => <Panel key={a.id} title={byId[a.from]?.name.split(' ')[0] ?? a.from}><p className="mb-2 text-sm">{a.text}</p><div className="flex gap-2"><Btn disabled={busy || walking} onClick={() => doAct({ type: 'approach', id: a.id, accept: true })}>got a minute</Btn><Btn disabled={busy || walking} onClick={() => doAct({ type: 'approach', id: a.id, accept: false })}>not now</Btn></div></Panel>)}
           <Panel title={`${slotLabel(view.slot)} ${view.clock} — what will you do?`}>
-            <p className="caption mb-2 text-xs">{view.minutesLeft} min left in this block. talking lasts as long as the conversation; going out, resting or letting time pass ends the block.</p>
+            <p className="caption mb-2 text-xs">{view.minutesLeft} min left in this block. Time passes while you watch the house. Housemates finish their activities and choose what to do next.</p>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <Btn disabled={busy || walking} onClick={() => doAct({ type: 'house', activity: 'hangout' })}>hang out</Btn>
               <Btn disabled={busy || walking} onClick={() => setScreen('cooking')}>cook</Btn>
@@ -535,6 +636,12 @@ export function House() {
           {view.weekday === 5 && ['morning', 'slot1', 'slot2'].includes(view.slot) && (
             <TripPanel chars={npcsHere.filter((c) => c.location !== 'out')} offer={view.tripOffer} disabled={busy || walking} onGo={(node, withIds, roommate) => setConfirm({ title: `leave for ${TRIPS[node].name} with ${withIds.map((id) => byId[id]?.name.split(' ')[0]).join(', ')}? (back tomorrow morning)`, action: { type: 'trip', node, with: withIds, roommate } })} />
           )}
+          <Panel title="invite a housemate">
+            <label className="mb-2 flex flex-col gap-1 text-sm">room<select aria-label="meet in room" className="px-panel-soft px-2 py-1" value={meetingRoom} onChange={e => setMeetingRoom(e.target.value as Room)}>{content().house.rooms.filter(r => !r.private && !r.id.startsWith('stairs')).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
+            <label className="mb-2 flex flex-col gap-1 text-sm">housemate<select aria-label="invite housemate" className="px-panel-soft px-2 py-1" value={meetingGuest} onChange={e => setMeetingGuest(e.target.value)}><option value="">choose someone</option>{npcsHere.filter(c => c.location !== 'out' && !['work', 'sleep', 'nap', 'shower'].includes(c.activity ?? '')).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+            <Btn primary disabled={busy || walking || unfinished || !meetingGuest} onClick={() => doAct({ type: 'talk', target: meetingGuest, room: meetingRoom })}>go together & talk</Btn>
+            <p className="caption mt-2 text-xs">Meet in this room and continue talking there.</p>
+          </Panel>
           <Panel title="who's where">
             <ul className="flex flex-col gap-2 text-sm">
               {npcsHere.map((c) => (

@@ -6,7 +6,7 @@ import { useGame } from '../store';
 import { pixelsCanvas, portraitPalette } from '../components/pixel';
 import type { Pose } from './house';
 
-type SpriteChar = { id: string; gender: string; appearance: Appearance; portraitSeed: number; appearanceText?: string; swimming?: boolean };
+type SpriteChar = { id: string; gender: string; appearance: Appearance; portraitSeed: number; appearanceText?: string; spriteSeed?: number; spriteInstructions?: string; swimming?: boolean };
 
 const sheets = new Map<string, Pixels[][]>();
 /** Keys whose sheet is loaded, or settled on the procedural sprite (placeholder / unusable image). */
@@ -17,7 +17,7 @@ const tonight = (): Occasion => (useGame.getState().view?.slot === 'lateNight' ?
 const activeOccasion = (c: SpriteChar): Occasion => c.swimming ? 'beach' : tonight();
 const spriteKey = (c: SpriteChar, day: number, occasion: Occasion = 'daily') => {
   const { palette: _palette, ...appearance } = c.appearance;
-  return JSON.stringify([c.id, c.portraitSeed, appearance, c.appearanceText ?? '', outfitFor(c, occasion, day)]);
+  return JSON.stringify([c.id, c.portraitSeed, appearance, c.appearanceText ?? '', outfitFor(c, occasion, day), c.spriteSeed, c.spriteInstructions]);
 };
 
 /**
@@ -61,17 +61,11 @@ export function useCharacterSprites(characters: readonly SpriteChar[]): number {
       }, ac.signal)).catch(retry);
     };
     characters.forEach((c, i) => { if (!settled.has(keys[i])) load(c, keys[i], day, activeOccasion(c)); });
-    // Run the whole outfit → sheet chain while playing, and keep tomorrow's decoded frames ready too.
-    if (!offline && keys.every(k => settled.has(k))) for (const c of characters) {
-      const key = spriteKey(c, day + 1);
-      if (!settled.has(key)) load(c, key, day + 1);
-      const night = spriteKey(c, day, 'sleep'); // tonight's sleepwear, in the background
-      if (!settled.has(night)) load(c, night, day, 'sleep');
-    }
+    // Only what is on screen right now is drawn: tomorrow's outfits and sleepwear are made when their time comes.
     return () => { ac.abort(); timers.forEach(clearTimeout); };
     // Palette feedback does not change a character's sprite identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, offline, fingerprint, keys.every(k => settled.has(k))]);
+  }, [enabled, offline, fingerprint]);
   return enabled && !offline ? keys.filter(k => !settled.has(k)).length : 0;
 }
 
@@ -92,8 +86,8 @@ export function sprite(c: SpriteChar, dir: Dir, frame: number): HTMLCanvasElemen
 }
 
 /**
- * Standing frame reshaped for furniture (frames are 32x40, feet on row 38): seated loses the legs and drops onto the
- * seat; asleep keeps only the head, which lands on the pillow while the bed's blanket covers the rest.
+ * Standing frame reshaped for furniture (frames are 32x40, feet on row 38): seated drops onto the seat with the legs
+ * foreshortened; asleep keeps only the head, which lands on the pillow while the bed's blanket covers the rest.
  */
 export function posedSprite(c: SpriteChar, pose: Pose, dir: Dir): HTMLCanvasElement {
   const [key, px] = framePixels(c, pose === 'sleep' ? 'down' : dir, 1);
@@ -101,8 +95,11 @@ export function posedSprite(c: SpriteChar, pose: Pose, dir: Dir): HTMLCanvasElem
   const out: Pixels = px.map(() => Array<string | null>(32).fill(null));
   if (pose === 'sleep') for (let y = top; y < Math.min(40, top + 13); y++) out[y] = px[y].slice();
   else if (pose === 'swim') for (let y = 0; y < 29; y++) out[y] = px[y].slice();
-  else if (pose === 'sit') for (let y = 0; y < 32; y++) if (y + 4 < 40) out[y + 4] = px[y].slice();
-  else return pixelsCanvas(key, px);
+  else if (pose === 'sit') {
+    // torso keeps its rows; hips-to-feet (rows 24-39) lose every 4th row so the legs show, foreshortened, instead of being cut off
+    for (let y = 0; y < 24; y++) out[y + 4] = px[y].slice();
+    for (let y = 24, o = 28; y < 40; y++) if (y % 4 !== 2) out[o++] = px[y].slice();
+  } else return pixelsCanvas(key, px);
   return pixelsCanvas(`${key}:${pose}`, out);
 }
 

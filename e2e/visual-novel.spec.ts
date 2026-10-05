@@ -22,6 +22,25 @@ test('visual novel shows the group, answers every mention, and preserves typed w
   await page.getByRole('button', { name: 'hang out', exact: true }).click();
   const say = page.getByLabel('say something in your own words');
   await expect(say).toBeVisible();
+  await page.route('**/api/scene/*/choose', route => route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'temporary conflict' }) }), { times: 1 });
+  await page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first().click();
+  await expect(say).toBeVisible();
+  const recipient = page.getByRole('combobox', { name: 'reply to', exact: true });
+  await expect(recipient).toBeVisible();
+  await recipient.focus();
+  await page.keyboard.press('p');
+  await expect(recipient).toBeVisible(); // Choosing a name must not trigger the phone shortcut.
+  const target = (await recipient.locator('option').nth(2).getAttribute('value'))!;
+  await recipient.selectOption(target);
+  const intentStream = page.waitForResponse(r => /\/api\/scene\/[^/]+\/stream$/.test(r.url()));
+  await page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first().click();
+  await expect(say).toBeVisible();
+  const intentRaw = await (await intentStream).text();
+  const intentReplies = [...intentRaw.matchAll(/event: line-end\r?\ndata: ([^\r\n]+)/g)].map(m => JSON.parse(m[1]));
+  const playerId = (await (await request.get('/api/game')).json()).view.playerId;
+  expect(intentReplies.filter(r => r.speaker !== playerId).map(r => r.speaker)).toEqual([target]);
+  await expect(recipient).toHaveValue(target);
+  await recipient.selectOption('');
   const stage = page.getByRole('group', { name: 'people in this conversation' });
   const figures = stage.locator(':scope > div > img');
   await expect(figures).toHaveCount(2); // Both cutouts must finish; a portrait fallback is insufficient.
@@ -43,9 +62,21 @@ test('visual novel shows the group, answers every mention, and preserves typed w
   await info.attach('reply timing', { body: JSON.stringify({ replyMs, responders: expected, sources: replies.map(r => r.source), figures: await figures.evaluateAll(nodes => nodes.map(n => n.getAttribute('src'))) }), contentType: 'application/json' });
   await expect(page.locator('main')).toContainText(words);
   for (const name of names) await expect(page.locator('main')).toContainText(name);
+  await page.getByRole('button', { name: 'keep listening…', exact: true }).click();
+  await expect(say).toBeVisible();
+  await recipient.selectOption(expected[1]);
+  await say.fill('Everyone, that sounds like a good plan.');
+  const targetedStream = page.waitForResponse(r => /\/api\/scene\/[^/]+\/stream$/.test(r.url()));
+  await page.getByRole('button', { name: 'say', exact: true }).click();
+  await expect(say).toBeVisible();
+  const targetedRaw = await (await targetedStream).text();
+  const targetedReplies = [...targetedRaw.matchAll(/event: line-end\r?\ndata: ([^\r\n]+)/g)].map(m => JSON.parse(m[1]));
+  expect(targetedReplies.filter(r => r.source !== 'player').map(r => r.speaker)).toEqual([expected[1]]);
   const novel = await stage.boundingBox();
   const dialogue = await say.boundingBox();
   expect(novel!.width).toBeGreaterThan(500);
   expect(dialogue!.y).toBeGreaterThan(novel!.y);
   await page.screenshot({ path: info.outputPath('visual-novel-group.png') });
+  await page.getByRole('button', { name: "that's all", exact: true }).click();
+  await expect(page.getByRole('button', { name: 'hang out', exact: true })).toBeVisible();
 });
