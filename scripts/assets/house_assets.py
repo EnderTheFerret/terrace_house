@@ -63,6 +63,16 @@ SUBJECT = {
     'coatrack': 'a wooden coat stand with jackets, a scarf and a cap hanging on it',
     'sneakers': 'two pairs of sneakers kicked off on the floor, untidy',
     'magazines': 'a small messy stack of three magazines with a vinyl record on top, a single isolated object',
+    # fuller rooms
+    'toilet': 'a white ceramic toilet with the lid closed, seen from above, the cistern at the top, a roll of toilet paper on a small holder beside it',
+    'towelrail': 'a light oak towel ladder leaning on the wall with fluffy white and sage green towels hanging on its rungs',
+    'laundrybasket': 'a round woven wicker laundry basket full of folded clothes',
+    'pantry': 'a tall narrow light oak open pantry shelf stocked with glass jars of pasta and rice, spice tins, olive oil and a bag of onions',
+    'vanity': 'a light oak dressing table with a round mirror on top, makeup, perfume bottles, a hairbrush and a small vase of flowers',
+    'bbq': 'a black round kettle charcoal barbecue grill on three legs with tongs hanging from the side',
+    'patiotable': 'a small round white metal outdoor bistro table with two glasses of iced lemonade on it',
+    'patioset': 'a round teak outdoor patio table with two teak folding chairs tucked in, a jug of iced tea and two glasses on the table',
+    'towelstack': 'a low wooden crate stacked with rolled blue and white striped pool towels',
 }
 
 def post(path, data):

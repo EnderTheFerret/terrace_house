@@ -23,7 +23,9 @@ test('enter, invite multiple swimmers, and leave from the house controls', async
   // The authored first morning has at least two available residents without work commitments.
   expect(guests.length).toBeGreaterThanOrEqual(2);
   await page.getByRole('button', { name: 'invite more swimmers', exact: true }).click();
-  for (const c of guests.slice(0, 2)) await page.getByRole('checkbox', { name: c.name.split(' ')[0], exact: true }).check();
+  // the sidebar's "also invite" list has same-named checkboxes behind the modal
+  const swim = page.getByRole('dialog', { name: 'swim together' });
+  for (const c of guests.slice(0, 2)) await swim.getByRole('checkbox', { name: c.name.split(' ')[0], exact: true }).check();
   await page.getByRole('button', { name: 'invite selected housemates', exact: true }).click();
   await expect(page.getByRole('region', { name: 'pool', exact: true })).toContainText('3 in the water');
   const group = await (await request.get('/api/game')).json();
@@ -36,7 +38,7 @@ test('enter, invite multiple swimmers, and leave from the house controls', async
   await page.screenshot({ path: 'logs/house-upgrade/pool-browser-wide.png' });
   expect(guests).toHaveLength(5);
   await page.getByRole('button', { name: 'invite more swimmers', exact: true }).click();
-  for (const c of guests.slice(2)) await page.getByRole('checkbox', { name: c.name.split(' ')[0], exact: true }).check();
+  for (const c of guests.slice(2)) await swim.getByRole('checkbox', { name: c.name.split(' ')[0], exact: true }).check();
   await page.getByRole('button', { name: 'invite selected housemates', exact: true }).click();
   await expect(page.getByRole('region', { name: 'pool', exact: true })).toContainText('6 in the water');
   await page.waitForTimeout(2000); // guests finish moving to their distinct water places
