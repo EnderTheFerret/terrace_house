@@ -36,7 +36,7 @@ function useReveal(lines: LiveLine[], enabled: boolean) {
     setPos({ idx: lines.length - 1, chars: lines[lines.length - 1]?.text.length ?? 0 });
   };
   const complete = !enabled || (idx >= total - 1 && chars >= (lines[total - 1]?.text.length ?? 0) && (lines[total - 1]?.done ?? true));
-  const reset = useCallback(() => setPos({ idx: 0, chars: 0 }), []);
+  const reset = useCallback((idx = 0) => setPos({ idx, chars: 0 }), []);
   return { idx: enabled ? idx : total - 1, chars: enabled ? chars : Infinity, skip, complete, reset };
 }
 
@@ -135,7 +135,7 @@ export function Scene() {
   const visible = live.lines.slice(0, reveal.idx + 1);
   // first person: the player is never on stage; everyone else in the scene is
   const stage = people.filter((c) => c!.id !== view.playerId) as NonNullable<(typeof people)[number]>[];
-  const lastSpeaker = visible[visible.length - 1]?.speaker;
+  const lastSpeaker = visible.findLast(l => l.speaker !== 'narrator')?.speaker;
   const emotionOf = (id: string): Emotion => {
     const preview = artwork[id];
     if (preview?.emotion && preview.line === reveal.idx) return preview.emotion;
@@ -197,6 +197,12 @@ export function Scene() {
           </div>
         )}
         {!h && <div className="absolute inset-0 flex items-center justify-center text-paper">setting the scene<span className="blink">…</span></div>}
+        {h?.broadcast?.days && <aside className="absolute left-4 top-28 z-20 max-h-[42%] w-80 overflow-y-auto px-panel p-3 scroll-thin" aria-label="episode highlights on TV">
+          <h2 className="mb-2 text-sm">episode {h.broadcast.episode} · days {h.broadcast.days.start}–{h.broadcast.days.end}</h2>
+          {h.broadcast.highlights.map((moment, i) => <p key={i} className="reply-text mb-3"><span className="caption">day {moment.day}:</span> {moment.text}</p>)}
+          {h.broadcast.scenes.map((scene, i) => <details key={i} className="mb-2"><summary className="text-sm">day {scene.day} · {scene.title}</summary>{scene.lines.map((line, j) => <p key={j} className="reply-text"><span className="caption">{line.name}:</span> {line.text}</p>)}</details>)}
+          <section aria-label="panel commentary on TV"><h3 className="mb-2 text-sm">the panel, on TV</h3>{h.broadcast.panel.map((line, i) => <p key={i} className="reply-text mb-3"><span className="caption">day {line.day} · {line.name}:</span> {line.text}</p>)}</section>
+        </aside>}
         {h && (stage.length > 0 || h.participants.some(p => p.id === view.playerId)) && (
           <div className="absolute right-3 top-3 z-20 flex flex-wrap justify-end gap-2">
     {!chat && stage.length > 0 && <SceneArtwork key={live.id} people={stage.map(c => ({ id: c.id, name: c.name, occasion: occasionOf(c.id), emotion: emotionOf(c.id), outfit: artwork[c.id]?.outfit, customExpression: artwork[c.id]?.line === reveal.idx ? artwork[c.id]?.customExpression : undefined }))} day={view.day} disabled={live.streaming || !settings.images} onReady={(id, occasion, emotion, outfit, customExpression) => setArtwork(prev => ({ ...prev, [id]: { occasion, emotion, outfit, customExpression, line: reveal.idx, version: (prev[id]?.version ?? 0) + 1 } }))} />}
@@ -227,14 +233,14 @@ export function Scene() {
               const speaking = lastSpeaker === c.id;
               const occasion = occasionOf(c.id);
               return (
-                <div key={c.id} className="flex h-full items-end transition-all duration-300" style={{ marginLeft: i ? `-${stage.length > 2 ? 6 : 2}vw` : 0, zIndex: speaking ? 5 : 1, transform: speaking ? 'translateY(-1%) scale(1.02)' : 'none', filter: lastSpeaker && !speaking ? 'brightness(0.68) saturate(0.85)' : 'none' }}>
+                <div key={c.id} className={`flex h-full items-end transition-all duration-300 `} style={{ marginLeft: i ? `-${stage.length > 2 ? 6 : 2}vw` : 0, zIndex: speaking ? 5 : 1, transform: speaking ? 'translateY(-1%) scale(1.02)' : 'none', filter: lastSpeaker && !speaking ? 'brightness(0.68) saturate(0.85)' : 'none' }}>
                   <Stand key={`${view.gameId}:${c.id}`} refresh={`${JSON.stringify(c.expressionEdits)}:${artwork[c.id]?.version}`} char={c} outfit={{ occasion, day: view.day, outfit: artwork[c.id]?.outfit, customExpression: artwork[c.id]?.line === reveal.idx ? artwork[c.id]?.customExpression : undefined }} emotion={emotionOf(c.id)} height={stage.length <= 2 ? '92%' : stage.length <= 3 ? '80%' : '68%'} />
                 </div>
               );
             })}
             {h.outsiders.map((o) => (
-              <div key={o.id} className="px-panel mb-48 bg-paper px-3 py-6 text-center text-sm">
-                {o.name}
+              <div key={o.id} className="flex h-full items-end" style={{ zIndex: lastSpeaker === o.id ? 5 : 1, filter: lastSpeaker && lastSpeaker !== o.id ? 'brightness(0.68)' : 'none' }}>
+                <Stand key={`${view.gameId}:${o.id}`} char={o} outfit={{ occasion: occasionOf(o.id), day: view.day }} emotion={emotionOf(o.id)} height="92%" />
               </div>
             ))}
           </div>
@@ -248,7 +254,7 @@ export function Scene() {
                 const mine = l.speaker === view.playerId;
                 const text = i === reveal.idx ? l.text.slice(0, reveal.chars) : l.text;
                 return (
-                  <div key={l.index} className={`max-w-[80%] px-2 py-1 text-sm ${mine ? 'self-end bg-[#9fe0b0]' : 'self-start bg-white'}`} style={{ borderRadius: 10, boxShadow: '0 1px 0 rgba(0,0,0,.15)' }}>
+                  <div key={l.index} className={`reply-text max-w-[80%] px-2 py-1 ${mine ? 'self-end bg-[#9fe0b0]' : 'self-start bg-white'}`} style={{ borderRadius: 10, boxShadow: '0 1px 0 rgba(0,0,0,.15)' }}>
                     {!mine && <div className="caption text-[0.65rem]">{l.name}</div>}
                     {text}
                   </div>
@@ -266,13 +272,12 @@ export function Scene() {
               </div>
             )}
             <div className="px-panel bg-paper/90 p-4 pt-5 backdrop-blur-[2px]">
-              <div ref={logRef} className="h-28 overflow-y-auto pr-2 scroll-thin" aria-live="polite">
+              <div ref={logRef} className="max-h-[35vh] min-h-28 overflow-y-auto pr-2 scroll-thin" aria-live="polite">
                 {visible.map((l, i) => {
                   const text = i === reveal.idx ? l.text.slice(0, reveal.chars) : l.text;
-                  const last = i === visible.length - 1;
                   return (
-                    <p key={l.index} className={last ? 'mt-1 text-lg' : 'caption text-xs'}>
-                      <span className={last ? 'caption mr-2 text-xs' : 'mr-2'}>{l.speaker === view.playerId ? 'you' : l.name}:</span>
+                    <p key={l.index} className={`reply-text mt-2 ${l.speaker === 'narrator' ? 'italic text-ink-soft' : ''}`}>
+                      <span className="caption mr-2 text-sm">{l.speaker === view.playerId ? 'you' : l.name}:</span>
                       {settings.captions && l.caption && <span className="caption mr-2 text-xs">{l.caption}</span>}
                       <span>{text}</span>
                     </p>
@@ -318,6 +323,7 @@ export function Scene() {
               </div>
             )}
             {live.canListen && <Btn onClick={() => void keepListening()} title="stay quiet and let them talk among themselves">keep listening…</Btn>}
+            {live.canRetry && <Btn onClick={() => { reveal.reset(Math.max(0, live.lines.findLastIndex(l => l.speaker === view.playerId) + 1)); void useGame.getState().submitChoice({ retry: true }); }}>retry reply</Btn>}
             {live.canEnd && (
               <Btn primary onClick={() => void endTalk()}>
                 that's all
@@ -325,6 +331,7 @@ export function Scene() {
             )}
           </div>
         )}
+        {live.error && !live.streaming && <div className="absolute right-4 top-20 z-30 px-panel p-3" role="alert"><p>{live.error}</p><Btn onClick={() => void useGame.getState().playLive(live.id)}>retry connection</Btn></div>}
         {/* freeze frame */}
         {phaseShown === 'freeze' && live.freeze && (
           <div className="absolute inset-0 z-30 flex items-center justify-center bg-[rgb(20_16_28/0.75)]" onClick={() => setPhaseShown('panel')}>
@@ -393,7 +400,6 @@ function SayBox({ onSay, autoFocus, wide }: { onSay: (text: string) => void; aut
         aria-label="say something in your own words"
         placeholder={wide ? 'say something… (address someone by name, or everyone)' : 'or say it yourself…'}
         className={`px-panel-soft bg-paper px-2 py-1 text-sm ${wide ? 'flex-1 text-base' : 'w-56'}`}
-        maxLength={200}
         value={text}
         autoFocus={autoFocus}
         onChange={(e) => setText(e.target.value)}

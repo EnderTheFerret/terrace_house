@@ -48,7 +48,7 @@ f('plant', 14, 15); f('guitar', 6, 8, 1, 2); f('pouf', 7, 13); f('magazines', 12
 f('shoerack', 1, 8, 2, 2); f('coatrack', 4, 8, 1, 2); f('bench', 1, 11, 2, 1);
 f('rug', 1, 12, 3, 1, 0, { solid: false }); f('sneakers', 3, 11, 1, 1, 0, { solid: false }); f('umbrella', 4, 11);
 f('frontdoor', 0, 12, 1, 2, 0, { solid: false }); f('plant', 0, 10);
-f('bath', 1, 15, 2, 3); f('washbasin', 4, 15, 1, 2); f('washer', 1, 18); f('toilet', 4, 18);
+f('bath', 1, 16, 2, 2); f('washbasin', 4, 15, 1, 2); f('washer', 1, 18); f('toilet', 4, 18);
 f('stairs', 18, 11, 2, 3, 0, { solid: false }); f('bigplant', 21, 11, 1, 2); f('bookshelf', 17, 15, 3, 1);
 
 // Upstairs: beds against the headboard wall, with their own bedside tables and open foot aisles.
@@ -58,7 +58,7 @@ for (const origin of [0, 11]) {
   f('plant', origin, 5, 1, 1, 1); f('floorlamp', origin, 1, 1, 2, 1);
 }
 f('floorcushions', 4, 6, 3, 1, 1, { solid: false }); f('weights', 15, 6, 2, 1, 1, { solid: false }); f('guitar', 18, 6, 1, 1, 1);
-f('bath', 23, 1, 2, 3, 1); f('washbasin', 23, 5, 2, 1, 1); f('washer', 25, 6, 1, 1, 1);
+f('bath', 23, 2, 2, 2, 1); f('washbasin', 23, 5, 2, 1, 1); f('washer', 25, 6, 1, 1, 1);
 f('plant', 6, 9, 1, 1, 1); f('bookshelf', 7, 12, 1, 2, 1); f('bench', 8, 14, 2, 1, 1);
 f('void', 12, 10, 5, 4, 1); f('stairs', 23, 10, 2, 3, 1, { solid: false });
 f('rug', 18, 9, 4, 5, 1, { solid: false }); f('bookshelf', 18, 8, 3, 1, 1);

@@ -93,6 +93,14 @@ body {
   color: var(--color-ink-soft);
 }
 
+.reply-text {
+  font-size: 1.125rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  text-transform: none;
+}
+
 .blink {
   animation: blink 1s steps(2) infinite;
 }
@@ -217,4 +225,64 @@ body {
 
 input[type='range'] {
   accent-color: var(--color-rose);
+}
+
+.cooking-kitchen {
+  background: #f3f7f6;
+  letter-spacing: 0;
+}
+.recipe-tile {
+  height: 100%;
+  padding: 12px;
+  border: 1px solid #b7ceca;
+  border-radius: 6px;
+  background: #fff;
+  transition: border-color 100ms, background 100ms;
+  cursor: pointer;
+}
+.recipe-tile:hover:not(:disabled) {
+  border-color: #458a79;
+  background: #f0faf6;
+}
+.recipe-tile:disabled { cursor: not-allowed; }
+.food-sprite {
+  display: inline-block;
+  flex-shrink: 0;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  vertical-align: middle;
+}
+.cooking-worktop {
+  align-self: start;
+  min-height: 480px;
+  background: #e6f1f0;
+  border-top: 4px solid #75aa9c;
+  border-bottom: 4px solid #75aa9c;
+}
+.cooking-worktop > div { width: 100%; }
+.cooking-stage {
+  display: grid;
+  place-items: center;
+  width: min(192px, 100%);
+  aspect-ratio: 1;
+  flex-shrink: 0;
+}
+.cooking-action {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-size: 400% 100%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  animation: cooking-frames 0.8s steps(4) infinite;
+}
+.cooking-cut { animation-iteration-count: 1; animation-play-state: running !important; }
+@keyframes cooking-frames {
+  to { background-position: 133.333333% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cooking-action { animation: none; }
+}
+@media (max-width: 767px) {
+  .cooking-worktop { min-height: 380px; }
 }

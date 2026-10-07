@@ -12,9 +12,11 @@ import { fridgeTotal } from './conditions';
 import { gossipCandidate } from './knowledge';
 import { ACTIVITY_MINUTES, isOpen, reachability } from './city';
 import { reputationOf } from './social';
+import { HOUSEHOLD, householdCompanyProblem, householdProblem, householdUtility } from './household';
+import { HOUSEHOLD_ACTIVITIES } from '../model';
 
 export type ActionKind =
-  | 'sleep' | 'cook' | 'eat' | 'tidy' | 'work' | 'exercise' | 'hobby' | 'goOut' | 'swim'
+  | 'sleep' | 'cook' | 'eat' | 'tidy' | 'household' | 'work' | 'exercise' | 'hobby' | 'goOut' | 'swim'
   | 'seek' | 'avoid' | 'text' | 'gossip' | 'apologize' | 'confess' | 'retreat' | 'shower' | 'snack' | 'nap';
 
 export interface AgentAction extends NpcAction {
@@ -22,7 +24,7 @@ export interface AgentAction extends NpcAction {
   duration?: number;
 }
 
-export const durationFor = (a: AgentAction) => a.duration ?? ({ swim: SLOT_MINUTES, shower: 40, snack: 20, nap: 90, sleep: 180, work: 180, goOut: 120, cook: 60, eat: 20, tidy: 30, exercise: 40, hobby: 60, seek: 30, avoid: 45, text: 15, gossip: 25, apologize: 20, confess: 30, retreat: 45 }[a.kind]);
+export const durationFor = (a: AgentAction) => a.duration ?? (a.kind === 'household' ? HOUSEHOLD[a.household ?? 'clean'].minutes : { swim: SLOT_MINUTES, shower: 40, snack: 20, nap: 90, sleep: 180, work: 180, goOut: 120, cook: 60, eat: 20, tidy: 30, exercise: 40, hobby: 60, seek: 30, avoid: 45, text: 15, gossip: 25, apologize: 20, confess: 30, retreat: 45 }[a.kind]);
 
 // ponytail: fixed 18:00 sundown; use seasonal solar times if the calendar gains a year and latitude.
 export function isShabbat(s: GameState, c?: Character): boolean {
@@ -38,6 +40,7 @@ const SAT: Record<ActionKind, Partial<NeedVec>> = {
   cook: { hunger: 30, achievement: 8, social: 3 },
   eat: { hunger: 34 },
   tidy: { achievement: 9 },
+  household: {},
   work: { achievement: 26, energy: -10, social: 6 },
   exercise: { achievement: 10, energy: -12, social: 2 },
   hobby: { achievement: 15, privacy: 10 },
@@ -75,7 +78,7 @@ export function pull(s: GameState, i: Character, j: Character): number {
   const attr = attracted(i, j) ? 1 : 0;
   const believed = belief(s, i.id, j.id, i.id); // i's estimate of j's feelings toward i
   let pos = Math.max(0, r.affinity) / 100 * 0.8 + attr * (r.romance / 100) * 1.3 + attr * (believed.romance / 100) * 0.4 + Math.max(0, believed.affinity) / 250;
-  let neg = Math.max(0, -r.affinity) / 100 * 0.6 + r.tension / 100 * 1.1;
+  let neg = Math.max(0, -r.affinity) / 100 * 0.6 + r.tension / 100 * 1.1 + (s.grudges[`${i.id}>${j.id}`]?.strength ?? 0) / 90;
   pos += reputationOf(s, i.id, j.id) / 400;
   if (i.persona.attachment === 'avoidant') {
     pos *= 0.6;
@@ -189,6 +192,9 @@ export function candidateActions(s: GameState, c: Character): AgentAction[] {
     { kind: 'sleep' }, { kind: 'nap' }, { kind: 'snack' }, { kind: 'shower' }, { kind: 'eat' }, { kind: 'tidy' }, { kind: 'hobby' }, { kind: 'retreat' }, { kind: 'exercise' },
   ];
   if (fridgeTotal(s) >= 3 && !shabbat) acts.push({ kind: 'cook' });
+  for (const household of HOUSEHOLD_ACTIVITIES) if (!householdProblem(s, c, household)) acts.push({ kind: 'household', household });
+  for (const o of others) if (!o.isPlayer && o.actionHousehold && o.actionHouseholdOwner === o.id && !o.actionCompanion && o.activityUntil > s.world.minutes &&
+    !householdCompanyProblem(s, c, o) && !householdCompanyProblem(s, o, c) && !householdProblem(s, c, o.actionHousehold, o.activityUntil - s.world.minutes, true)) acts.push({ kind: 'household', household: o.actionHousehold, target: o.id, duration: o.activityUntil - s.world.minutes });
   if (hasJobNow(s, c) && !typhoon) acts.push({ kind: 'work', node: jobNode(c) });
   if (day && !typhoon) {
     const reach = reachability('house', slot, budgetOf(c), !shabbat && s.world.carUsedBy === null, s.world.minutes, s.world.weekday).filter((r) => r.reachable && r.afford !== 'out');
@@ -227,6 +233,7 @@ export function candidateActions(s: GameState, c: Character): AgentAction[] {
 }
 
 export function utility(s: GameState, c: Character, a: AgentAction): number {
+  if (a.kind === 'household') return householdUtility(s, c, a.household ?? 'clean') + (a.target ? Math.max(-0.3, pull(s, c, s.characters[a.target])) + c.needs.social / 150 : 0);
   let u = 0;
   for (const k of NEEDS as readonly Need[]) {
     const sat = SAT[a.kind][k] ?? 0;
@@ -312,7 +319,7 @@ export function queueNpcPlans(s: GameState, plans: Record<string, NpcAction>) {
   }
 }
 const sameAction = (a: NpcAction, b: NpcAction) =>
-  (['kind', 'target', 'third', 'node', 'room', 'companion', 'useCar'] as const).every(k => a[k] === b[k]);
+  (['kind', 'target', 'third', 'node', 'room', 'companion', 'useCar', 'household'] as const).every(k => a[k] === b[k]);
 
 export function coordinateOutings(actions: Record<string, AgentAction>) {
   for (const [id, a] of Object.entries(actions)) {
@@ -342,6 +349,7 @@ export function chooseAction(s: GameState, rng: Rng, c: Character): AgentAction 
 
 /** Default room for an action (before relational resolution). */
 export function roomFor(s: GameState, c: Character, a: AgentAction): string {
+  if (a.kind === 'household') return HOUSEHOLD[a.household ?? 'clean'].room;
   if (a.room && a.kind === 'hobby') return a.room;
   switch (a.kind) {
     case 'sleep':

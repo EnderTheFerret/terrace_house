@@ -1,5 +1,5 @@
 // Shared engine helpers. Internal functions mutate a state that the public API has already cloned.
-import type { Character, Fact, GameState, KnowledgeSource, LogEntry, MemoryItem, PairRel, Slot } from '../model';
+import type { Character, Fact, GameState, Invitation, KnowledgeSource, LogEntry, MemoryItem, PairRel, Slot } from '../model';
 import { ROOMS } from '../model';
 import { mulberry32, type Rng } from '../rng';
 import { clamp, dk } from '../util';
@@ -131,6 +131,16 @@ export function learn(s: GameState, charId: string, factId: string, source: Know
 }
 
 export const knows = (s: GameState, charId: string, factId: string) => !!s.knowledge[charId]?.[factId];
+
+/** Dates are private: a fact only the pair holds, which spreads like any other gossip. Friend plans are on the house calendar. */
+export const planFactId = (p: Invitation) => `fact-plan-${p.id}`;
+export function notePlan(s: GameState, p: Invitation) {
+  if (!p.date || p.status === 'declined') return;
+  addFact(s, { id: planFactId(p), subject: p.from, about: p.to, kind: 'romance', content: `${firstName(s, p.from)} and ${firstName(s, p.to)} have a date at ${placeName(p.node)} on day ${p.episode} at ${clockLabel(p.slot, 0)}.`, truth: true, sensitivity: 0.45 });
+  for (const id of [p.from, p.to]) learn(s, id, planFactId(p), 'self');
+}
+export const knowsPlan = (s: GameState, id: string, p: Invitation) =>
+  p.from === id || p.to === id || !p.date || knows(s, id, planFactId(p));
 
 /** A pair's rung on the romance ladder: 0 none, 1 first date, 2 second date, 3 hand-holding, 4 first kiss. */
 export const milestoneOf = (s: GameState, a: string, b: string) => Number(s.world.flags[`ms_${[a, b].sort().join('|')}`] ?? 0);

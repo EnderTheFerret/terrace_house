@@ -17,8 +17,9 @@ it('joins the second housemate mid-talk, interrupts for the third, and replays t
   const events: { kind: string; data: any }[] = [];
   const stream = (id: string) => session.stream(id, (kind, data) => events.push({ kind, data }));
   const finish = async () => {
-    for (const scene of session.summaries()) {
-      if (scene.phase === 'done') continue;
+    for (let n = 0; n < 30; n++) {
+      const scene = session.summaries().find(s => s.phase !== 'done');
+      if (!scene) break;
       await stream(scene.id);
       if (session.summaries().find(s => s.id === scene.id)?.phase === 'awaiting-choice') {
         const choice = [...events].reverse().find(e => e.kind === 'choice' && e.data.id === scene.id)!;
@@ -51,10 +52,13 @@ it('joins the second housemate mid-talk, interrupts for the third, and replays t
     expect(events.some(e => e.kind === 'line-end' && e.data.speaker === joined.data.intro.id)).toBe(true);
     const residents = Object.values(session.state!.characters).filter(c => c.status === 'inHouse').map(c => [c.id, c.location]);
     const lineCount = events.filter(e => e.kind === 'line-end').length;
-    const generation = ['lines', 'deltas', 'commentary', 'shot'].map(method => vi.spyOn(session.gen, method as 'lines'));
+    const generation = ['lines', 'commentary', 'shot'].map(method => vi.spyOn(session.gen, method as 'lines'));
+    const reading = vi.spyOn(session.gen, 'deltas');
     session.choose(id, { done: true });
     await stream(id);
     generation.forEach(spy => { expect(spy).not.toHaveBeenCalled(); spy.mockRestore(); });
+    expect(reading).toHaveBeenCalledOnce();
+    reading.mockRestore();
     expect(events.filter(e => e.kind === 'line-end')).toHaveLength(lineCount);
     await session.endSlot();
     expect(session.summaries()).toEqual([]);
@@ -89,6 +93,18 @@ it('joins the second housemate mid-talk, interrupts for the third, and replays t
     }
     expect(Object.values(session.state!.characters).filter(c => c.status === 'inHouse')).toHaveLength(6);
     expect(session.state!.world.slot).toBe('evening');
+    const dinner = events.find(e => e.kind === 'scene' && e.data.title === 'welcome dinner · the whole house');
+    expect(dinner).toBeDefined();
+    expect(dinner!.data.participants).toHaveLength(6);
+    expect(session.state!.world.flags.mealDinner).toBe(1);
+    expect(session.state!.log.filter(l => l.kind === 'domestic' && l.text.includes('shared dinner'))).toHaveLength(1);
+    expect(replayEvents(store.events(session.state!.gameId))).toEqual(session.state);
+    const saved = session.save(2, 'after the welcome dinner');
+    session.load(saved);
+    expect(session.state!.world.flags.mealDinner).toBe(1);
+    await session.act({ type: 'skip' });
+    expect(session.summaries().some(s => s.title === 'welcome dinner · the whole house')).toBe(false);
+    await finish();
     expect(replayEvents(store.events(session.state!.gameId))).toEqual(session.state);
   } finally { await app.close(); store.db.close(); rmSync(dir, { recursive: true, force: true }); }
 });
@@ -115,8 +131,8 @@ it('ending a regular conversation clears pending scenes and allows another actio
       }
     }
     await session.endSlot();
-    // Make the pending NPC conversation explicit; an autonomous cast need not create it for this seed.
-    for (const id of ['ren', 'kaito']) {
+    // Keep both conversations in a common room: private/moved talks intentionally plan only one scene.
+    for (const id of ['ren', 'kaito', 'sora']) {
       session.state!.characters[id].persona.routine.jobSlots = [];
       session.state!.characters[id].lastAction = 'hobby';
       session.state!.characters[id].activityUntil = 0;
@@ -133,7 +149,7 @@ it('ending a regular conversation clears pending scenes and allows another actio
     expect(scene).toBeDefined();
     await session.stream(scene.id, () => {});
     const openingTime = session.state!.world.minutes;
-    expect(openingTime).toBeGreaterThan(actionTime);
+    expect(openingTime).toBe(actionTime);
     session.choose(scene.id, { text: 'Hello, how are you?' });
     await session.stream(scene.id, () => {});
     const repliedTime = session.state!.world.minutes;

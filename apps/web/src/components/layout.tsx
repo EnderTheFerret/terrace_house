@@ -1,7 +1,7 @@
 // Shared chrome: top bar, studio strip, digest modal.
 import { useEffect, useState } from 'react';
 import { content } from '@shared-roof/shared';
-import { useGame } from '../store';
+import { phoneNotifications, useGame } from '../store';
 import { api, waitImage, type ImageStatus } from '../api';
 import { HealthBadge, Modal, Btn, Tag } from './ui';
 import { PixelImage } from './pixel';
@@ -24,7 +24,7 @@ export function TopBar() {
     return () => window.removeEventListener('keydown', k);
   }, [setScreen, settings.author]);
   if (!view) return null;
-  const notifications = Math.max(0, view.groupChat.messages.length - (phoneRead.group ?? 0)) + view.chats.reduce((n, t) => n + Math.max(0, t.messages.length - (phoneRead[t.with] ?? 0)), 0) + view.invitations.filter((p) => p.to === view.playerId && p.status === 'pending').length;
+  const notifications = phoneNotifications(view, phoneRead);
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b-[3px] border-ink bg-paper px-3 py-2 text-sm">
       <span className="text-base">ep {view.episode}{view.seasonLength > 0 && view.seasonLength < 1000 && <span className="caption">/{view.seasonLength}</span>}{view.finaleEpisode && <span className="caption"> · finale announced</span>}</span>
@@ -50,6 +50,7 @@ export function TopBar() {
         <button className="px-btn text-xs" onClick={() => setScreen('gallery')}>scene gallery</button>
         <button className="px-btn text-xs" onClick={() => setScreen('sprites')}>sprite library</button>
         <button className="px-btn text-xs" onClick={() => setScreen('settings')}>settings</button>
+        <button className="px-btn text-xs" onClick={() => setScreen('guide')}>activity guide</button>
         {settings.author && <button className="px-btn text-xs" onClick={() => setScreen('debug')}>debug</button>}
       </span>
     </header>
@@ -133,7 +134,7 @@ export function StudioStrip({ lines, prediction, expanded }: { lines?: { speaker
                     <div className="caption text-xs">
                       {p?.name ?? l.speaker} · <span aria-label={`reaction: ${l.reaction}`}>{reactionIcon(l.reaction)} {l.reaction}</span>
                     </div>
-                    <div className="text-sm">{l.text}</div>
+                    <div className="reply-text">{l.text}</div>
                   </div>
                 </div>
               );

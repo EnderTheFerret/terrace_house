@@ -2,6 +2,8 @@
 import { z } from 'zod';
 
 export const SCHEMA_VERSION = 1;
+/** Sanity cap on one typed reply at the API boundary; the UI itself has no length limit. */
+export const TYPED_MAX = 8000;
 
 // ---------- primitives ----------
 export const GENDERS = ['woman', 'man', 'nonbinary'] as const;
@@ -128,6 +130,10 @@ export type Appearance = z.infer<typeof Appearance>;
 /** arriving = on move-in day, not through the door yet */
 export const CharStatus = z.enum(['inHouse', 'left', 'arriving']);
 
+export const HOUSEHOLD_ACTIVITIES = ['dishes', 'laundry', 'trash', 'clean', 'sort', 'fridge', 'meal', 'coffee', 'table', 'plants', 'stretch', 'music', 'games', 'study', 'repair'] as const;
+export const HouseholdActivity = z.enum(HOUSEHOLD_ACTIVITIES);
+export type HouseholdActivity = z.infer<typeof HouseholdActivity>;
+
 export const Character = z.object({
   id: z.string(),
   name: z.string().min(1).max(40),
@@ -168,6 +174,9 @@ export const Character = z.object({
   actionNode: z.string().optional(),
   actionCompanion: z.string().optional(),
   actionThird: z.string().optional(),
+  actionHousehold: HouseholdActivity.optional(),
+  actionHouseholdOwner: z.string().optional(),
+  actionRecipe: z.string().optional(),
   partnerId: z.string().optional(),
 });
 export type Character = z.infer<typeof Character>;
@@ -426,6 +435,9 @@ export type Couple = z.infer<typeof Couple>;
 export const Invitation = z.object({
   id: z.string(), from: z.string(), to: z.string(), episode: z.number().int(), slot: Slot, node: z.string(),
   status: z.enum(['pending', 'accepted', 'kept', 'broken', 'declined']),
+  /** a date stays private to the pair (and whoever they tell); friend plans are on the house calendar */
+  date: z.boolean().optional(),
+  performance: z.object({ id: z.string(), kind: z.enum(['concert', 'dj', 'play', 'comedy']), title: z.string(), audience: z.enum(['personal', 'house']) }).optional(),
 });
 export type Invitation = z.infer<typeof Invitation>;
 export const FeedPost = z.object({
@@ -437,7 +449,8 @@ export const FeedPost = z.object({
 export type FeedPost = z.infer<typeof FeedPost>;
 
 export const NpcAction = z.object({
-  kind: z.enum(['sleep', 'cook', 'eat', 'tidy', 'work', 'exercise', 'hobby', 'goOut', 'swim', 'seek', 'avoid', 'text', 'gossip', 'apologize', 'confess', 'retreat', 'shower', 'snack', 'nap']),
+  kind: z.enum(['sleep', 'cook', 'eat', 'tidy', 'household', 'work', 'exercise', 'hobby', 'goOut', 'swim', 'seek', 'avoid', 'text', 'gossip', 'apologize', 'confess', 'retreat', 'shower', 'snack', 'nap']),
+  household: HouseholdActivity.optional(),
   target: z.string().optional(), third: z.string().optional(), node: z.string().optional(),
   room: z.enum(ROOMS).optional(), companion: z.string().optional(), useCar: z.boolean().optional(),
   duration: z.number().positive().optional(),
@@ -488,7 +501,7 @@ export const GameState = z.object({
   observedRoutines: z.record(z.string(), z.array(z.string())).default({}),
   timeline: z.array(z.object({ episode: z.number().int(), slot: Slot, clock: z.string(), text: z.string() })).default([]),
   /** the panel's lines about each scene, delivered to the house when that episode airs */
-  panelRemarks: z.array(z.object({ episode: z.number().int(), participants: z.array(z.string()), text: z.string() })).default([]),
+  panelRemarks: z.array(z.object({ episode: z.number().int(), participants: z.array(z.string()), speaker: z.string().optional(), text: z.string() })).default([]),
   /** memories beyond the prompt budget: kept for recall by keyword or meaning instead of being deleted */
   memoryArchive: z.record(z.string(), z.array(MemoryItem)).default({}),
   /** LLM-written end-of-episode diary per housemate, from only what they know (newest last) */
@@ -502,6 +515,7 @@ export type GameState = z.infer<typeof GameState>;
 
 // ---------- player actions ----------
 export const PlayerAction = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('household'), activity: HouseholdActivity, target: z.string().optional(), join: z.boolean().optional() }),
   z.object({ type: z.literal('pool'), mode: z.enum(['enter', 'leave']), with: z.array(z.string()).max(5).refine((ids) => new Set(ids).size === ids.length, 'choose each housemate once').optional() }),
   z.object({ type: z.literal('house'), activity: z.enum(['hangout', 'cook', 'tidy', 'rest', 'backyard', 'hobby']), target: z.string().optional() }),
   z.object({ type: z.literal('talk'), target: z.string(), room: z.enum(ROOMS).optional(), guests: z.array(z.string()).max(3).refine((ids) => new Set(ids).size === ids.length, 'choose each housemate once').optional() }),
@@ -517,7 +531,7 @@ export const PlayerAction = z.discriminatedUnion('type', [
     /** with activity 'work': sign a contract for this slot on fixed weekdays */
     contract: z.boolean().optional(),
   }),
-  z.object({ type: z.literal('text'), target: z.string(), text: z.string().max(200).optional() }),
+  z.object({ type: z.literal('text'), target: z.string(), text: z.string().max(TYPED_MAX).optional() }),
   z.object({ type: z.literal('idle') }),
   z.object({ type: z.literal('graduate'), with: z.string().optional() }),
   z.object({ type: z.literal('endSeason') }),
@@ -526,7 +540,7 @@ export const PlayerAction = z.discriminatedUnion('type', [
   z.object({ type: z.literal('visit'), room: z.string(), invite: z.string().optional(), knock: z.boolean().optional() }),
   /** Friday (before the afternoon) overnight trip in the shared car with 1-3 housemates, back Saturday morning */
   z.object({ type: z.literal('trip'), node: z.string(), with: z.array(z.string()).min(1).max(3), roommate: z.string().optional() }),
-  z.object({ type: z.literal('plan'), target: z.string(), node: z.string(), episode: z.number().int().min(1), slot: Slot }),
+  z.object({ type: z.literal('plan'), target: z.string(), node: z.string(), episode: z.number().int().min(1), slot: Slot, date: z.boolean().optional() }),
   z.object({ type: z.literal('respondPlan'), id: z.string(), accept: z.boolean() }),
   z.object({ type: z.literal('approach'), id: z.string(), accept: z.boolean() }),
   z.object({ type: z.literal('gift'), target: z.string(), item: z.string().max(60) }),

@@ -12,11 +12,13 @@ export function Studio() {
   const { studioAfter, settings } = useGame();
   const [data, setData] = useState<{ at: 'mid' | 'end'; lines: Line[] } | null>(null);
   const [shown, setShown] = useState(0);
+  const [error, setError] = useState('');
   const leave = () => useGame.setState({ screen: studioAfter });
 
   useEffect(() => {
-    api.intermission().then(setData, leave);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let active = true;
+    api.intermission().then(next => { if (active) setData(next); }, (e: Error) => { if (active) setError(e.message); });
+    return () => { active = false; };
   }, []);
   useEffect(() => {
     if (!data) return;
@@ -47,7 +49,8 @@ export function Studio() {
         </div>
         <div className="studio-table" aria-hidden />
         <div className="flex w-full max-w-2xl flex-col gap-3" aria-live="polite">
-          {!data && <p className="caption text-center">the panel is settling in<span className="blink">…</span></p>}
+          {!data && !error && <p className="caption text-center">the panel is settling in<span className="blink">…</span></p>}
+          {error && <div role="alert"><p>{error}</p><Btn onClick={() => { setError(''); void api.intermission().then(setData, (e: Error) => setError(e.message)); }}>retry panel</Btn><Btn onClick={leave}>continue</Btn></div>}
           {lines.map((l, i) => {
             const p = panel.find((x) => x.id === l.speaker);
             return (
@@ -57,7 +60,7 @@ export function Studio() {
                   <div className="caption text-xs">
                     {p?.name ?? l.speaker} · <span aria-label={`reaction: ${l.reaction}`}>{reactionIcon(l.reaction)} {l.reaction}</span>
                   </div>
-                  <div>{l.text}</div>
+                  <div className="reply-text">{l.text}</div>
                 </div>
               </div>
             );

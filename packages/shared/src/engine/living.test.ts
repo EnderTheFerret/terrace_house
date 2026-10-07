@@ -21,11 +21,15 @@ describe('minute-based social life', () => {
     startPlans(s);
     expect(s.invitations[2].status).toBe('declined');
   });
-  it('rejects car trips and messages that cross an observing participant\'s sundown', () => {
+  it('allows instantaneous texts before sundown, blocks Shabbat texts and rejects car trips across sundown', () => {
     const s = createGame({ seed: 11 }); s.world.weekday = 5; s.world.slot = 'slot3'; s.world.minutes = 119;
     s.characters[s.playerId].persona.keepsShabbat = false;
     s.characters.ren.persona.keepsShabbat = true;
-    expect(() => planSlot(s, { type: 'text', target: 'ren' })).toThrow(/recipient/);
+    const texted = planSlot(s, { type: 'text', target: 'ren', text: 'Want to hang out?' });
+    expect(texted.state).toEqual(s);
+    expect(texted.plan.scenes).toEqual([]);
+    s.world.minutes = 120;
+    expect(() => planSlot(s, { type: 'text', target: 'ren' })).toThrow(/Shabbat/);
     s.characters[s.playerId].persona.keepsShabbat = true;
     s.world.minutes = 50;
     expect(() => planSlot(s, { type: 'goOut', node: 'riverside', activity: 'wander', useCar: true })).toThrow(/sundown/);

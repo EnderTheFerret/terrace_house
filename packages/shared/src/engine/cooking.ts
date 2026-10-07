@@ -269,13 +269,17 @@ export function canEat(c: Character, recipe: Recipe, utensil: Recipe['category']
   return c.persona.kashrut !== 'strict' || (recipe.kosher && !(recipe.category === 'dairy' && utensil === 'meat') && !(recipe.category === 'meat' && utensil === 'dairy'));
 }
 
-export function npcRecipe(c: Character, s: GameState, rng: Rng): Recipe | undefined {
-  const recipes = content().recipes.filter((r) => canEat(c,r) &&
+export function npcRecipe(c: Character, s: GameState, rng: Rng, company: Character[] = []): Recipe | undefined {
+  const recipes = content().recipes.filter((r) => [c, ...company].every(person => canEat(person,r)) &&
     Object.entries(r.ingredients).every(([id,count]) => (s.house.fridge[id] ?? 0) >= count) &&
-    (c.persona.kashrut !== 'strict' || (
+    (![c, ...company].some(person => person.persona.kashrut === 'strict') || (
       Object.keys(r.ingredients).every((id) => s.house.kitchen.kosherShelf.includes(id)) &&
       (r.category !== 'meat' || s.house.kitchen.meatPanClean) && (r.category !== 'dairy' || s.house.kitchen.dairyPanClean))));
-  return recipes.length ? rng.pick(recipes) : undefined;
+  if (!recipes.length) return;
+  const crowd = Object.values(s.characters).filter(person => person.status === 'inHouse' && person.location !== 'out');
+  const coverage = (r: Recipe) => crowd.filter(person => canEat(person, r)).length;
+  const most = Math.max(...recipes.map(coverage));
+  return rng.pick(recipes.filter(r => coverage(r) === most));
 }
 
 export function verdictOf(r: number): Reception['verdict'] {
@@ -285,7 +289,7 @@ export function verdictOf(r: number): Reception['verdict'] {
 /** Pure: apply a dish (quality from the minigame) to housemates who ate it. */
 export function applyCooking(
   s0: GameState,
-  o: { recipeId: string; quality: number; cook: string; partner?: string; servedTo: string[]; utensil?: Recipe['category'] },
+  o: { recipeId: string; quality: number; cook: string; partner?: string; servedTo: string[]; utensil?: Recipe['category']; ingredientsReserved?: boolean },
 ): { state: GameState; receptions: Reception[]; improvised: boolean } {
   const s = cloneState(s0);
   const recipe = recipeById(o.recipeId);
@@ -298,7 +302,7 @@ export function applyCooking(
     if (utensil === 'meat') s.house.kitchen.meatPanClean = false;
     else s.house.kitchen.dairyPanClean = false;
   }
-  const improvised = !consume(s, recipe.ingredients);
+  const improvised = !o.ingredientsReserved && !consume(s, recipe.ingredients);
   const q = clamp(o.quality * (improvised ? 0.6 : 1), 0, 1);
   const receptions: Reception[] = [];
   for (const id of o.servedTo.slice(0, recipe.serves)) {

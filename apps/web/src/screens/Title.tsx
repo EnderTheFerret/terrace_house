@@ -33,6 +33,7 @@ export function Title() {
           <Btn onClick={() => setScreen('gallery')}>scene gallery</Btn>
           <Btn disabled={!view} onClick={() => setScreen('sprites')}>sprite library</Btn>
           <Btn onClick={() => setScreen('practice')}>practice cooking</Btn>
+          <Btn onClick={() => setScreen('guide')}>activity guide</Btn>
           <Btn onClick={() => setScreen('settings')}>settings</Btn>
         </nav>
         <HealthBadge />

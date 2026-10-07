@@ -179,8 +179,9 @@ export function knownFacts(s: GameState, charId: string): Fact[] {
 /** Drop old low-sensitivity event facts (and their knowledge entries) to bound state size. */
 export function pruneFacts(s: GameState) {
   const parents = new Set(Object.values(s.facts).map((f) => f.parentId).filter(Boolean));
+  const airedThrough = s.world.flags.broadcastDays === 3 && typeof s.world.flags.aired === 'number' ? s.world.flags.aired * 3 : 0;
   for (const f of Object.values(s.facts)) {
-    if (f.kind === 'event' && f.sensitivity < 0.3 && s.world.episode - f.createdEp >= 3 && !parents.has(f.id)) {
+    if (f.kind === 'event' && f.sensitivity < 0.3 && f.createdEp <= airedThrough && s.world.episode - f.createdEp >= 3 && !parents.has(f.id)) {
       delete s.facts[f.id];
       for (const k of Object.values(s.knowledge)) delete k[f.id];
     }

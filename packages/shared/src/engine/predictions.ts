@@ -85,7 +85,7 @@ export function panelPrediction(s0: GameState): { state: GameState; condition: P
 }
 
 /** Bookkeeping after commentary: store a new prediction, mark callbacks. Pure wrapper (clones). */
-export function recordCommentary(s0: GameState, r: { prediction?: { by: string; condition: PredictionCond; text?: string }; calledBack: string[]; remarks?: { episode: number; participants: string[]; lines: { text: string }[]; moment?: string } }): GameState {
+export function recordCommentary(s0: GameState, r: { prediction?: { by: string; condition: PredictionCond; text?: string }; calledBack: string[]; remarks?: { episode: number; participants: string[]; lines: { speaker?: string; text: string }[]; moment?: string } }): GameState {
   const s = structuredClone(s0);
   if (r.remarks) recordRemarks(s, r.remarks.episode, r.remarks.participants, r.remarks.lines, r.remarks.moment);
   for (const id of r.calledBack) {

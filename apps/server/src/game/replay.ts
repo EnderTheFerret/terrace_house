@@ -1,8 +1,8 @@
 // Deterministic replay of an events_log: re-applies engine steps in the same order the session used.
 import {
   applyReread, autoChoices, createGame, finishSlot, panelPrediction, planSlot, proposeOutcome, recordCommentary, resolveScene, applyCooking,
-  editPlayer, joinNewPlayer, recordChat, recordConversation, recordPlayerWords, passTime, recordDiary, planMoveInArrival, queueNpcPlans,
-  type EventInstance, type GameState,
+  editPlayer, joinNewPlayer, recordChat, recordConversation, recordPlayerWords, passTime, recordDiary, planMoveInArrival, planHouseMeal, queueNpcPlans,
+  type EventInstance, type GameState, beginBroadcast, respondToPlan, addTalkPlan,
 } from '@shared-roof/shared';
 import { applyCharacterSnapshot } from './personas';
 
@@ -22,14 +22,24 @@ export function replayEvents(events: LoggedEvent[]): GameState {
         queueNpcPlans(s!, p.plans);
         break;
       case 'new':
-        s = createGame({ ...p, moveInVersion: p.moveInVersion ?? 1 });
+        s = createGame({ ...p, moveInVersion: p.moveInVersion ?? 1, communalMeals: p.communalMeals ?? false });
         break;
       case 'action': {
-        const r = planSlot(s!, p.action);
+        const r = planSlot(s!, p.action, { legacyText: p.action.type === 'text' && !p.textVersion });
         s = r.state;
         plan = new Map(r.plan.scenes.map((sc) => [sc.event.id, sc.event]));
         break;
       }
+      case 'broadcast-start':
+        beginBroadcast(s!, p.event);
+        plan.set(p.event.id, p.event);
+        break;
+      case 'plan-response':
+        s = respondToPlan(s!, p.action);
+        break;
+      case 'talk-plan':
+        s = addTalkPlan(s!, p.from, p.to, p.plan);
+        break;
       case 'scene': {
         let ev = (p.event as EventInstance | undefined) ?? plan.get(p.eventId);
         if (!ev) throw new Error(`replay: unknown event ${p.eventId} at seq ${e.seq}`);
@@ -41,10 +51,16 @@ export function replayEvents(events: LoggedEvent[]): GameState {
         break;
       }
       case 'reread':
-        applyReread(s!, p.id, p.change, p.participants);
+        applyReread(s!, p.id, p.change, p.participants, true, p.boardChange ?? { ...p.change, affinityDeltas: [], romanceDeltas: [] });
+        break;
+      case 'reading':
+        if (p.change) applyReread(s!, p.id, p.change, p.participants, false, p.boardChange ?? { ...p.change, affinityDeltas: [], romanceDeltas: [] });
         break;
       case 'diary':
         s = recordDiary(s!, p.id, p.episode, p.diary, p.pairs ?? {});
+        break;
+      case 'intermission':
+        if (p.remarks) s = recordCommentary(s!, { calledBack: [], remarks: p.remarks });
         break;
       case 'commentary':
         s = panelPrediction(s!).state;
@@ -65,6 +81,9 @@ export function replayEvents(events: LoggedEvent[]): GameState {
       case 'chat':
         s = recordChat(s!, p.a, p.b, p.lines, p.photoFrom);
         break;
+      case 'chat-retry':
+        if (s!.chats[p.key]?.[p.index]) s!.chats[p.key][p.index].text = p.text;
+        break;
       case 'time':
         s = passTime(s!, p.lines, p.protectedIds ?? [], p.minutesPerLine ?? 3);
         break;
@@ -77,6 +96,15 @@ export function replayEvents(events: LoggedEvent[]): GameState {
       case 'move-in-join':
         plan.set(p.event.id, p.event);
         s!.characters[p.newcomer].location = p.event.location;
+        break;
+      case 'meal': {
+        const meal = planHouseMeal(s!);
+        s = meal.state;
+        for (const scene of meal.plan.scenes) plan.set(scene.event.id, scene.event);
+        break;
+      }
+      case 'meal-routines':
+        s!.world.flags.communalMeals = true;
         break;
       case 'new-player':
         s = joinNewPlayer(s!, p.setup);

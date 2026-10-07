@@ -4,7 +4,6 @@ import { Btn } from '../components/ui';
 
 export function EpisodeCard({ pending = 0 }: { pending?: number } = {}) {
   const { view, episodeCard, setScreen, act } = useGame();
-  // every housemate's walk sheet (new game, loaded save, arrivals) is ready before the episode starts
   if (!view) return null;
   if (episodeCard === 'end') {
     return (
@@ -31,15 +30,15 @@ export function EpisodeCard({ pending = 0 }: { pending?: number } = {}) {
       <Btn
         primary
         autoFocus
-        disabled={pending > 0}
         onClick={() => {
           useGame.setState({ episodeCard: null, showDigest: false });
           setScreen('house');
           if (view.openingIntroduction) void act({ type: 'idle' });
         }}
       >
-        {pending > 0 ? `drawing housemates… ${view.characters.length - pending}/${view.characters.length}` : 'begin'}
+        begin
       </Btn>
+      {pending > 0 && <p className="caption text-sm" role="status">Artwork is loading in the background. You can begin now.</p>}
     </div>
   );
 }

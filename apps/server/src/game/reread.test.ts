@@ -9,7 +9,7 @@ import { MockImageBackend } from '../image/mock';
 import { replayEvents } from './replay';
 import { FEELING_SCALE } from '@shared-roof/shared';
 
-it("re-reads a finished scene once: only the difference is applied, memories are added, and replay reproduces it", async () => {
+it("re-reads a finished scene without stacking effects, updates the board, and replay reproduces it", async () => {
   const dir = mkdtempSync(join(tmpdir(), 'roof-reread-'));
   const store = new Store(openDb(':memory:'));
   const { session } = await buildApp({ llm: new MockLlm(), image: new MockImageBackend(dir), store, workflowHash: 'mock', cacheDir: dir });
@@ -26,6 +26,8 @@ it("re-reads a finished scene once: only the difference is applied, memories are
   const logged = session.dayLog().scenes.find((x) => x.id === scene.id);
   expect(logged).toBeDefined();
   const before = s.rel[other][s.playerId].affinity;
+  const beliefBefore = s.beliefs[s.playerId][`${other}>${s.playerId}`].affinity;
+  const beliefsBefore = structuredClone(s.beliefs);
   const applied = store.events(s.gameId).find((e) => e.kind === 'scene' && e.payload.eventId === scene.id)!.payload.proposal.affinityDeltas.find((d: { from: string; to: string }) => d.from === other && d.to === s.playerId)?.delta ?? 0;
   // the model reads a compliment as worth +20 toward the player
   vi.spyOn(session.gen, 'deltas').mockResolvedValue({ affinityDeltas: [{ from: other, to: s.playerId, delta: 12 }], romanceDeltas: [], tensionDeltas: [], trustDeltas: [], newMemories: [{ charId: other, text: 'They complimented my coffee.', salience: 0.6 }], moodDeltas: [] });
@@ -33,6 +35,26 @@ it("re-reads a finished scene once: only the difference is applied, memories are
   expect(session.state!.rel[other][s.playerId].affinity).toBeCloseTo(Math.min(100, before + FEELING_SCALE * (12 - applied)), 5);
   expect(session.state!.memory[other].some((m) => m.text === 'They complimented my coffee.')).toBe(true);
   expect(r.log.scenes.find((x) => x.id === scene.id)!.reread).toBe(true);
-  await expect(session.reread(scene.id)).rejects.toThrow(/already re-read/);
+  const board = r.view.board.find(e => e.from === other && e.to === s.playerId)!;
+  expect(board.affinity).toBe(Math.round(beliefBefore + FEELING_SCALE * (12 - applied)));
+  expect(board.reliability).toBe('witnessed');
+  const after = session.state!.rel[other][s.playerId].affinity;
+  await session.reread(scene.id);
+  expect(session.state!.rel[other][s.playerId].affinity).toBe(after);
+  expect(session.view().board.find(e => e.from === other && e.to === s.playerId)).toEqual(board);
+  // Simulate an old save: feelings were corrected, but its events and board predate board corrections.
+  const legacyEvents = store.events(s.gameId);
+  for (const e of legacyEvents) if (e.kind === 'reread' || e.kind === 'reading') delete e.payload.boardChange;
+  const originalEvents = store.events.bind(store);
+  vi.spyOn(store, 'events').mockImplementation(() => legacyEvents.concat(originalEvents(s.gameId).filter(e => e.seq > legacyEvents.at(-1)!.seq)));
+  session.state!.beliefs = beliefsBefore;
+  const repaired = await session.reread(scene.id);
+  expect(session.state!.rel[other][s.playerId].affinity).toBe(after);
+  expect(repaired.view.board.find(e => e.from === other && e.to === s.playerId)).toEqual(board);
+  await session.reread(scene.id);
+  expect(session.view().board.find(e => e.from === other && e.to === s.playerId)).toEqual(board);
+  vi.mocked(session.gen.deltas).mockResolvedValue(null);
+  await expect(session.reread(scene.id)).rejects.toThrow(/did not answer/);
+  expect(session.state!.rel[other][s.playerId].affinity).toBe(after);
   expect(replayEvents(store.events(session.state!.gameId))).toEqual(session.state);
 });

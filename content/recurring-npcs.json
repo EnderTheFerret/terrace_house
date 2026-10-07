@@ -1,6 +1,16 @@
 {
   "npcs": [
     {
+      "id": "classmate",
+      "name": "Classmate",
+      "role": "university classmate who borrows notes",
+      "traits": ["curious", "friendly"],
+      "location": "university",
+      "schedule": { "weekdays": [0, 1, 2, 3, 4], "slots": ["slot1", "slot2"] },
+      "lines": ["Did you catch that last slide? I got distracted. What's living in that house actually like?", "Could I borrow your notes after class? I'll get you a coffee."],
+      "returningLines": ["Saved you a seat. How are things at the house?"]
+    },
+    {
       "id": "hamabe",
       "name": "Dalia",
       "role": "cafe owner",

@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import {
-  autonomyOptions, housemates, npcs, npcPlanBlock, utility, pairSummaryText, clockLabel,
+  autonomyOptions, housemates, npcs, npcPlanBlock, utility, pairSummaryText,
   type GameState, type LlmClient, type NpcAction,
 } from '@shared-roof/shared';
-import { memoriesBlock } from '../prompts/common';
+import { dayLine, memoriesBlock, plansBlock } from '../prompts/common';
 import { Budget, structured } from '../llm/structured';
 import { MockLlm } from '../llm/mock';
 
@@ -15,7 +15,7 @@ export async function decideActivities(llm: LlmClient, s: GameState, through: nu
   const catalog: NpcAction[] = [];
   const keys: string[] = [];
   const allowed = Object.fromEntries(due.map(c => [c.id, menus[c.id].map(a => {
-    const key = JSON.stringify([a.kind, a.target, a.third, a.node, a.room, a.companion, a.useCar]);
+    const key = JSON.stringify([a.kind, a.target, a.third, a.node, a.room, a.companion, a.useCar, a.household]);
     let index = keys.indexOf(key);
     if (index < 0) { index = catalog.length; keys.push(key); catalog.push(a); }
     return index;
@@ -36,6 +36,7 @@ export async function decideActivities(llm: LlmClient, s: GameState, through: nu
       `Current activity: ${c.lastAction ?? 'settling in'} at ${c.location}; finishes at minute ${c.activityUntil}.`,
       `Hobbies: ${c.persona.routine.hobbies.join(', ')}. Needs (higher = more urgent): ${JSON.stringify(c.needs)}.`,
       memoriesBlock(s, c.id, [], 2).slice(0, 400),
+      plansBlock(s, c.id),
       `Recent conversations: ${(s.memory[c.id] ?? []).slice(-3).map(m => m.text.slice(0, 160)).join(' | ')}`,
       `Diary: ${s.diaries[c.id]?.at(-1)?.text.slice(0, 160) ?? ''}`,
       `Their own message history:\n${messages.map(m => `${s.characters[m.from]?.name ?? m.from}: ${m.text.slice(0, 160)}`).join('\n') || '(none yet)'}`,
@@ -46,11 +47,11 @@ export async function decideActivities(llm: LlmClient, s: GameState, through: nu
   const result = await structured(llm, new MockLlm(), {
     kind: 'actions', temperature: 0.5, maxTokens: 350, signal: AbortSignal.timeout(30000),
     prompt: [
-      `Choose the next ordinary activity of each adult housemate in Tel Aviv at ${clockLabel(s.world.slot, s.world.minutes)} (${s.world.weekday}, ${s.world.weather}).`,
+      `Choose the next ordinary activity of each adult housemate in Tel Aviv. ${dayLine(s, due.map(c => c.id))} Weather: ${s.world.weather}.`,
       'Use each person\'s personality, needs, hobbies, memories and own messages. Follow up on their plans when possible. They can explore the house, talk, rest or explore the city. Do not make everyone socialize or move continually.',
       'Each card is private to that person: never base their choice on another card\'s private messages or memories. The player is never moved or recruited automatically.',
       'Options are validated by the engine. A companion outing happens together only if BOTH people independently choose matching destination and each other as companion. Otherwise they go alone. Respect personal boundaries.',
-      `Shared option catalogue (each person can choose ONLY one of their allowed indexes):\n${catalog.map((a, i) => `${i} ${a.kind}${a.room ? ` in ${a.room}` : ''}${a.node ? ` at ${a.node}` : ''}${a.target ? ` target ${a.target}` : ''}${a.third ? ` listener ${a.third}` : ''}${a.companion ? ` with ${a.companion}` : ''}${a.useCar ? ' by car' : ''}`).join('\n')}`,
+      `Shared option catalogue (each person can choose ONLY one of their allowed indexes):\n${catalog.map((a, i) => `${i} ${a.kind}${a.household ? ` ${a.household}` : ''}${a.room ? ` in ${a.room}` : ''}${a.node ? ` at ${a.node}` : ''}${a.target ? ` target ${a.target}` : ''}${a.third ? ` listener ${a.third}` : ''}${a.companion ? ` with ${a.companion}` : ''}${a.useCar ? ' by car' : ''}`).join('\n')}`,
       ...cards,
       `Return JSON only: {"choices":${JSON.stringify(Object.fromEntries(due.map(c => [c.id, allowed[c.id][0]])))}}. One allowed option index per named person; no prose.`,
     ].join('\n\n'),

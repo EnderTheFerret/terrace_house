@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { INTENTS, type Intent } from '../model';
 import { mulberry32 } from '../rng';
 import { mockReply } from '../gen/mock';
-import { classifyIntent, inviteDecision, recordChat, recordPlayerWords, typedResponders } from './talk';
+import { classifyIntent, inviteDecision, recordChat, recordPlayerWords, typedResponders, typedAffinityFallback } from './talk';
 import { blockOver, createGame, finishSlot, joinNewPlayer, passTime, planSlot } from './loop';
 import { DEFAULT_PLAYER, editPlayer } from './castgen';
 import { depart, markLeaving } from './leave';
-import { housemates, MINUTES_PER_LINE } from './core';
+import { housemates, MINUTES_PER_LINE, rel } from './core';
 
 const all = [...INTENTS] as Intent[];
 
@@ -72,6 +72,18 @@ describe('editing your character', () => {
 });
 
 describe('typed talk', () => {
+  it('falls back only for direct player insults, respecting addressees and ignoring quoted or unrelated negativity', () => {
+    const s = createGame({ seed: 1 });
+    const group = [s.playerId, 'ren', 'mio'];
+    const line = (text: string, recipient?: string) => ({ speaker: s.playerId, source: 'player', text, recipient });
+    expect(typedAffinityFallback(s, group, [line('You are an idiot.', 'mio')])?.affinityDeltas).toEqual([{ from: 'mio', to: s.playerId, delta: -6 }]);
+    expect(typedAffinityFallback(s, group, [{ speaker: 'ren', text: 'Hi.' }, line('I hate you.')])?.affinityDeltas[0].from).toBe('ren');
+    expect(typedAffinityFallback(s, group, [line('Shut up.', 'everyone')])?.affinityDeltas.map(d => d.from)).toEqual(['ren', 'mio']);
+    for (const text of ['I hate this weather.', 'You are not an idiot.', 'She said I hate you.', '"I hate you" was in the film.', 'You are an idiot, just kidding.', 'Please leave me alone.', 'No thanks, I do not want a date.']) expect(typedAffinityFallback(s, group, [line(text)])).toBeNull();
+    expect(typedAffinityFallback(s, group, [line('I hate you.', 'unknown')])).toBeNull();
+    expect(typedAffinityFallback(s, group, [{ speaker: 'ren', text: 'I hate you.', source: 'llm' }])).toBeNull();
+  });
+
   it('never appends an arbitrary echoed word to a fallback reply', () => {
     const s = createGame({ seed: 1 });
     for (let seed = 0; seed < 50; seed++) {
@@ -151,6 +163,8 @@ describe('graduations and arrivals', () => {
     let s = createGame({ seed: 5 });
     s.world.slot = 'slot1';
     s.couples.push({ a: s.playerId, b: 'ren', since: 1, status: 'dating' });
+    s.characters.ren.contractEp = 1;
+    rel(s, 'ren', s.playerId).romance = 80;
     const old = s.playerId;
     s = planSlot(s, { type: 'graduate', with: 'ren' }).state;
     s = finishSlot(s);

@@ -328,7 +328,7 @@
         "flirt",
         "deflect"
       ],
-      "premise": "Past midnight. {a} is warming pita when {b} shuffles in, also unable to sleep.",
+      "premise": "The house has gone quiet. {a} is warming pita in the kitchen when {b} wanders in for a snack.",
       "effects": [
         {
           "reference": {
@@ -422,7 +422,7 @@
         "support",
         "deflect"
       ],
-      "premise": "The backyard at dusk. {a} is leaning on the railing when {b} comes up with two cans of something cold.",
+      "premise": "Out in the backyard, {a} is leaning on the railing when {b} comes up with two cans of something cold.",
       "freeze": true
     },
     {
@@ -1386,7 +1386,7 @@
         "honest",
         "deflect"
       ],
-      "premise": "{a} sends {b} a message: a photo of the sunset from the train, and nothing else."
+      "premise": "{a} sends {b} a short message out of the blue."
     },
     {
       "id": "cafe-date",
@@ -2086,6 +2086,7 @@
     },
     {
       "id": "former-housemate",
+      "system": true,
       "type": "visit",
       "title": "a former housemate visits",
       "tags": [
@@ -2099,22 +2100,9 @@
       "location": "living",
       "roles": {
         "a": {},
-        "b": {},
-        "x": {
-          "outsider": "natsume"
-        }
+        "b": {}
       },
-      "pre": [
-        {
-          "episodeMin": 6
-        },
-        {
-          "notFlag": "natsume_visited"
-        },
-        {
-          "chance": 0.35
-        }
-      ],
+      "pre": [],
       "weight": 2,
       "drama": {
         "affinity": [
@@ -2148,13 +2136,8 @@
         "joke",
         "honest"
       ],
-      "premise": "Neta, who lived here two seasons ago, drops by with wine and stories. {a} and {b} get the tour of what used to be.",
-      "effects": [
-        {
-          "flag": "natsume_visited",
-          "value": true
-        }
-      ]
+      "premise": "{a}, a former resident, visits {b} to catch up in the house.",
+      "effects": []
     },
     {
       "id": "neighbor-complaint",
@@ -2945,6 +2928,9 @@
       "roles": {
         "a": {
           "player": true
+        },
+        "b": {
+          "outsider": "classmate"
         }
       },
       "pre": [

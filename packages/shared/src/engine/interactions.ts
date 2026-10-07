@@ -2,13 +2,14 @@
 import type { Character, DeltaProposal, GameState } from '../model';
 import type { Rng } from '../rng';
 import { clamp, uk } from '../util';
-import { addFact, addLog, attracted, depthCeiling, firstName, housemates, learn, placeName, rel, traitsOf } from './core';
+import { addFact, addLog, addMemory, attracted, depthCeiling, firstName, housemates, learn, placeName, rel, traitsOf } from './core';
 import type { AgentAction } from './agents';
 import { gossipCandidate, keepsSecret, observe, transmit } from './knowledge';
-import { mintReference } from './social';
+import { addGrudge, mintReference } from './social';
+import { HOUSEHOLD } from './household';
 import { chatLine, chatReply } from '../gen/mock';
 
-export type IxType = 'chat' | 'deep' | 'flirt' | 'bicker' | 'awkward' | 'joke' | 'confess' | 'apology' | 'gossip';
+export type IxType = 'chat' | 'deep' | 'flirt' | 'bicker' | 'awkward' | 'joke' | 'confess' | 'apology' | 'gossip' | 'help' | 'household' | 'cold' | 'jealousy';
 
 export interface Interaction {
   a: string;
@@ -26,7 +27,13 @@ const both = (arr: DeltaProposal['affinityDeltas'], a: string, b: string, d1: nu
   arr.push({ from: a, to: b, delta: d1 }, { from: b, to: a, delta: d2 });
 };
 
-const BASE_SAL: Record<IxType, number> = { chat: 0.12, joke: 0.22, deep: 0.38, flirt: 0.48, bicker: 0.45, awkward: 0.18, confess: 0.95, apology: 0.5, gossip: 0.42 };
+const BASE_SAL: Record<IxType, number> = { chat: 0.12, joke: 0.22, deep: 0.38, flirt: 0.48, bicker: 0.45, awkward: 0.18, confess: 0.95, apology: 0.5, gossip: 0.42, help: 0.3, household: 0.24, cold: 0.35, jealousy: 0.5 };
+
+export function jealousyReason(s: GameState, a: string, b: string): string | undefined {
+  if (rel(s, a, b).romance < 35 || !attracted(s.characters[a], s.characters[b])) return;
+  return Object.keys(s.knowledge[a] ?? {}).map(id => s.facts[id]).find(f => f && f.kind === 'romance' && f.createdEp >= s.world.episode - 1 &&
+    [f.subject, f.about].includes(b) && ![f.subject, f.about].includes(a))?.content;
+}
 
 function pickType(s: GameState, rng: Rng, a: Character, b: Character): IxType {
   const r = rel(s, a.id, b.id);
@@ -34,6 +41,10 @@ function pickType(s: GameState, rng: Rng, a: Character, b: Character): IxType {
   const ta = traitsOf(a);
   const depth = depthCeiling(s, a.id, b.id);
   const opts: [IxType, number][] = [
+    ['household', a.actionHousehold && b.actionHousehold === a.actionHousehold ? 2 : 0],
+    ['help', (b.mood < -0.25 || b.needs.energy > 75) && ta.A > 0.5 ? ta.A : 0],
+    ['cold', r.tension > 25 || r.affinity < -10 || s.grudges[`${a.id}>${b.id}`] ? 0.7 + r.tension / 60 : 0],
+    ['jealousy', jealousyReason(s, a.id, b.id) ? (a.persona.attachment === 'anxious' ? 0.9 : 0.4) : 0],
     ['chat', 1],
     ['joke', 0.3 + ta.E * 0.6 + (a.persona.speech.humor !== 'none' ? 0.3 : 0)],
     ['deep', depth === 'smalltalk' ? 0.1 : depth === 'personal' ? 0.6 : 1.0],
@@ -53,6 +64,24 @@ export function interactionProposal(s: GameState, rng: Rng, type: IxType, a: str
   const A = s.characters[a];
   const B = s.characters[b];
   switch (type) {
+    case 'household':
+      both(p.affinityDeltas, a, b, 1.5);
+      both(p.tensionDeltas, a, b, -1);
+      break;
+    case 'help':
+      p.affinityDeltas.push({ from: b, to: a, delta: 2 });
+      p.trustDeltas.push({ from: b, to: a, delta: 3 });
+      p.moodDeltas.push({ charId: b, delta: 0.08 });
+      break;
+    case 'cold':
+      p.affinityDeltas.push({ from: b, to: a, delta: -2 });
+      p.tensionDeltas.push({ from: b, to: a, delta: 3 });
+      break;
+    case 'jealousy':
+      p.affinityDeltas.push({ from: a, to: b, delta: -2 });
+      p.tensionDeltas.push({ from: a, to: b, delta: 4 });
+      p.moodDeltas.push({ charId: a, delta: -0.06 });
+      break;
     case 'chat':
       both(p.affinityDeltas, a, b, 1.5);
       both(p.trustDeltas, a, b, 1);
@@ -101,6 +130,10 @@ export function interactionProposal(s: GameState, rng: Rng, type: IxType, a: str
 }
 
 const SUMMARY: Record<IxType, string> = {
+  household: '{a} and {b} traded stories while doing something around the house in the {place}.',
+  help: '{a} checked in on {b} after a tiring day in the {place}.',
+  cold: '{a} gave {b} a cold shoulder in the {place}; the distance is still there.',
+  jealousy: '{a} admitted feeling jealous to {b} in the {place}; it was a worry, not proof of anything.',
   chat: '{a} and {b} chatted in the {place}.',
   joke: '{a} had {b} laughing in the {place}.',
   deep: '{a} and {b} had a long, real talk in the {place}.',
@@ -130,6 +163,7 @@ export function resolveColocation(s: GameState, rng: Rng, actions: Record<string
         let b = npcsHere[j];
         const aa = actions[a.id];
         const ba = actions[b.id];
+        if (!aa || !ba || ['sleep', 'nap', 'shower', 'work'].includes(aa.kind) || ['sleep', 'nap', 'shower', 'work'].includes(ba.kind)) continue;
         // initiator: whoever acted toward the other
         if (ba && (ba.target === a.id || ba.third === a.id) && !(aa && (aa.target === b.id || aa.third === b.id))) [a, b] = [b, a];
         const act = actions[a.id];
@@ -142,16 +176,19 @@ export function resolveColocation(s: GameState, rng: Rng, actions: Record<string
           const busy = ['sleep', 'work', 'retreat', 'avoid'].includes(act?.kind ?? '') || ['sleep', 'work', 'retreat', 'avoid'].includes(actions[b.id]?.kind ?? '');
           if (busy && !sought) continue;
           if (!sought && !rng.chance(0.55)) continue;
-          type = pickType(s, rng, a, b);
+          type = act?.kind === 'avoid' || actions[b.id]?.kind === 'avoid' ? 'cold' : pickType(s, rng, a, b);
         }
+        if (type === 'cold' && actions[b.id]?.kind === 'avoid' && act?.kind !== 'avoid') [a, b] = [b, a];
         const proposal = interactionProposal(s, rng, type, a.id, b.id);
         for (const w of witnesses) observe(s, rng, w, a.id, b.id);
-        const summary = SUMMARY[type].replace('{a}', firstName(s, a.id)).replace('{b}', firstName(s, b.id)).replace('{place}', placeName(loc));
+        let summary = SUMMARY[type].replace('{a}', firstName(s, a.id)).replace('{b}', firstName(s, b.id)).replace('{place}', placeName(loc));
+        if (type === 'household' && a.actionHousehold) summary = `${firstName(s, a.id)} and ${firstName(s, b.id)} talked while they ${HOUSEHOLD[a.actionHousehold].label}.`;
+        if (type === 'jealousy') summary += ` What ${firstName(s, a.id)} had heard or seen: ${jealousyReason(s, a.id, b.id)}`;
         const sensitivity = type === 'flirt' ? 0.35 : type === 'bicker' ? 0.32 : type === 'confess' ? 0.7 : type === 'deep' ? 0.15 : 0.1;
         const f = addFact(s, {
           subject: a.id,
           about: b.id,
-          kind: type === 'flirt' ? 'romance' : type === 'bicker' ? 'conflict' : type === 'confess' ? 'confession' : 'event',
+          kind: type === 'flirt' ? 'romance' : ['bicker', 'cold', 'jealousy'].includes(type) ? 'conflict' : type === 'confess' ? 'confession' : 'event',
           content: summary,
           truth: true,
           sensitivity,
@@ -215,5 +252,17 @@ export function resolveRemote(s: GameState, rng: Rng, actions: Record<string, Ag
 }
 
 export function logInteraction(s: GameState, ix: Interaction) {
-  addLog(s, { kind: 'summary', text: ix.summary, participants: [ix.a, ix.b], salience: ix.salience, location: ix.location, factId: ix.factId });
+  rememberInteraction(s, ix.a, ix.b, ix.type, ix.summary);
+  addLog(s, { kind: 'summary', text: ix.summary, participants: [ix.a, ix.b], salience: ix.salience, location: ix.location, factId: ix.factId, templateId: ix.type });
+}
+
+export function rememberInteraction(s: GameState, a: string, b: string, type: string, summary: string) {
+  const key = `interactionMemory_${a}_${b}_${type}`;
+  const block = `${s.world.episode}:${s.world.slot}`;
+  if (s.world.flags[key] === block) return;
+  s.world.flags[key] = block;
+  for (const who of [a, b]) addMemory(s, who, summary, [a, b], ['cold', 'jealousy', 'bicker'].includes(type) ? 0.45 : 0.25);
+  if (type === 'cold') addGrudge(s, b, a, 6, summary);
+  if (type === 'jealousy') addGrudge(s, a, b, 5, summary);
+  if (type === 'bicker') { addGrudge(s, a, b, 3, summary); addGrudge(s, b, a, 3, summary); }
 }

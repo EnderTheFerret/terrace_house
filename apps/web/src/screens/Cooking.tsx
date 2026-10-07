@@ -1,17 +1,31 @@
 // Cooking minigame renderer. All rules/scoring live in shared/engine/cooking (pure); this only collects inputs.
 import { Tip } from '../components/Tip';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   availableSteps, beginStep, chopBeats, completeStep, content, recipeById, sauteBand, sauteStep, scoreBoil, scoreChop, scorePlate,
   scoreSauteTrace, scoreSeason, startCooking, TASTE_AXES, type CookingState, type Recipe, type RecipeStep, type SauteParams,
 } from '@shared-roof/shared';
 import { useGame } from '../store';
 import { TopBar } from '../components/layout';
-import { Btn, Meter, Panel } from '../components/ui';
+import { Btn, Meter } from '../components/ui';
+import { CookingAnimation, FoodSprite } from '../components/CookingArt';
 import { api } from '../api';
 import { chime } from '../audio';
 
 type Done = (score: number) => void;
+
+function useCookingClock() {
+  const paused = useGame(s => s.screen === 'guide');
+  const clock = useRef({ offset: 0, pausedAt: null as number | null });
+  useEffect(() => {
+    if (paused) clock.current.pausedAt = performance.now();
+    else if (clock.current.pausedAt !== null) {
+      clock.current.offset += performance.now() - clock.current.pausedAt;
+      clock.current.pausedAt = null;
+    }
+  }, [paused]);
+  return useCallback(() => (clock.current.pausedAt ?? performance.now()) - clock.current.offset, []);
+}
 
 function useSpace(onDown: () => void, onUp?: () => void) {
   useEffect(() => {
@@ -34,43 +48,47 @@ function useSpace(onDown: () => void, onUp?: () => void) {
 }
 
 function Chop({ step, done }: { step: RecipeStep; done: Done }) {
+  const cookingNow = useCookingClock();
   const p = step.params as { beats: number; bpm: number; window: number };
   const beats = useMemo(() => chopBeats(p), [p]);
   const [t0, setT0] = useState<number | null>(null);
   const [now, setNow] = useState(0);
+  const [cuts, setCuts] = useState(0);
   const hits = useRef<number[]>([]);
   const end = beats[beats.length - 1] + 700;
   useEffect(() => {
     if (t0 === null) return;
     let raf = 0;
     const loop = () => {
-      const t = performance.now() - t0;
+      const t = cookingNow() - t0;
       setNow(t);
       if (t > end) done(scoreChop(beats, hits.current, p.window));
       else raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [t0, beats, end, done, p.window]);
+  }, [t0, beats, end, done, p.window, cookingNow]);
   const hit = () => {
-    if (t0 === null) return setT0(performance.now());
-    hits.current.push(performance.now() - t0);
+    if (t0 === null) return setT0(cookingNow());
+    hits.current.push(cookingNow() - t0);
+    setCuts(hits.current.length);
   };
   useSpace(hit);
   const span = 1600;
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="relative h-16 w-[480px] overflow-hidden bg-white" style={{ boxShadow: '0 0 0 2px var(--color-ink)' }} aria-hidden>
-        <div className="absolute left-[60px] top-0 h-full w-[3px] bg-rose" />
+      <CookingAnimation type="chop" pulse={cuts} />
+      <div className="relative h-16 w-full max-w-[480px] overflow-hidden bg-white" style={{ boxShadow: '0 0 0 2px var(--color-ink)' }} aria-hidden>
+        <div className="absolute left-[12.5%] top-0 h-full w-[3px] bg-rose" />
         {t0 !== null &&
           beats.map((b, i) => {
             const x = 60 + ((b - now) / span) * 420;
             if (x < -20 || x > 500) return null;
-            return <div key={i} className="absolute top-4 h-8 w-4 bg-[#8fd3b8]" style={{ left: x - 8, boxShadow: '0 0 0 2px var(--color-ink)' }} />;
+            return <div key={i} className="absolute top-4 h-8 w-4 bg-[#8fd3b8]" style={{ left: `${(x - 8) / 480 * 100}%`, boxShadow: '0 0 0 2px var(--color-ink)' }} />;
           })}
         {hits.current.slice(-6).map((h, i) => {
           const x = 60 + ((h - now) / span) * 420;
-          return x > -10 ? <div key={i} className="absolute top-1 h-2 w-2 bg-ink" style={{ left: x - 1 }} /> : null;
+          return x > -10 ? <div key={i} className="absolute top-1 h-2 w-2 bg-ink" style={{ left: `${(x - 1) / 480 * 100}%` }} /> : null;
         })}
       </div>
       <p className="caption text-xs">{t0 === null ? 'press space (or the button) to start — then chop as each block hits the line' : `chop! ${hits.current.length} cuts`}</p>
@@ -80,6 +98,7 @@ function Chop({ step, done }: { step: RecipeStep; done: Done }) {
 }
 
 function Boil({ step, done }: { step: RecipeStep; done: Done }) {
+  const cookingNow = useCookingClock();
   const p = step.params as { target: [number, number]; max: number };
   const [t0, setT0] = useState<number | null>(null);
   const [t, setT] = useState(0);
@@ -87,27 +106,21 @@ function Boil({ step, done }: { step: RecipeStep; done: Done }) {
     if (t0 === null) return;
     let raf = 0;
     const loop = () => {
-      const s = (performance.now() - t0) / 1000;
+      const s = (cookingNow() - t0) / 1000;
       setT(s);
       if (s >= p.max) done(scoreBoil(s, p.target));
       else raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [t0, p, done]);
-  const press = () => (t0 === null ? setT0(performance.now()) : done(scoreBoil(t, p.target)));
+  }, [t0, p, done, cookingNow]);
+  const press = () => (t0 === null ? setT0(cookingNow()) : done(scoreBoil(t, p.target)));
   useSpace(press);
   const heat = Math.min(1, t / p.target[1]);
-  const bubbles = Math.floor(heat * 14);
   const words = heat < 0.4 ? 'still' : heat < 0.75 ? 'tiny bubbles' : heat < 0.98 ? 'a gentle simmer' : t > p.target[1] ? 'boiling over!' : 'right about now…';
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="relative h-28 w-48 bg-[#6a6a76]" style={{ boxShadow: '0 0 0 3px var(--color-ink)' }} aria-hidden>
-        <div className="absolute inset-x-3 bottom-3 top-6 bg-[#9fd3e6]" />
-        {Array.from({ length: bubbles }).map((_, i) => (
-          <div key={i} className="absolute h-2 w-2 bg-white" style={{ left: 16 + ((i * 37) % 150), top: 30 + ((i * 53 + Math.floor(t * 10) * 7) % 50) }} />
-        ))}
-      </div>
+      <CookingAnimation type="boil" playing={t0 !== null} speed={1.4 - heat * 0.8} />
       <p className="text-sm" aria-live="polite">{t0 === null ? 'press space to light the stove' : words}</p>
       <p className="caption text-xs">{t0 === null ? '' : `${t.toFixed(1)}s`}</p>
       <Btn primary onClick={press}>{t0 === null ? 'light the stove' : 'take it off the heat'}</Btn>
@@ -120,15 +133,18 @@ function Saute({ step, done }: { step: RecipeStep; done: Done }) {
   const [running, setRunning] = useState(false);
   const holding = useRef(false);
   const [view, setView] = useState({ t: 0, temp: 0.2 });
+  const progress = useRef({ t: 0, temp: 0.2 });
   const trace = useRef<{ t: number; temp: number }[]>([]);
   useEffect(() => {
     if (!running) return;
-    let temp = 0.2;
-    let t = 0;
+    let temp = progress.current.temp;
+    let t = progress.current.t;
     const iv = setInterval(() => {
+      if (useGame.getState().screen === 'guide') return;
       t += 0.05;
       temp = sauteStep(temp, holding.current, p, 0.05);
       trace.current.push({ t, temp });
+      progress.current = { t, temp };
       setView({ t, temp });
       if (t >= p.duration) {
         clearInterval(iv);
@@ -148,9 +164,12 @@ function Saute({ step, done }: { step: RecipeStep; done: Done }) {
   const inBand = Math.abs(view.temp - band) <= p.bandWidth / 2;
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="relative h-56 w-12 bg-white" style={{ boxShadow: '0 0 0 3px var(--color-ink)' }} aria-hidden>
+      <div className="flex w-full items-center justify-center gap-6">
+      <CookingAnimation type="saute" playing={running} speed={1.2 - view.temp * 0.7} />
+      <div className="relative h-44 w-8 shrink-0 bg-white" style={{ boxShadow: '0 0 0 3px var(--color-ink)' }} aria-hidden>
         <div className="absolute inset-x-0 bg-[#8fd3b8]/70" style={{ bottom: `${(band - p.bandWidth / 2) * 100}%`, height: `${p.bandWidth * 100}%` }} />
         <div className="absolute inset-x-0 h-1 bg-rose" style={{ bottom: `${view.temp * 100}%` }} />
+      </div>
       </div>
       <p className="text-sm" aria-live="polite">{!running ? 'hold space (or the button) to heat the pan' : inBand ? 'sizzling nicely' : view.temp > band ? 'too hot!' : 'not hot enough'}</p>
       <Meter label="time" value={view.t} max={p.duration} />
@@ -160,6 +179,7 @@ function Saute({ step, done }: { step: RecipeStep; done: Done }) {
           if (!running) setRunning(true);
           holding.current = true;
         }}
+        onPointerCancel={() => (holding.current = false)}
         onPointerUp={() => (holding.current = false)}
         onPointerLeave={() => (holding.current = false)}
       >
@@ -179,9 +199,10 @@ function Season({ step, done }: { step: RecipeStep; done: Done }) {
   };
   return (
     <div className="flex flex-col items-center gap-3">
+      <CookingAnimation type="season" playing={v > 0} speed={1.4 - v * 0.7} />
       <label className="flex flex-col items-center gap-2 text-sm">
         how much {p.label}?
-        <input type="range" min={0} max={1} step={0.01} value={v} onChange={(e) => setV(Number(e.target.value))} className="w-72" aria-valuetext={`${Math.round(v * 100)} percent`} />
+        <input type="range" min={0} max={1} step={0.01} value={v} onChange={(e) => setV(Number(e.target.value))} className="w-full max-w-72" aria-valuetext={`${Math.round(v * 100)} percent`} />
       </label>
       <div className="flex gap-2">
         <Btn onClick={taste} disabled={hint !== null}>taste once</Btn>
@@ -201,42 +222,40 @@ function Plate({ step, done }: { step: RecipeStep; done: Done }) {
   const move = (id: string, x: number, y: number) => setPos((q) => ({ ...q, [id]: { x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) } }));
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).closest('input, select, textarea')) return;
+      if (!box.current?.contains(e.target as Node)) return;
       if (!selected) return;
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) e.preventDefault();
       const d = 0.03;
       const c = pos[selected];
       if (e.key === 'ArrowLeft') move(selected, c.x - d, c.y);
       if (e.key === 'ArrowRight') move(selected, c.x + d, c.y);
       if (e.key === 'ArrowUp') move(selected, c.x, c.y - d);
       if (e.key === 'ArrowDown') move(selected, c.x, c.y + d);
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        const i = p.items.findIndex((x) => x.id === selected);
-        setSelected(p.items[(i + 1) % p.items.length].id);
-      }
     };
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   });
-  const S = 300;
   return (
-    <div className="flex items-start gap-4">
+    <div className="flex w-full flex-wrap items-start justify-center gap-4">
       <div
         ref={box}
-        className="relative bg-[#f4efe6]"
-        style={{ width: S, height: S, boxShadow: '0 0 0 3px var(--color-ink)' }}
+        className="relative aspect-square w-full max-w-[300px] bg-[#daf0ec]"
+        style={{ boxShadow: '0 0 0 3px var(--color-ink)' }}
         onPointerMove={(e) => {
           if (!drag.current || !box.current) return;
           const r = box.current.getBoundingClientRect();
-          move(drag.current, (e.clientX - r.left) / S, (e.clientY - r.top) / S);
+          move(drag.current, ((e.clientX - r.left) / r.width - 0.08) / 0.84, ((e.clientY - r.top) / r.height - 0.08) / 0.84);
         }}
         onPointerUp={() => (drag.current = null)}
+        onPointerCancel={() => (drag.current = null)}
       >
-        <div className="absolute rounded-full bg-white" style={{ left: S * 0.12, top: S * 0.12, width: S * 0.76, height: S * 0.76, boxShadow: '0 0 0 3px #c8ccd6' }} />
+        <div className="absolute inset-[12%] rounded-full bg-white" style={{ boxShadow: '0 0 0 3px #c8ccd6' }} />
         {p.items.map((it) => (
           <button
             key={it.id}
-            className={`absolute -translate-x-1/2 -translate-y-1/2 px-1 text-xs ${selected === it.id ? 'bg-rose text-white' : 'bg-butter'}`}
-            style={{ left: pos[it.id].x * S, top: pos[it.id].y * S, boxShadow: '0 0 0 2px var(--color-ink)', touchAction: 'none' }}
+            className="absolute -translate-x-1/2 -translate-y-1/2 rounded cursor-grab"
+            style={{ left: `${pos[it.id].x * 84 + 8}%`, top: `${pos[it.id].y * 84 + 8}%`, boxShadow: `0 0 0 2px ${selected === it.id ? 'var(--color-rose)' : 'transparent'}`, touchAction: 'none' }}
             onPointerDown={(e) => {
               (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
               drag.current = it.id;
@@ -244,8 +263,9 @@ function Plate({ step, done }: { step: RecipeStep; done: Done }) {
             }}
             onFocus={() => setSelected(it.id)}
             aria-label={`${it.label}, use arrow keys to move`}
+            title={it.label}
           >
-            {it.label}
+            <FoodSprite id={it.label} ingredient size={44} />
           </button>
         ))}
       </div>
@@ -254,8 +274,8 @@ function Plate({ step, done }: { step: RecipeStep; done: Done }) {
         <div className="relative bg-[#f4efe6]" style={{ width: 110, height: 110, boxShadow: '0 0 0 2px var(--color-ink)' }} aria-label="reference layout">
           <div className="absolute rounded-full bg-white" style={{ left: 13, top: 13, width: 84, height: 84 }} />
           {p.layout.map((l) => (
-            <span key={l.id} className="absolute -translate-x-1/2 -translate-y-1/2 bg-butter px-[2px] text-[0.5rem]" style={{ left: l.x * 110, top: l.y * 110 }}>
-              {p.items.find((i) => i.id === l.id)?.label}
+            <span key={l.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: (l.x * 84 + 8) / 100 * 110, top: (l.y * 84 + 8) / 100 * 110 }}>
+              <FoodSprite id={p.items.find((i) => i.id === l.id)?.label ?? ''} ingredient size={18} />
             </span>
           ))}
         </div>
@@ -269,8 +289,12 @@ function Plate({ step, done }: { step: RecipeStep; done: Done }) {
 const MECH: Record<RecipeStep['type'], (p: { step: RecipeStep; done: Done }) => React.ReactElement> = { chop: Chop, boil: Boil, saute: Saute, season: Season, plate: Plate };
 
 export function Cooking({ practice = false }: { practice?: boolean }) {
+  const cookingNow = useCookingClock();
   const { view, goBack, setView, act, setScreen } = useGame();
   const recipes = content().recipes;
+  const [search, setSearch] = useState('');
+  const [diet, setDiet] = useState('all');
+  const [onlyReady, setOnlyReady] = useState(false);
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [partner, setPartner] = useState('');
   const [utensil, setUtensil] = useState<'meat' | 'dairy' | 'parve'>('parve');
@@ -283,6 +307,7 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
   const [result, setResult] = useState<{ receptions: { charId: string; verdict: string }[]; improvised: boolean } | null>(null);
 
   const have = (r: Recipe) => practice || !view || Object.entries(r.ingredients).every(([k, n]) => (view.house.fridge[k] ?? 0) >= n);
+  const filtered = recipes.filter(r => `${r.name} ${r.description} ${Object.keys(r.ingredients).join(' ')}`.toLowerCase().includes(search.toLowerCase()) && (diet === 'all' || r.diet === diet || (diet === 'vegetarian' && r.diet === 'vegan')) && (!onlyReady || have(r)));
   const start = (r: Recipe) => {
     setRecipe(r);
     submitting.current = false;
@@ -295,7 +320,7 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
   const active = cs && recipe && cs.active ? recipe.steps.find((s) => s.id === cs.active)! : null;
   const finishStep = (score: number) => {
     if (!cs || !recipe || !cs.active) return;
-    const secs = (performance.now() - stepStart) / 1000;
+    const secs = (cookingNow() - stepStart) / 1000;
     setCs(completeStep(cs, recipe, cs.active, score, secs));
     chime(score > 0.7 ? 'ok' : score > 0.4 ? 'soft' : 'bad');
   };
@@ -312,24 +337,32 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
     return (
       <div className="flex h-full flex-col">
         {view && !practice ? <TopBar /> : null}<Tip id="cooking" />
-        <main className="flex flex-1 justify-center overflow-y-auto p-4 scroll-thin">
-          <Panel title={practice ? 'practice kitchen' : 'cook something'} className="w-full max-w-3xl">
-            <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
-              {recipes.map((r) => (
+        <main className="flex min-h-0 flex-1 justify-center overflow-y-auto p-4 scroll-thin cooking-kitchen">
+          <section aria-label={practice ? 'practice kitchen' : 'cook something'} className="w-full max-w-5xl">
+            <header className="mb-4 flex items-center justify-between gap-3"><h1 className="text-xl">{practice ? 'practice kitchen' : 'cook something'}</h1><Btn className="text-xs" onClick={() => (practice ? setScreen('title') : goBack())}>back</Btn></header>
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <input type="search" aria-label="search recipes" placeholder="find a dish or ingredient" className="px-panel-soft min-w-0 flex-1 px-3 py-2 text-sm" value={search} onChange={e => setSearch(e.target.value)} />
+              <select aria-label="recipe diet" className="px-panel-soft px-2 py-2 text-sm" value={diet} onChange={e => setDiet(e.target.value)}><option value="all">all diets</option><option value="vegan">vegan</option><option value="vegetarian">vegetarian</option><option value="omnivore">with meat</option></select>
+              {!practice && <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={onlyReady} onChange={e => setOnlyReady(e.target.checked)} />in the fridge</label>}
+              <span className="caption text-xs">{filtered.length} dishes</span>
+            </div>
+            <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {filtered.map((r) => (
                 <li key={r.id}>
-                  <button className="px-panel-soft w-full p-2 text-left disabled:opacity-50" disabled={!have(r)} onClick={() => start(r)}>
-                    <div className="flex justify-between">
-                      <span>{r.name}</span>
-                      <span className="caption text-xs">{'★'.repeat(r.difficulty)} · serves {r.serves} · {r.category}</span>
+                  <button className="recipe-tile w-full text-left disabled:opacity-60" disabled={!have(r)} onClick={() => start(r)}>
+                    <div className="flex items-center gap-3">
+                      <FoodSprite id={r.id} size={80} />
+                      <div className="min-w-0"><span className="text-sm">{r.name}</span><div className="caption mt-1 text-[0.65rem]">{'★'.repeat(r.difficulty)} · serves {r.serves}</div><div className="caption text-[0.65rem]">{r.diet} · {r.category}</div></div>
                     </div>
-                    <div className="caption text-xs">{r.description}</div>
-                    <div className="caption text-xs">{r.diet}{r.kosher ? ' · kosher ingredients' : ' · not kosher'}</div>
-                    <div className="text-[0.65rem]">{r.steps.map((s) => s.type).join(' → ')} · {TASTE_AXES.filter((_, i) => r.taste[i] > 0.6).join(', ')}</div>
-                    {!have(r) && <div className="text-[0.65rem] text-rose">missing ingredients</div>}
+                    <div className="caption mt-2 text-xs">{r.description}</div>
+                    <div className="mt-2 text-[0.65rem]">{Object.entries(r.ingredients).map(([id, n]) => `${n} ${id}`).join(' · ')}</div>
+                    <div className="caption mt-1 text-[0.65rem]">{r.steps.length} steps · {TASTE_AXES.filter((_, i) => r.taste[i] > 0.6).join(', ')}</div>
+                    {!have(r) && <div className="mt-1 text-[0.65rem] text-rose">need {Object.entries(r.ingredients).filter(([id, n]) => (view?.house.fridge[id] ?? 0) < n).map(([id, n]) => `${n - (view?.house.fridge[id] ?? 0)} ${id}`).join(', ')}</div>}
                   </button>
                 </li>
               ))}
             </ul>
+            {!filtered.length && <p className="py-8 text-sm" role="status">no dishes match</p>}
             {!practice && view && (
               <div className="mt-4 flex flex-wrap gap-6 text-sm">
                 <label className="flex items-center gap-2">cookware<select aria-label="cookware" className="px-panel-soft px-2 py-1" value={utensil} onChange={(e) => setUtensil(e.target.value as typeof utensil)}><option value="parve">parve pan</option><option value="meat">meat pan {view.house.kitchen.meatPanClean ? '(clean)' : '(needs cleaning)'}</option><option value="dairy">dairy pan {view.house.kitchen.dairyPanClean ? '(clean)' : '(needs cleaning)'}</option></select></label>
@@ -351,8 +384,7 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
                 </fieldset>
               </div>
             )}
-            <Btn className="mt-4 text-xs" onClick={() => (practice ? setScreen('title') : goBack())}>back</Btn>
-          </Panel>
+          </section>
         </main>
       </div>
     );
@@ -362,8 +394,9 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
   return (
     <div className="flex h-full flex-col">
       {view && !practice ? <TopBar /> : null}
-      <main className="flex min-h-0 flex-1 gap-4 p-4">
-        <Panel title={recipe.name} className="w-72 shrink-0 self-start">
+      <main className="cooking-kitchen grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-y-auto p-4 scroll-thin md:grid-cols-[260px_minmax(0,1fr)]">
+        <aside aria-label={recipe.name} className="min-w-0 self-start">
+          <div className="mb-3 flex items-center gap-3"><FoodSprite id={recipe.id} size={80} /><h1 className="text-lg">{recipe.name}</h1></div>
           <ol className="flex flex-col gap-1 text-sm">
             {recipe.steps.map((s) => {
               const st = cs.steps[s.id];
@@ -378,17 +411,19 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
           <div className="mt-3">
             <Meter label={`time ${Math.round(cs.elapsed)}s / ${recipe.timeBudget}s`} value={cs.elapsed} max={recipe.timeBudget} color={cs.elapsed > recipe.timeBudget ? '#e07a6a' : '#8fd3b8'} />
           </div>
-        </Panel>
-        <Panel className="flex flex-1 flex-col items-center justify-center" title={active ? active.label : cs.done ? 'done!' : 'next step'}>
+        </aside>
+        <section className="cooking-worktop flex min-w-0 flex-col items-center justify-center gap-4 px-4 py-6" aria-label={active ? active.label : cs.done ? 'done!' : 'next step'}>
+          <h2 className="text-base text-center">{active ? active.label : cs.done ? 'ready to serve' : 'next step'}</h2>
           {active && (() => {
             const M = MECH[active.type];
             return <M key={active.id} step={active} done={finishStep} />;
           })()}
           {!active && !cs.done && (
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex w-full flex-col items-center gap-3">
+              <FoodSprite id={recipe.id} size={160} />
               <p className="caption text-sm">steps without dependencies can be done in any order.</p>
               {avail.map((s) => (
-                <Btn key={s.id} onClick={() => { setCs(beginStep(cs, recipe, s.id)); setStepStart(performance.now()); }}>
+                <Btn key={s.id} onClick={() => { setCs(beginStep(cs, recipe, s.id)); setStepStart(cookingNow()); }}>
                   {s.label} ({s.type})
                 </Btn>
               ))}
@@ -397,6 +432,7 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
           )}
           {cs.done && (
             <div className="flex flex-col items-center gap-3 text-center">
+              <FoodSprite id={recipe.id} size={160} />
               <div className="text-4xl">{Math.round((cs.quality ?? 0) * 100)}<span className="caption text-base">/100</span></div>
               {error && <p role="alert" className="text-sm text-rose">{error}</p>}
               <p className="text-sm">{(cs.quality ?? 0) > 0.8 ? 'restaurant quality.' : (cs.quality ?? 0) > 0.55 ? 'solid home cooking.' : (cs.quality ?? 0) > 0.3 ? 'edible. mostly.' : 'a learning experience.'}</p>
@@ -408,7 +444,7 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
                   ))}
                 </ul>
               )}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap justify-center gap-3">
                 <Btn onClick={() => { setRecipe(null); setCs(null); }}>cook again</Btn>
                 {!practice && view && (
                   <Btn primary disabled={!result} onClick={() => void act({ type: 'house', activity: 'cook', target: partner || undefined })}>
@@ -419,7 +455,7 @@ export function Cooking({ practice = false }: { practice?: boolean }) {
               </div>
             </div>
           )}
-        </Panel>
+        </section>
       </main>
     </div>
   );

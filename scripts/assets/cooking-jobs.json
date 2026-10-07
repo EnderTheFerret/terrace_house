@@ -1,0 +1,47 @@
+[
+  {
+    "out": "apps/web/public/assets/cooking/dishes.png",
+    "prompt": "Pixel art game sprite atlas, exactly 5 columns and 3 rows, 15 equal cells, each sprite centered in its own cell, generous empty padding, consistent overhead three-quarter view. Flat solid pale cyan background. No text, no lettering, no labels, no grid lines, no shadows outside sprites. Crisp dark outlines, colorful appetizing food, cozy life simulation game. Row 1 left to right: bowl of lentil soup, chicken and rice plate, red shakshuka skillet with eggs, sabich eggplant pita sandwich, hummus bowl with pita. Row 2 left to right: pink malabi pudding with strawberry, chopped tomato cucumber salad bowl, golden schnitzel plate, grilled chicken vegetable skewers plate, mujaddara rice lentil bowl with caramelized onion. Row 3 left to right: falafel pita sandwich, lemon chicken rice bowl, golden potato latkes plate, strawberry pancakes plate, roasted eggplant with tahini plate. Every cell contains exactly one complete dish. Uniform scale.",
+    "negative": "text, labels, letters, watermark, people, photorealistic, overlapping cells, cropped food",
+    "seed": 42061,
+    "width": 1280,
+    "height": 768,
+    "pixel": 4,
+    "colors": 64
+  },
+  {
+    "out": "apps/web/public/assets/cooking/chop.png",
+    "prompt": "Wide horizontal pixel art animation strip. EXACTLY FOUR equal square cells in ONE horizontal row, no second row. Frame 1 knife raised above carrot on wooden board. Frame 2 knife halfway down. Frame 3 knife cutting carrot. Frame 4 knife raised with diced carrot pieces. Same board position and size in all four frames. Full object in each cell, generous padding, solid pale cyan background, cozy game pixel art, crisp outlines. No text or labels or grid lines.",
+    "seed": 42064, "width": 1024, "height": 256, "pixel": 4, "colors": 64
+  },
+  {
+    "out": "apps/web/public/assets/cooking/boil.png",
+    "prompt": "Wide horizontal pixel art animation strip. EXACTLY FOUR equal square cells in ONE horizontal row, no second row. Each cell shows same silver pot filled with orange soup at same size and position, three quarter view. Four consecutive animation poses of bubbles and steam rising above pot: small bubbles, medium steam, high steam, dissipating steam. Complete pot including steam in each cell with generous padding, solid pale cyan background, crisp outlines, cozy cooking game sprite. No text or labels or grid lines.",
+    "seed": 42065, "width": 1024, "height": 256, "pixel": 4, "colors": 64
+  },
+  {
+    "out": "apps/web/public/assets/cooking/saute.png",
+    "prompt": "Wide horizontal pixel art animation strip. EXACTLY FOUR equal square cells in ONE horizontal row, no second row. Same black skillet with vegetables at same size and position in each cell, three quarter view. Four consecutive poses: vegetables resting, tossing slightly upward, vegetables airborne over skillet, vegetables landing with small sizzle marks. Complete skillet in each cell, generous padding, solid pale cyan background, crisp outlines, colorful cozy cooking game sprites. No text or labels or grid lines.",
+    "seed": 42066, "width": 1024, "height": 256, "pixel": 4, "colors": 64
+  },
+  {
+    "out": "apps/web/public/assets/cooking/season.png",
+    "prompt": "Wide horizontal pixel art animation strip. EXACTLY FOUR equal square cells in ONE horizontal row, no second row. Same small bowl of salad with tilted salt shaker above it in all four cells, same size and position. Four consecutive poses: shaker left, salt grains falling, shaker right, salt grains reaching bowl. Complete objects in each cell with generous padding, solid pale cyan background, crisp outlines, colorful cozy cooking game sprites. No text or labels or grid lines.",
+    "seed": 42067, "width": 1024, "height": 256, "pixel": 4, "colors": 64
+  },
+  {
+    "out": "apps/web/public/assets/cooking/plate.png",
+    "prompt": "Wide horizontal pixel art animation strip. EXACTLY FOUR equal square cells in ONE horizontal row, no second row. Same white plate with delicious colorful vegetables in every frame, same position size and three quarter view. Four consecutive poses: food resting, parsley leaf dropping over plate, parsley settled, little sparkle on the finished plate. Full plate in each cell with generous padding, solid pale cyan background, crisp outlines, colorful cozy cooking game sprites. No text or labels or grid lines.",
+    "seed": 42068, "width": 1024, "height": 256, "pixel": 4, "colors": 64
+  },
+  {
+    "out": "apps/web/public/assets/cooking/ingredients.png",
+    "prompt": "Pixel art cooking game inventory sprite atlas, exactly 5 columns and 5 rows, twenty five equal square cells, one centered ingredient in every cell. Solid pale cyan background, no text no labels no grid lines. Crisp dark outlines, bright food colors, consistent three-quarter view and scale, generous empty padding. Row 1: white rice mound, brown egg, onion, carrot, potato. Row 2: raw chicken cutlet, spice jar, pita bread, purple eggplant, bowl of tahini. Row 3: chickpeas, brown lentils, red tomato, green cucumber, yellow lemon wedge. Row 4: red bell pepper, flour sack, breadcrumb bowl, milk bottle, sugar bowl. Row 5: rosewater bottle, red strawberry, butter pat, green parsley sprig, golden falafel balls. Each cell contains exactly one complete isolated ingredient icon.",
+    "negative": "letters, labels, text, watermark, photorealism, people, overlapping sprites",
+    "seed": 42063,
+    "width": 1280,
+    "height": 1280,
+    "pixel": 4,
+    "colors": 64
+  }
+]

@@ -32,3 +32,13 @@ it('invites available housemates into a shared room without advancing the whole 
     expect(() => planSlot(s, { ...action, guests: [] })).toThrow(/busy/);
   }
 });
+
+it('keeps bedroom conversations local and excludes housemates in other rooms', () => {
+  const s = createGame({ seed: 7, moveInDay: false });
+  for (const c of Object.values(s.characters)) { c.location = 'living'; c.lastAction = 'hobby'; c.activityUntil = 60; }
+  s.characters.ren.location = s.characters.kaito.location = 'bedroomM';
+  const { state, plan } = planSlot(s, { type: 'talk', target: 'kaito' });
+  expect(plan.scenes.find(scene => scene.event.isPlayerScene)?.event).toMatchObject({ location: 'bedroomM', participants: [s.playerId, 'kaito', 'ren'] });
+  expect(state.characters.sora.location).toBe('living');
+  expect(state.characters[s.playerId].location).toBe('bedroomM');
+});

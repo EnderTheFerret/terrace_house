@@ -14,9 +14,15 @@ confession that went wrong. A studio panel of five commentators watches everythi
 
 See [the feature list and latest additions](features.md), [the implementation audit](IMPLEMENTATION.md) and [dialogue model research](docs/ROLEPLAY.md).
 
+The [October 6 dialogue investigation](docs/DIALOGUE-INVESTIGATION.md) records the current Rocinante comparison and remaining quality limits. The [Terrace House / Tel Aviv / Israel lorebook](docs/LOREBOOK.md) works in game scenes and can be imported into SillyTavern.
+
 Open **sprite library** from the main menu or game toolbar to browse each character's walking sheet and conversation expressions by outfit and day. Select artwork, describe a correction and use **apply edit**, or choose **new variation**. Edits are saved with the season and used by walking animations and dialogue; expression edits keep their named emotion and apply across outfits. Finish active conversations before saving edits. Browsing uses cached art; generation needs the image service. During dialogue, the latest revealed line selects the speaker's expression, with neutral shown while that face is being prepared.
 
 During a visual novel scene, use **character artwork** to select a participant and generate an expression or outfit. Choose **formal / suit** for suits, tuxedos and evening wear, or enter a **custom outfit** description. Group conversations let you choose the character. Write the exact clothing and facial expression in the custom description fields, then choose **generate expression**, **generate clothing**, or **generate both**. A custom expression overrides the preset; expression-only uses the character's currently displayed clothing, and clothing-only uses the neutral face without generating an expression. The finished expression previews until the next dialogue line, then follows dialogue again; outfit choices stay for the current scene. The sprite library supports the same formal and custom outfit filters. Conversation figures keep the original pixel-art faces, palette and outlines, with balanced adult proportions and knees-up framing; date dress presets use tailored midi silhouettes and formal dresses use evening gowns. Portrait backgrounds are cleaned before outfit edits. Updated portrait/outfit/expression cache keys regenerate older artwork with oversized heads, incorrect framing or unwanted clothes and accessories.
+
+Replies use larger, wrapping text, with narration in separate entries. **Retry reply** regenerates the latest scene or phone response without advancing time or repeating your message. In the house, **invite housemates** lets you choose a room and several people; ordinary conversations include the people at that location. Generated CG scenes match the activity: seated meals, dancing, café coffee, and other contextual actions. New episodes can begin while art loads, with the player and nearby housemates drawing first. Reading messages and plans clears their phone notifications. The title-screen load menu cannot overwrite saves.
+
+Group TV watches show delayed episodes: **episode 1 covers days 1–3 and airs on day 6**, episode 2 covers days 4–6 and airs on day 9, and so on. The house watches together in the evening, sees important moments from each recorded day and the recorded scene/studio panel commentary, and reacts to what it learns. Panel commentary still appears during ordinary play. The latest broadcast can be replayed from the house screen.
 
 ## Quick start (mock mode, no services)
 
@@ -85,17 +91,27 @@ leaving ComfyUI idle makes dialogue near-instant.
 
 ## How to play
 
+Conversations you start open directly at your reply controls, without scripted small-talk lines. You can accept or decline incoming phone plans during a conversation; the response saves immediately without advancing time or closing the conversation.
+
+Open **activity guide** from the title menu or game toolbar for a short, expandable guide with screenshots of every activity and its activation controls. The guide pauses the world clock and cooking timers, preserves your progress, and returns to your current screen with Escape or **back to game / menu**.
+
+New seasons and resumed active saves gather all six residents for a mandatory welcome dinner after the last first-day arrival and introduction. Existing saves enable meals without advancing time or arrivals. From day two, free housemates share small breakfasts and evening house dinners around work, class and other plans. Meals start while you are free at home early in the morning/evening; choose **hang out** to join a due meal immediately. Talk, address everyone or listen while eating.
+
 - **House** — walk with arrow keys / WASD, press **E** at people or hotspots. Take the stairs to the bedrooms and private balconies; the backyard is shared. Buttons cover the same actions.
 - **Time** — morning → three daytime blocks → evening → late night. Conversations advance six game minutes per spoken line. Watching the house or city advances five game minutes every 20 seconds; dialogs, active scenes and hidden tabs pause this clock. Skip a block or sleep until morning when ready.
 - **Housemates** — when an activity finishes, the local language model chooses their next activity from their personality, needs, memories and messages they have read. They can visit common rooms or explore the city, alone or with a mutually agreed companion. Conversations face the listener; outings use walking paths through the house. Mock mode or an unavailable model uses the existing rules as a fallback.
 - **Move-in day** — you and one housemate start at 07:00. The remaining four arrive at 07:30, 10:30, 14:00 and 20:00, in a seeded random order. Introductions happen one at a time, including during conversations. Everyone is home by the evening introduction.
 - **Plans** — use the phone to make/accept invitations, share photos/stories, or read messages. Learn routines, buy gifts, make coffee, keep promises and pursue career goals. Friendship and staying single are valid outcomes.
+- **Housemate performances** — musicians (including Shira), DJs (including Noga), actors and comedians invite a specific person or the house to their own concert, DJ set, play or stand-up show at Florentin Basement. Invitations arrive in phone messages and **plans**, at most once a week per performer. Accept, then choose **attend show / DJ set / play** during the scheduled evening. Available NPC guests attend even if you stay home; keeping your promise builds trust and leaves a shared memory. Work, Shabbat and other commitments affect who can attend.
 - **Season** — open-ended by default. After episode 3, wrap the season to announce the next full episode as the finale, or choose a fixed length in the creator.
 - **City** — go out for dates, wandering, gifts, part-time shifts and karaoke. Round-trip travel must fit the minutes left, and weekday openings matter. Far spots need the shared car.
 - **Scenes** — dialogue streams in; at your moment, pick an intent (be honest, flirt, joke, support…). Your character
   says it in their own voice. You can join, eavesdrop on, or ignore conversations you walk into.
 - **Cooking** — chop to the beat, boil, keep the pan in the band, season by taste, plate like the photo. Who you feed,
   and what they like, matters. There's a practice kitchen on the title screen.
+  The recipe book has 15 dishes, including mujaddara, falafel pita, lemon chicken bowls, latkes, strawberry pancakes
+  and eggplant with tahini. Search by dish or ingredient, filter by diet, or show only recipes your fridge can make.
+  Food, ingredients and cooking animations use prebaked ComfyUI pixel art in both real and mock modes.
 - **Phone, board, bible, fridge** — `P`, `B`, `I`, `F`. The relationship board only shows what you know, and how you
   know it.
 

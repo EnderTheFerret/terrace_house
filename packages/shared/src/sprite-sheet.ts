@@ -12,7 +12,7 @@ function cellBackground(data: Uint8ClampedArray, width: number, x0: number, y0: 
   let head = 0, tail = 0;
   for (let i = 0; i < background.length; i++) {
     const k = ((y0 + Math.floor(i / w)) * width + x0 + i % w) * 4;
-    background[i] = data[k + 3] < 128 || Math.min(data[k], data[k + 1], data[k + 2]) >= 225 ? 1 : 0;
+    background[i] = data[k + 3] < 128 || Math.min(data[k], data[k + 1], data[k + 2]) >= 248 ? 1 : 0;
   }
   const visit = (i: number) => { if (background[i] === 1) { background[i] = 2; queue[tail++] = i; } };
   for (let x = 0; x < w; x++) { visit(x); visit((h - 1) * w + x); }
@@ -24,6 +24,23 @@ function cellBackground(data: Uint8ClampedArray, width: number, x0: number, y0: 
     if (i >= w) visit(i - w);
     if (i < w * (h - 1)) visit(i + w);
   }
+  // Keep the character's connected outline; isolated marks must not enlarge every frame's crop.
+  let largest: number[] = [];
+  const foreground = (i: number) => { if (background[i] !== 2 && background[i] !== 3) { background[i] = 3; queue[tail++] = i; } };
+  for (let start = 0; start < background.length; start++) if (background[start] !== 2 && background[start] !== 3) {
+    head = tail = 0;
+    foreground(start);
+    while (head < tail) {
+      const i = queue[head++];
+      if (i % w > 0) foreground(i - 1);
+      if (i % w < w - 1) foreground(i + 1);
+      if (i >= w) foreground(i - w);
+      if (i < w * (h - 1)) foreground(i + w);
+    }
+    if (tail > largest.length) largest = Array.from(queue.subarray(0, tail));
+  }
+  background.fill(2);
+  for (const i of largest) background[i] = 0;
   return background;
 }
 
@@ -45,10 +62,9 @@ export function spriteSheetPixels(data: Uint8ClampedArray, width: number, height
     }
   }
   if (left >= right || top >= bottom) throw new Error('empty sprite sheet');
-  // Cells are drawn at 4x a 32 px grid; go back to that grid unless the figure would not fit the frame.
-  const scale = Math.min(32 / cw, 32 / (right - left), 38 / (bottom - top));
+  const scale = Math.min(32 / (right - left), 38 / (bottom - top));
   const sw = Math.max(1, Math.round((right - left) * scale)), sh = Math.max(1, Math.round((bottom - top) * scale));
-  const hex = (k: number) => '#' + [data[k], data[k + 1], data[k + 2]].map(v => Math.min(255, Math.round(v / 8) * 8).toString(16).padStart(2, '0')).join('');
+  const hex = (k: number) => '#' + [data[k], data[k + 1], data[k + 2]].map(v => v.toString(16).padStart(2, '0')).join('');
   const frame = (row: number, col: number): Pixels => {
     const bg = cells.get(`${row}:${col}`)!;
     const pixels: Pixels = Array.from({ length: 40 }, () => Array<string | null>(32).fill(null));

@@ -13,7 +13,7 @@ it('routes group messages and intents to the selected housemate, validates targe
   const { app, session } = await buildApp({ llm: new MockLlm(), image: new MockImageBackend(dir), store, workflowHash: 'mock', cacheDir: dir, assetsDir: null });
   try {
     await session.newGame({ seed: 21, moveInDay: false });
-    const { scenes } = await session.act({ type: 'talk', target: 'ren' });
+    const { scenes } = await session.act({ type: 'talk', target: 'ren', room: 'living' });
     const run = session.runs.get(scenes[0].id)!;
     const state = session.state!;
     const extra = Object.values(state.characters).find(c => !c.isPlayer && !run.ev.participants.includes(c.id))!;

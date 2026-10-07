@@ -1,0 +1,861 @@
+{
+  "name": "Shared Roof — Terrace House, Tel Aviv and Israel",
+  "description": "Public reference and fictional game direction. Import as SillyTavern World Info. Source notes are metadata, not spoken dialogue.",
+  "entries": {
+    "0": {
+      "uid": 0,
+      "key": [],
+      "keysecondary": [],
+      "comment": "Setting and knowledge boundaries",
+      "content": "Shared Roof is a fictional Terrace House-inspired life simulation set in Tel Aviv, Israel. Its residents are fictional adults, not the Japanese show's real cast. The current game state decides who lives here, relationships, weather, dates and available places. Public lore supplies context, never a character's personal history or proof that two people know one another.",
+      "constant": true,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 1000,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "game"
+        ],
+        "kind": "game direction"
+      }
+    },
+    "1": {
+      "uid": 1,
+      "key": [
+        "terrace house",
+        "the show",
+        "reality show",
+        "filmed",
+        "filming"
+      ],
+      "keysecondary": [],
+      "comment": "Terrace House format",
+      "content": "Terrace House is a Japanese shared-house reality series associated with Fuji Television and Netflix. Six young adults share a home while everyday interactions and relationships unfold. Shared Roof borrows the format as fiction in Tel Aviv; it is not an actual Israeli season or an official production. Do not invent production instructions or claim the residents' speech is scripted.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 140,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "netflix",
+          "fuji",
+          "game"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "2": {
+      "uid": 2,
+      "key": [
+        "terrace house",
+        "work",
+        "shift",
+        "career",
+        "move out"
+      ],
+      "keysecondary": [],
+      "comment": "Life beyond the house",
+      "content": "The appeal of shared-house life is seeing strangers develop relationships while pursuing ordinary lives. In this game, work, meals, chores, friendship and leaving can matter as much as romance. Residents can have an uneventful day. Do not manufacture a dramatic reveal, forced date or new past event just to keep a conversation moving.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 70,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "fuji",
+          "game"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "3": {
+      "uid": 3,
+      "key": [
+        "drama",
+        "awkward",
+        "small talk",
+        "crowded"
+      ],
+      "keysecondary": [],
+      "comment": "Quiet conversational style",
+      "content": "Game direction: let ordinary concerns carry the scene. People can give a short answer, disagree, change the subject or leave a pause. Personality is more than a repeated catchphrase. A joke about crowding can get a small joke back; it does not require a family revelation, speech about house dynamics or promise of future drama.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 130,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "game"
+        ],
+        "kind": "game direction"
+      }
+    },
+    "4": {
+      "uid": 4,
+      "key": [
+        "studio panel",
+        "commentators",
+        "panel"
+      ],
+      "keysecondary": [],
+      "comment": "The studio panel",
+      "content": "Shared Roof has a fictional studio panel that comments on events after watching them. Residents do not automatically hear that commentary or know the panel's predictions. Keep panel analysis out of residents' spoken replies unless an established in-game event has conveyed it. Never use the panel to justify what a housemate knows.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 100,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "game"
+        ],
+        "kind": "game direction"
+      }
+    },
+    "5": {
+      "uid": 5,
+      "key": [
+        "tel aviv",
+        "tel-aviv",
+        "tel aviv-yafo",
+        "tel aviv yafo",
+        "תל אביב"
+      ],
+      "keysecondary": [],
+      "comment": "Tel Aviv-Yafo",
+      "content": "Tel Aviv-Yafo combines urban neighborhoods with a Mediterranean beachfront and historic Jaffa. Its districts have different textures; the whole city is not interchangeable nightlife scenery. Use a place only when it fits the exchange. The game's map is simplified and its named businesses may be fictional.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 100,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "city",
+          "unesco",
+          "game"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "6": {
+      "uid": 6,
+      "key": [
+        "neve tzedek",
+        "neve tsedek",
+        "נווה צדק"
+      ],
+      "keysecondary": [],
+      "comment": "Neve Tzedek",
+      "content": "Neve Tzedek is an old neighborhood near Jaffa, Carmel Market and the beach, with narrow streets and preserved low-rise buildings. In Shared Roof, the house is placed here as fictional game geography. Mention a nearby walk or errand naturally; do not invent a precise real street address for the house.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 110,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "city",
+          "game"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "7": {
+      "uid": 7,
+      "key": [
+        "rothschild",
+        "רוטשילד"
+      ],
+      "keysecondary": [],
+      "comment": "Rothschild Boulevard",
+      "content": "Rothschild Boulevard is associated with central Tel Aviv's architecture and public street life. The municipality's historical tours discuss its kiosks and buildings. In the game, Rothschild Coffee is a fictional venue with its own supplied description. Never turn its game opening times, staff or menu into claims about a real business.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 110,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "tours",
+          "game"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "8": {
+      "uid": 8,
+      "key": [
+        "white city",
+        "bauhaus",
+        "international style"
+      ],
+      "keysecondary": [],
+      "comment": "White City",
+      "content": "UNESCO recognizes the White City of Tel Aviv for its Modern Movement urban fabric and International Style architecture, adapted to local conditions. It is a group of buildings and streets, not a single white landmark. A character can notice balconies or architecture without becoming a tour guide or claiming every building is Bauhaus.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 110,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "unesco"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "9": {
+      "uid": 9,
+      "key": [
+        "jaffa",
+        "yafo",
+        "yafa",
+        "יפו",
+        "old port"
+      ],
+      "keysecondary": [],
+      "comment": "Jaffa and the port",
+      "content": "Jaffa is the historic part of Tel Aviv-Yafo, with an old port, old-city alleys, galleries and nearby markets. A port walk and market browsing are different outings. Do not collapse Jaffa into a fictional cafe or assume a character has visited before; public geography does not establish personal experience.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 120,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "city",
+          "tours"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "10": {
+      "uid": 10,
+      "key": [
+        "flea market",
+        "shuk hapishpeshim",
+        "shuk hapishpishim",
+        "שוק הפשפשים"
+      ],
+      "keysecondary": [],
+      "comment": "Jaffa flea market",
+      "content": "Jaffa's flea market is associated with second-hand objects, furniture, collector's items and shops, alongside cafes and restaurants. Browsing there can be an ordinary date or errand. Do not invent a purchase, price, favorite shop or vendor relationship. Present-day hours and stock require current information rather than this lore entry.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 130,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "tours"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "11": {
+      "uid": 11,
+      "key": [
+        "florentin",
+        "florentine",
+        "פלורנטין"
+      ],
+      "keysecondary": [],
+      "comment": "Florentin",
+      "content": "Florentin has workshops, residential streets and an alternative nightlife scene; Levinsky Market is nearby. A fictional musician may find a gig there only if the game has established it. Neighborhood knowledge does not give everyone a music career, local friends or a favorite bar.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 110,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "city",
+          "tours"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "12": {
+      "uid": 12,
+      "key": [
+        "carmel market",
+        "shuk hacarmel",
+        "shuk ha carmel",
+        "kerem hateimanim",
+        "kerem hateymanim",
+        "שוק הכרמל"
+      ],
+      "keysecondary": [],
+      "comment": "Carmel Market and Kerem",
+      "content": "Carmel Market and neighboring Kerem HaTeymanim offer a setting for food shopping and neighborhood walks. The municipality's tours connect this area with Yemenite community stories and food. Let groceries or a shopping choice lead the dialogue; do not claim every resident shares that heritage or knows a particular seller.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 110,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "tours"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "13": {
+      "uid": 13,
+      "key": [
+        "levinsky",
+        "levinski",
+        "לוינסקי"
+      ],
+      "keysecondary": [],
+      "comment": "Levinsky Market",
+      "content": "Levinsky Market in south Tel Aviv is associated with spices, delicatessens and food traditions from several communities. It suits a grocery errand or browsing food shops. A character's diet still determines what they choose; a market entry does not override vegetarianism, veganism, allergies or kashrut.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 110,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "tours"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "14": {
+      "uid": 14,
+      "key": [
+        "beach",
+        "beachfront",
+        "promenade",
+        "sea",
+        "טיילת"
+      ],
+      "keysecondary": [],
+      "comment": "Beach and everyday walks",
+      "content": "Tel Aviv has a Mediterranean beachfront. In this game a walk, sitting outside or meeting by the water can be a small everyday plan. Use the supplied weather and time. Do not introduce sunset, rain, swimming, lifeguards or a beach event unless current scene facts support them.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 90,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "unesco",
+          "game"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "15": {
+      "uid": 15,
+      "key": [
+        "bus",
+        "buses",
+        "rav-kav",
+        "rav kav",
+        "light rail",
+        "tram",
+        "train",
+        "transport"
+      ],
+      "keysecondary": [],
+      "comment": "Getting around",
+      "content": "Tel Aviv travel options include walking, bicycles, buses and light rail; Rav-Kav or supported payment apps are used for transit. Routes and service vary with place and time. A proposed outing is not an executed trip. Use game availability and avoid invented fares, precise timetables or guaranteed journey times.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 100,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "transit",
+          "game"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "16": {
+      "uid": 16,
+      "key": [
+        "shabbat",
+        "shabbos",
+        "sabbath",
+        "friday dinner",
+        "שבת"
+      ],
+      "keysecondary": [],
+      "comment": "Shabbat in the city",
+      "content": "Shabbat runs from Friday evening to Saturday evening. Regular public transit and many shops pause; Tel Aviv also has weekend transport alternatives and businesses that remain open. Do not assume everything is closed or everything is open. Use the game's calendar and venue rules; exact service and hours need a current check.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 130,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "shabbat",
+          "game"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "17": {
+      "uid": 17,
+      "key": [
+        "shabbat",
+        "religious",
+        "observant",
+        "secular",
+        "kosher",
+        "kashrut"
+      ],
+      "keysecondary": [],
+      "comment": "Personal observance",
+      "content": "Game direction: religious observance is personal. Keeping kosher does not imply keeping Shabbat, and a vegetarian meal is not automatically suitable for every observant person. Use the speaker's supplied kashrut, Shabbat and diet fields exactly. Ask what works when another person's preferences are unknown; never invent a family tradition or stereotype a resident.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 150,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "game"
+        ],
+        "kind": "game direction"
+      }
+    },
+    "18": {
+      "uid": 18,
+      "key": [
+        "kosher",
+        "kashrut",
+        "pareve",
+        "parve",
+        "כשר"
+      ],
+      "keysecondary": [],
+      "comment": "Kashrut and a shared kitchen",
+      "content": "Kashrut concerns both ingredients and preparation. In traditional practice meat and dairy are separated and utensils matter; pareve means neither meat nor dairy. Vegetarianism alone does not establish kosher preparation. In a shared kitchen, ask the resident which ingredients and utensils work for them and follow their stated choices.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 140,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "kosher",
+          "game"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "19": {
+      "uid": 19,
+      "key": [
+        "shekel",
+        "shekels",
+        "nis",
+        "ils",
+        "שקל",
+        "₪"
+      ],
+      "keysecondary": [],
+      "comment": "Israel: money",
+      "content": "Israel's currency is the new shekel; NIS and ILS are common currency labels, and the symbol is ₪. In dialogue, people can discuss splitting costs or paying their share. Use an actual game price when available. Do not invent current rent, taxi fares, exchange rates or a person's financial commitments.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 110,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "currency",
+          "game"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "20": {
+      "uid": 20,
+      "key": [
+        "hebrew",
+        "arabic",
+        "ulpan",
+        "עברית",
+        "ערבית",
+        "israel"
+      ],
+      "keysecondary": [],
+      "comment": "Israel: language and communities",
+      "content": "Hebrew and Arabic are part of Israel's public life; Tel Aviv has residents from varied communities and language-learning ulpans. Do not infer a resident's language, ethnicity, religion, politics or family history from a name alone. In this English-language game, occasional local terms should help understanding, not become a repeated caricature.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 80,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "city",
+          "game"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "21": {
+      "uid": 21,
+      "key": [
+        "holiday",
+        "rosh hashanah",
+        "yom kippur",
+        "sukkot",
+        "passover",
+        "pesach",
+        "hanukkah",
+        "chanukah"
+      ],
+      "keysecondary": [],
+      "comment": "Holidays and the game calendar",
+      "content": "Jewish holidays include Rosh Hashanah, Yom Kippur, Sukkot, Passover and Hanukkah, each with distinct customs. Dates vary against the civil calendar. In this game, the current calendar establishes whether a holiday is happening. Do not move every scene into a holiday or assume all residents observe the same traditions.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 100,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "holidays",
+          "game"
+        ],
+        "kind": "public context with game guidance"
+      }
+    },
+    "22": {
+      "uid": 22,
+      "key": [
+        "dishes",
+        "laundry",
+        "groceries",
+        "fridge",
+        "cleaning",
+        "house dinner"
+      ],
+      "keysecondary": [],
+      "comment": "Household life",
+      "content": "Game direction: sharing space creates practical choices about washing up, fridge labels, cooking, noise and helping someone after work. Reply to the actual offer or concern. A mundane choice can stand on its own. Do not invent house rules, debts, a landlord agreement or off-screen chores that the game has not established.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 110,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "game"
+        ],
+        "kind": "game direction"
+      }
+    },
+    "23": {
+      "uid": 23,
+      "key": [
+        "sister",
+        "brother",
+        "family",
+        "met before",
+        "know my",
+        "dana",
+        "beersheba"
+      ],
+      "keysecondary": [],
+      "comment": "Unknown personal connections",
+      "content": "Game direction: a name or hometown is not evidence that two people have met, are related or share an acquaintance. A character knows their own supplied family and history. When asked whether they know the player's relative, use established memories and knowledge; otherwise leave the connection unknown. Do not turn matching names into a reveal.",
+      "constant": false,
+      "selective": false,
+      "selectiveLogic": 0,
+      "order": 160,
+      "position": 0,
+      "disable": false,
+      "addMemo": true,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "probability": 100,
+      "useProbability": false,
+      "scanDepth": 4,
+      "caseSensitive": false,
+      "matchWholeWords": true,
+      "extensions": {
+        "sources": [
+          "game"
+        ],
+        "kind": "game direction"
+      }
+    }
+  },
+  "extensions": {
+    "checkedAt": "2026-10-06",
+    "sources": {
+      "netflix": {
+        "title": "Netflix production announcement (2017)",
+        "url": "https://about.netflix.com/en/news/netflix-starts-production-on-new-series-of-terrace-house-in-karuizawa-japan"
+      },
+      "fuji": {
+        "title": "Fuji Television: Terrace House",
+        "url": "https://www.fujitv.com/variety/terrace-house/"
+      },
+      "unesco": {
+        "title": "UNESCO: White City of Tel Aviv",
+        "url": "https://whc.unesco.org/en/list/1096/"
+      },
+      "city": {
+        "title": "Tel Aviv-Yafo Municipality: Enjoying City Life",
+        "url": "https://www.tel-aviv.gov.il/en/WorkAndStudy/Pages/Enjoying-City-Life.aspx"
+      },
+      "tours": {
+        "title": "Municipal neighborhood tour descriptions (2014; historical geography only)",
+        "url": "https://www.tel-aviv.gov.il/en/WorkAndStudy/Documents/the%20tel%20aviv%20experience.pdf"
+      },
+      "shabbat": {
+        "title": "Official Tel Aviv tourism: Shabbat",
+        "url": "https://visit.tel-aviv.gov.il/Pages/Shabbat.aspx"
+      },
+      "transit": {
+        "title": "Official Tel Aviv tourism: Getting Around",
+        "url": "https://visit.tel-aviv.gov.il/move/in-tel-aviv"
+      },
+      "currency": {
+        "title": "Bank of Israel: Banknotes and Coins",
+        "url": "https://www.boi.org.il/en/economic-roles/banknotes-and-coins/"
+      },
+      "kosher": {
+        "title": "Chabad: What Is Kosher? (religious practice reference)",
+        "url": "https://www.chabad.org/library/article_cdo/aid/113425/jewish/What-Is-Kosher.htm"
+      },
+      "holidays": {
+        "title": "Chabad: Jewish Holidays (names and customs; dates come from game calendar)",
+        "url": "https://www.chabad.org/holidays/default_cdo/jewish/holidays.htm"
+      },
+      "game": {
+        "title": "Shared Roof fictional setting and dialogue policy",
+        "path": "README.md"
+      }
+    },
+    "recommendedSettings": {
+      "scanDepth": 4,
+      "budget": 550,
+      "recursiveScan": false
+    },
+    "notes": "The game loader supports this book's constant and keyword entries, priority and whole-word matching, with a 2200-character budget. It is not a complete implementation of SillyTavern World Info."
+  }
+}

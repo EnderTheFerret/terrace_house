@@ -1,12 +1,9 @@
 // Free-text talk: the player types what they say; the engine reads an intent from it (so relationships move the
 // same way as with the buttons), housemates remember the words, and phone conversations land in the chat thread.
-import type { BeatType, Character, Emotion, GameState, Intent } from '../model';
+import { TYPED_MAX, type BeatType, type Character, type DeltaProposal, type Emotion, type GameState, type Intent } from '../model';
 import { addLog, addMemory, cloneState, firstName, rel } from './core';
 import { isShabbat } from './agents';
 import { truncate } from '../util';
-
-/** Replies (typed or picked) one conversation allows before it has to wrap up; "that's all" ends it sooner. */
-export const MAX_TYPED_EXCHANGES = 30;
 
 const EVERYONE = /\b(guys|everyone|everybody|you all|y'?all|all of you|you two|both of you)\b/i;
 
@@ -29,6 +26,23 @@ export function typedResponders(s: GameState, participants: string[], transcript
     const roll = [...id].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, seed) % 1000 / 1000;
     return roll < chance;
   })];
+}
+
+/** ponytail: direct English insults only; contextual or subtle rudeness needs a usable model reading. */
+export function typedAffinityFallback(s: GameState, participants: string[], transcript: { speaker: string; text: string; source?: string; recipient?: string }[]): DeltaProposal | null {
+  const p: DeltaProposal = { affinityDeltas: [], romanceDeltas: [], tensionDeltas: [], trustDeltas: [], newMemories: [], moodDeltas: [] };
+  const others = participants.filter(id => id !== s.playerId && s.characters[id]);
+  transcript.forEach((line, i) => {
+    if (line.speaker !== s.playerId || line.source !== 'player') return;
+    if (/["“”]|\b(?:he said|she said|they said|joking|kidding)\b/i.test(line.text)) return;
+    if (!/\b(?:you(?:'re| are) (?:such (?:a|an) )?(?:(?:a|an) )?(?:idiot|moron|loser|stupid|pathetic)s?|i hate you|shut up)\b/i.test(line.text)) return;
+    const targets = line.recipient === 'everyone' || EVERYONE.test(line.text) ? others : line.recipient ? others.filter(id => id === line.recipient) : typedResponders(s, participants, transcript.slice(0, i), line.text).slice(0, 1);
+    for (const id of targets) {
+      p.affinityDeltas.push({ from: id, to: s.playerId, delta: -6 });
+      p.newMemories.push({ charId: id, text: `${firstName(s, s.playerId)} insulted me: ${truncate(line.text, 120)}`, salience: 0.65 });
+    }
+  });
+  return p.affinityDeltas.length ? p : null;
 }
 
 // ponytail: keyword cues, not an NLU model; the LLM still reads the exact words when writing replies.
@@ -130,7 +144,7 @@ export function recordChat(s0: GameState, a: string, b: string, lines: { speaker
   const s = cloneState(s0);
   const thread = (s.chats[[a, b].sort().join('|')] ??= []);
   const last = photoFrom ? lines.map((l) => l.speaker).lastIndexOf(photoFrom) : -1;
-  lines.forEach((l, i) => { if (l.speaker === a || l.speaker === b) thread.push({ from: l.speaker, text: truncate(l.text, 200), tick: s.world.tick, readBy: [a, b], ignoredBy: [], ...(i === last ? { photo: true, at: s.characters[l.speaker]?.location } : {}) }); });
+  lines.forEach((l, i) => { if (l.speaker === a || l.speaker === b) thread.push({ from: l.speaker, text: truncate(l.text, TYPED_MAX), tick: s.world.tick, readBy: [a, b], ignoredBy: [], ...(i === last ? { photo: true, at: s.characters[l.speaker]?.location } : {}) }); });
   if (thread.length > 60) thread.splice(0, thread.length - 60);
   addLog(s, { kind: 'chat', text: `${firstName(s, a)} and ${firstName(s, b)} texted.`, participants: [a, b], salience: 0.2 });
   return s;

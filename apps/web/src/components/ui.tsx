@@ -66,9 +66,10 @@ export function HealthBadge() {
   if (!h) return <span className="caption text-xs">server offline</span>;
   return (
     <span className="flex gap-2 text-[0.7rem] lowercase">
-      <span className="px-1" style={{ background: h.llm === 'ok' ? '#d8f0e4' : '#f8d8d0', boxShadow: '0 0 0 1px var(--color-ink)' }}>
-        {h.mode === 'mock' ? 'text: templates' : h.llm === 'ok' ? `text: ${h.model}` : 'text offline · templates'}
+      <span className="px-1" title={`Planning and structured results: ${h.model} (${h.llm})`} style={{ background: h.linesLlm === 'ok' ? '#d8f0e4' : '#f8d8d0', boxShadow: '0 0 0 1px var(--color-ink)' }}>
+        {h.mode === 'mock' ? 'dialogue: templates' : h.linesLlm === 'ok' ? `dialogue: ${h.linesModel}` : 'dialogue offline · templates'}
       </span>
+      {h.mode !== 'mock' && h.model !== h.linesModel && <span className="caption">planning: {h.model}</span>}
       <span className="px-1" style={{ background: h.imagesOffline ? '#f8e6c8' : '#d8f0e4', boxShadow: '0 0 0 1px var(--color-ink)' }}>
         {h.imagesOffline ? 'images offline' : 'images: comfyui'}
       </span>

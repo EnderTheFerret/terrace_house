@@ -16,6 +16,7 @@ import { Cooking } from './screens/Cooking';
 import { Gallery } from './screens/Gallery';
 import { SpriteLibrary } from './screens/SpriteLibrary';
 import { EditCharacter } from './screens/EditCharacter';
+import { Guide } from './screens/Guide';
 import { ErrorToast } from './components/ui';
 import { ActivityStatus } from './components/Activity';
 import { useCharacterSprites } from './pixel/sprites';
@@ -42,13 +43,16 @@ const screens: Record<Screen, () => ReactElement | null> = {
   gallery: Gallery,
   sprites: SpriteLibrary,
   editme: EditCharacter,
+  guide: Guide,
 };
 
 const NEEDS_GAME: Screen[] = ['house', 'map', 'scene', 'cooking', 'phone', 'board', 'chatlog', 'bible', 'fridge', 'debug', 'summary', 'episode', 'studio', 'editme'];
 
 export function App() {
-  const { screen, settings, boot, view } = useGame();
-  const spritePending = useCharacterSprites(NEEDS_GAME.includes(screen) ? view?.characters.filter(c => c.status === 'inHouse') ?? [] : []);
+  const { screen, guideBack, settings, boot, view, live } = useGame();
+  const guideOpen = screen === 'guide';
+  const activeScreen = guideOpen ? guideBack : screen;
+  const spritePending = useCharacterSprites(NEEDS_GAME.includes(activeScreen) ? view?.characters.filter(c => c.status === 'inHouse' && (c.isPlayer || c.location === view.playerLocation || live?.header?.participants.some(p => p.id === c.id))).sort((a, b) => Number(b.isPlayer) - Number(a.isPlayer)) ?? [] : []);
   useEffect(() => {
     void boot();
     const t = setInterval(() => void useGame.getState().refreshHealth(), 30000);
@@ -57,10 +61,13 @@ export function App() {
   useEffect(() => {
     document.documentElement.style.setProperty('--text-scale', String(settings.textScale));
   }, [settings.textScale]);
-  const Comp = !view && NEEDS_GAME.includes(screen) ? Title : screens[screen];
+  const Comp = !view && NEEDS_GAME.includes(activeScreen) ? Title : screens[activeScreen];
   return (
     <div className={`h-full ${settings.reducedMotion ? 'reduced-motion' : ''}`}>
-      {Comp === EpisodeCard ? <EpisodeCard pending={spritePending} /> : <Comp />}
+      <div className={guideOpen ? 'hidden' : 'h-full'} inert={guideOpen}>
+        {Comp === EpisodeCard ? <EpisodeCard pending={spritePending} /> : <Comp />}
+      </div>
+      {guideOpen && <div role="dialog" aria-modal="true" aria-label="activity guide" className="fixed inset-0 z-50 bg-cream"><Guide /></div>}
       <ActivityStatus spritePending={spritePending} />
       <ErrorToast />
     </div>

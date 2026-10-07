@@ -41,7 +41,11 @@ it('generates any joined conversation from current dialogue without changing the
     expect(req.prompt).toContain('pixel art style and palette of image 1');
     expect(req.prompt).not.toContain('image 2');
     expect(req.prompt.match(/bake bread together/g)).toHaveLength(1);
-    expect(req.prompt.indexOf('bake bread together')).toBeLessThan(req.prompt.indexOf(';'));
+    const people = req.prompt.split('From left to right: ')[1].split('. Draw each listed housemate')[0].split('; ');
+    const playerName = session.state!.characters[session.state!.playerId].name.split(' ')[0];
+    const playerPose = people.find(person => person.startsWith(`${playerName} (`));
+    expect(playerPose).toContain('bake bread together');
+    for (const person of people.filter(person => person !== playerPose)) expect(person).not.toContain('bake bread together');
     expect(req.meta!.people![0].appearance).toEqual(session.state!.characters[session.state!.playerId].appearance);
     expect(session.state).toEqual(before);
     expect(run.phase).toBe('awaiting-choice');

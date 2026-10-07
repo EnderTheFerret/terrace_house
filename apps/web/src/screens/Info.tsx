@@ -72,7 +72,7 @@ export function Bible() {
 }
 
 export function Fridge() {
-  const { view, goBack } = useGame();
+  const { view, goBack, act, busy } = useGame();
   if (!view) return null;
   const h = view.house;
   const name = (id: string) => (id === view.playerId ? 'you' : (view.characters.find((c) => c.id === id)?.name.split(' ')[0] ?? id));
@@ -112,6 +112,9 @@ export function Fridge() {
               ))}
             </tbody>
           </table>
+          <p className="caption mt-3 text-xs">Use tidy up in the house menu to do your assigned chore, including bathroom cleaning. It takes 30 game minutes; there is no separate bathroom minigame.</p>
+          <p className="caption mt-2 text-xs">Chores are checked in the morning and evening. Skipped chores can raise housemate tension and lower your reputation.</p>
+          <Btn className="mt-2 text-xs" disabled={busy} onClick={() => void act({ type: 'house', activity: 'tidy' })}>tidy up</Btn>
           <div className="caption mb-1 mt-3 text-xs">done / skipped this season</div>
           <table className="w-full text-xs">
             <tbody>
@@ -147,14 +150,15 @@ export function Fridge() {
 }
 
 export function Saves() {
-  const { view, loadSave, goBack, setScreen } = useGame();
+  const { view, back, busy, live, loadSave, goBack, setScreen } = useGame();
+  const canSave = !!view && back !== 'title' && !busy && !live?.streaming;
   const [saves, setSaves] = useState<Awaited<ReturnType<typeof api.saves>>['saves']>([]);
   const [msg, setMsg] = useState('');
   const refresh = () => api.saves().then((r) => setSaves(r.saves)).catch(() => {});
   useEffect(() => void refresh(), []);
   return (
     <div className="flex h-full flex-col">
-      {view ? <TopBar /> : null}
+      {view && back !== 'title' ? <TopBar /> : null}
       <main className="flex flex-1 justify-center overflow-y-auto p-6 scroll-thin">
         <Panel title="save & load" className="w-full max-w-2xl">
           <ul className="flex flex-col gap-2 text-sm">
@@ -164,7 +168,7 @@ export function Saves() {
                 <li key={slot} className="flex items-center gap-3">
                   <span className="w-14 caption">slot {slot}</span>
                   <span className="flex-1">{s ? `${s.name} · ${s.created_at}` : '— empty —'}</span>
-                  <Btn className="text-xs" disabled={!view} onClick={() => api.save(slot).then(() => { setMsg(`saved to slot ${slot}`); void refresh(); }).catch((e) => setMsg(e.message))}>save</Btn>
+                  <Btn className="text-xs" disabled={!canSave} onClick={() => api.save(slot).then(() => { setMsg(`saved to slot ${slot}`); void refresh(); }).catch((e) => setMsg(e.message))}>save</Btn>
                   <Btn className="text-xs" disabled={!s} onClick={() => s && void loadSave(s.id)}>load</Btn>
                 </li>
               );
@@ -204,7 +208,7 @@ export function Settings() {
             <HealthBadge />
             {health && (
               <div className="caption text-xs">
-                mode {health.mode} · text model {health.model} ({health.llm}) · images {health.imageBackend} ({health.image})
+                mode {health.mode} · dialogue {health.linesModel} ({health.linesLlm}) · planning {health.model} ({health.llm}) · images {health.imageBackend} ({health.image})
               </div>
             )}
           </div>

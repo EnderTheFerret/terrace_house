@@ -94,6 +94,22 @@ export function compat(a: PersonaLike, b: PersonaLike): number {
   return clamp(c, -1, 1);
 }
 
+/** Everyday fit: cast compatibility plus attachment and shared-house routines. */
+export function affinityFit(a: Persona, b: Persona) {
+  const pa = personaLike(a), pb = personaLike(b);
+  let score = compat(pa, pb);
+  const reasons: string[] = [];
+  if (styleClash(pa, pb)) reasons.push('conflict styles');
+  if (valueClash(pa, pb)) reasons.push('priorities');
+  if (score < 0 && !reasons.length) reasons.push('temperaments');
+  if ([a.attachment, b.attachment].includes('anxious') && [a.attachment, b.attachment].includes('avoidant')) {
+    score -= 0.2; reasons.push('needs for reassurance and space');
+  } else if (a.attachment === 'secure' && b.attachment === 'secure') score += 0.1;
+  if (a.diet !== b.diet || a.kashrut !== b.kashrut) { score -= 0.1; reasons.push('meal routines'); }
+  if (a.keepsShabbat !== b.keepsShabbat) { score -= 0.1; reasons.push('Shabbat routines'); }
+  return { score: clamp(score, -1, 1), reasons };
+}
+
 export function romancePull(a: { gender: Gender; interestedIn: Gender[]; p: PersonaLike }, b: { gender: Gender; p: PersonaLike }) {
   if (!a.interestedIn.includes(b.gender)) return 0;
   return clamp(0.45 + compat(a.p, b.p) * 0.4 + b.p.traits[2] * 0.15 + (b.p.traits[0] - 0.5) * 0.1, 0, 1);

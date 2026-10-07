@@ -174,7 +174,7 @@ describe('leave conditions', () => {
     s.world.episode = s.characters.ren.contractEp;
     expect(leaveReasons(s, s.characters.ren)).toContain('contract');
   });
-  it('low mood streak, unresolved rejection, mutual couple', () => {
+  it('low mood streak and unresolved rejection apply, but dating is not a leave reason', () => {
     const s = createGame({ seed: 2 });
     s.characters.mio.lowMoodStreak = 3;
     expect(leaveReasons(s, s.characters.mio)).toContain('mood');
@@ -186,7 +186,7 @@ describe('leave conditions', () => {
     s.couples.push({ a: 'ren', b: 'mio', since: 3, status: 'dating' });
     rel(s, 'ren', 'mio').romance = 80;
     rel(s, 'mio', 'ren').romance = 75;
-    expect(leaveReasons(s, s.characters.ren)).toContain('couple');
+    expect(leaveReasons(s, s.characters.ren)).not.toContain('couple');
   });
   it('player never auto-leaves; contract leaver is marked', () => {
     const s = createGame({ seed: 2 });

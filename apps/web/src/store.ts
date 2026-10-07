@@ -1,12 +1,12 @@
 // Zustand store: screens, game view, scene queue/streaming state, settings.
 import { create } from 'zustand';
 import { content, type Occasion, type PlayerAction, type PlayerSetup, type PlayerView, type Room } from '@shared-roof/shared';
-import { api, streamScene, type Health, type ImageStatus, type SceneSummary } from './api';
+import { api, streamScene, type Broadcast, type Health, type ImageStatus, type SceneSummary } from './api';
 import { blip } from './audio';
 
 export type Screen =
   | 'title' | 'creator' | 'house' | 'map' | 'scene' | 'cooking' | 'practice' | 'phone' | 'board' | 'bible' | 'fridge'
-  | 'debug' | 'summary' | 'settings' | 'saves' | 'episode' | 'studio' | 'gallery' | 'sprites' | 'editme' | 'chatlog';
+  | 'debug' | 'summary' | 'settings' | 'saves' | 'episode' | 'studio' | 'gallery' | 'sprites' | 'editme' | 'chatlog' | 'guide';
 
 export interface Settings {
   captions: boolean;
@@ -33,6 +33,7 @@ export interface LiveLine {
 
 export interface LiveScene {
   id: string;
+  canRetry?: boolean;
   header?: {
     title: string;
     premise: string;
@@ -41,11 +42,12 @@ export interface LiveScene {
     /** what everyone wears here (beach, date, outdoor, daily) */
     occasion: Occasion;
     participants: { id: string; name: string; occasion?: Occasion }[];
-    outsiders: { id: string; name: string }[];
+    outsiders: { id: string; name: string; appearance: PlayerView['characters'][number]['appearance']; gender: string; portraitSeed: number }[];
     isPlayerScene: boolean;
     eavesdrop: boolean;
     background: ImageStatus;
     chat: boolean;
+    broadcast?: Broadcast;
     intro: { id: string; name: string; age: number; occupation: string; hometown: string } | null;
     moveIn?: boolean;
   };
@@ -131,6 +133,10 @@ export function findInvite(lines: LiveLine[], view: PlayerView | null): Invite |
 }
 
 const SETTINGS_KEY = 'shared-roof-settings';
+export const unreadMessages = (messages: readonly { from: string }[], playerId: string, read = 0) => messages.slice(read).filter(m => m.from !== playerId).length;
+export function phoneNotifications(view: PlayerView, read: Record<string, number>): number {
+  return unreadMessages(view.groupChat.messages, view.playerId, read.group) + view.chats.reduce((n, t) => n + unreadMessages(t.messages, view.playerId, read[t.with]), 0) + view.invitations.filter(p => p.to === view.playerId && p.status === 'pending' && !read[`plan:${p.id}`]).length;
+}
 const defaults: Settings = { captions: true, reducedMotion: false, images: true, sound: true, textScale: 1, author: false, typewriter: true, tutorial: true, tipsSeen: [] };
 function loadSettings(): Settings {
   try {
@@ -144,6 +150,7 @@ interface State {
   screen: Screen;
   back: Screen;
   galleryBack: Screen;
+  guideBack: Screen;
   view: PlayerView | null;
   scenes: SceneSummary[];
   live: LiveScene | null;
@@ -192,6 +199,7 @@ export const useGame = create<State>((set, get) => ({
   screen: 'title',
   back: 'house',
   galleryBack: 'title',
+  guideBack: 'title',
   view: null,
   scenes: [],
   live: null,
@@ -208,7 +216,7 @@ export const useGame = create<State>((set, get) => ({
   phoneTab: 'group',
   phoneRead: {},
 
-  setScreen: (screen) => set((st) => ({ screen, back: ['house', 'map', 'scene'].includes(st.screen) ? st.screen : st.back, ...(['gallery', 'sprites'].includes(screen) && screen !== st.screen ? { galleryBack: st.screen } : {}) })),
+  setScreen: (screen) => set((st) => ({ screen, back: ['title', 'house', 'map', 'scene'].includes(st.screen) ? st.screen : st.back, ...(['gallery', 'sprites'].includes(screen) && screen !== st.screen ? { galleryBack: st.screen } : {}), ...(screen === 'guide' && screen !== st.screen ? { guideBack: st.screen } : {}) })),
   goBack: () => set((st) => ({ screen: !st.view ? 'title' : st.back === 'scene' && !st.live ? 'house' : st.back })),
   setSettings: (p) => {
     const settings = { ...get().settings, ...p };
@@ -247,11 +255,14 @@ export const useGame = create<State>((set, get) => ({
   },
 
   loadSave: async (id) => {
-    set({ busy: true });
+    set({ busy: true, error: null });
     try {
       const g = await api.load(id);
-      // the episode card holds until every housemate's sprite sheet is ready
-      set({ view: g.view, scenes: [], episodeCard: 'start', screen: 'episode', busy: false, live: null });
+      set({ view: g.view, scenes: g.scenes, episodeCard: 'start', screen: 'episode', busy: false, live: null, showDigest: false, hangoutCg: false });
+      if (g.scenes.some(s => s.rendered && s.phase !== 'done')) {
+        set({ episodeCard: null });
+        await get().nextScene();
+      }
     } catch (e) {
       set({ error: (e as Error).message, busy: false });
     }
@@ -273,10 +284,18 @@ export const useGame = create<State>((set, get) => ({
 
   act: async (a) => {
     if (get().busy) return;
+    const live = get().live;
+    const pending = get().scenes.find(s => s.phase !== 'done' && s.rendered);
+    if (pending && a.type !== 'text' && a.type !== 'respondPlan') {
+      if (live && !live.done) set({ screen: 'scene' });
+      else await get().nextScene();
+      return;
+    }
     set({ busy: true, error: null });
     try {
       const r = await api.act(a);
       set({ view: r.view, scenes: r.scenes, busy: false });
+      if (a.type === 'text' || a.type === 'respondPlan') return;
       await get().nextScene();
     } catch (e) {
       set({ error: (e as Error).message, busy: false });
@@ -315,6 +334,9 @@ export const useGame = create<State>((set, get) => ({
           case 'line-start':
             patch((l) => (l.lines.some((x) => x.index === d.index) ? l : { ...l, lines: [...l.lines, { index: d.index, speaker: d.speaker, name: d.name, text: '', caption: d.caption, done: false, emotion: d.emotion }] }));
             break;
+          case 'reset':
+            patch(l => ({ ...l, lines: l.lines.filter(x => x.index < d.from) }));
+            break;
           case 'token':
             if (get().settings.sound) blip(d.index);
             patch((l) => ({ ...l, lines: l.lines.map((x) => (x.index === d.index ? { ...x, text: x.text + d.token } : x)) }));
@@ -327,7 +349,7 @@ export const useGame = create<State>((set, get) => ({
             });
             break;
           case 'choice':
-            patch((l) => ({ ...l, choice: d.intents, recipients: d.recipients ?? [], canType: !!d.canType, canEnd: !!d.canEnd, canListen: !!d.canListen }));
+            patch((l) => ({ ...l, choice: d.intents, recipients: d.recipients ?? [], canRetry: !!d.canRetry, canType: !!d.canType, canEnd: !!d.canEnd, canListen: !!d.canListen }));
             break;
           case 'invite':
             patch((l) => ({ ...l, invite: d.accepted ? inviteFor({ id: d.from, name: d.name }, d.node, d.date) : null, inviteNote: d.accepted ? undefined : `${String(d.name).split(' ')[0]} ${d.reason}.` }));
@@ -380,7 +402,8 @@ export const useGame = create<State>((set, get) => ({
     try {
       await api.choose(live.id, choice);
     } catch (e) {
-      set({ error: (e as Error).message });
+      set({ error: (e as Error).message, live: { ...live, streaming: false } });
+      return;
     }
     await get().playLive(live.id);
   },

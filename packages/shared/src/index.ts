@@ -12,6 +12,8 @@ export * from './engine/conditions';
 export * from './engine/knowledge';
 export * from './engine/social';
 export * from './engine/house';
+export * from './engine/household';
+export * from './engine/meals';
 export * from './engine/agents';
 export * from './engine/interactions';
 export * from './engine/director';

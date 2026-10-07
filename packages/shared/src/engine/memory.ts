@@ -1,7 +1,8 @@
 // Memory: compaction by salience × recency, pair summaries, "previously" recap.
 import type { GameState, MemoryItem } from '../model';
-import { truncate } from '../util';
+import { truncate, uk } from '../util';
 import { firstName, housemates, rel } from './core';
+import { affinityFit } from './castgen';
 
 export const MEMORY_BUDGET = 40;
 export const RECENCY_TAU = 60; // ticks (5 per episode)
@@ -68,7 +69,10 @@ export function recordDiary(s0: GameState, id: string, episode: number, diary: s
 /** Rolling ≤300-char summary of how i sees j: their own LLM-written note when fresh, else the engine template. */
 export function pairSummaryText(s: GameState, i: string, j: string): string {
   const note = s.pairNotes?.[`${i}>${j}`];
-  if (note && note.episode >= s.world.episode - 2) return note.text;
+  const fit = affinityFit(s.characters[i].persona, s.characters[j].persona);
+  const together = Number(s.world.flags[`sharedMinutes:${uk(i, j)}`] ?? 0) >= 30;
+  const drift = !together ? '' : fit.score < -0.05 ? ` Time together wears on them: different ${fit.reasons.join(', ') || 'temperaments'}.` : fit.score > 0.05 ? ' Time together brings them closer: their personalities fit.' : '';
+  if (note && note.episode >= s.world.episode - 2) return `${truncate(note.text, 300 - drift.length)}${drift}`;
   const r = rel(s, i, j);
   const aff = word(r.affinity, [[50, 'really likes'], [20, 'likes'], [-10, 'is neutral about'], [-40, 'is wary of'], [-101, 'dislikes']]);
   const rom = r.romance >= 60 ? ', has strong feelings for them' : r.romance >= 30 ? ', is a little drawn to them' : '';
@@ -76,7 +80,7 @@ export function pairSummaryText(s: GameState, i: string, j: string): string {
   const tr = r.trust >= 65 ? ' Trusts them.' : r.trust <= 25 ? " Doesn't trust them." : '';
   const last = topMemories(s, i, 1, [j])[0];
   const base = `${firstName(s, i)} ${aff} ${firstName(s, j)}${rom}${ten}.${tr}`;
-  return truncate(last ? `${base} Recently: ${last.text}` : base, 300);
+  return `${truncate(last ? `${base} Recently: ${last.text}` : base, 300 - drift.length)}${drift}`;
 }
 
 export function updatePairSummaries(s: GameState) {

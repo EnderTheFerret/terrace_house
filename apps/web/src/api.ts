@@ -2,6 +2,7 @@
 import type { ArtworkEdit, Emotion, Occasion, PlayerAction, PlayerSetup, PlayerView } from '@shared-roof/shared';
 
 export interface OutfitRef { occasion: Occasion; day: number; outfit?: string; customExpression?: string }
+export interface Broadcast { episode: number | null; days: { start: number; end: number; airs: number } | null; highlights: { day: number; text: string }[]; scenes: { day: number; title: string; location: string; mine: boolean; lines: { name: string; text: string }[] }[]; panel: { day: number; name: string; text: string }[] }
 const outfitQuery = (o: OutfitRef) => `occasion=${o.occasion}&day=${o.day}${o.outfit ? `&outfit=${encodeURIComponent(o.outfit)}` : ''}${o.customExpression ? `&customExpression=${encodeURIComponent(o.customExpression)}` : ''}`;
 
 export interface SceneSummary {
@@ -26,6 +27,8 @@ export interface Health {
   model: string;
   imageBackend: string;
   imagesOffline: boolean;
+  linesModel: string;
+  linesLlm: 'ok' | 'down';
 }
 
 export interface ImageStatus {
@@ -57,7 +60,7 @@ function track(label: string, estimatedMs = 5000) {
   return () => { pendingRequests.delete(key); window.dispatchEvent(new Event('game-activity')); };
 }
 
-export interface DayLog { episode: number; scenes: { id: string; title: string; location: string; reread: boolean; lines: { name: string; text: string }[] }[] }
+export interface DayLog { episode: number; scenes: { id: string; title: string; location: string; reread: boolean; overheard?: boolean; reading?: 'pending' | 'applied' | 'fallback'; lines: { name: string; text: string }[] }[] }
 
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
   const label = method === 'POST' ?
@@ -86,10 +89,11 @@ export const api = {
   newGame: (body: { seed?: number; player?: PlayerSetup; randomizeCast?: boolean; seasonLength?: number }) => req<{ view: PlayerView; scenes: SceneSummary[] }>('POST', '/api/game/new', body),
   act: (action: PlayerAction) => req<{ view: PlayerView; scenes: SceneSummary[] }>('POST', '/api/game/action', { action }),
   worldPulse: () => req<{ view: PlayerView; scenes: SceneSummary[] }>('POST', '/api/game/world-pulse'),
+  retryText: (id: string) => req<{ view: PlayerView }>('POST', `/api/game/chat/${encodeURIComponent(id)}/retry`),
   endSlot: () => req<{ view: PlayerView; newEpisode: boolean; seasonOver: boolean; intermission: 'mid' | 'end' | null }>('POST', '/api/game/end-slot'),
   intermission: () => req<{ at: 'mid' | 'end'; lines: { speaker: string; text: string; reaction: string }[] }>('POST', '/api/studio/intermission'),
   respond: (id: string, response: 'join' | 'eavesdrop' | 'ignore') => req<{ scene: SceneSummary }>('POST', `/api/scene/${id}/respond`, { response }),
-  choose: (id: string, choice: { intent?: string; text?: string; recipient?: string; done?: boolean; listen?: boolean; hangout?: boolean; via?: 'button' | 'key' | 'typed' | 'invite'; invite?: { node: string; date?: boolean; with?: string } }) => req<{ ok: boolean }>('POST', `/api/scene/${id}/choose`, choice),
+  choose: (id: string, choice: { intent?: string; text?: string; recipient?: string; retry?: boolean; done?: boolean; listen?: boolean; hangout?: boolean; via?: 'button' | 'key' | 'typed' | 'invite'; invite?: { node: string; date?: boolean; with?: string } }) => req<{ ok: boolean }>('POST', `/api/scene/${id}/choose`, choice),
   sceneImage: (id: string) => req<ImageStatus>('POST', `/api/scene/${id}/image`),
   gallery: () => req<{ scenes: GalleryScene[] }>('GET', '/api/gallery'),
   newPlayer: (player: PlayerSetup) => req<{ view: PlayerView; scenes: SceneSummary[] }>('POST', '/api/game/new-player', { player }),
@@ -106,7 +110,7 @@ export const api = {
   charPortrait: (id: string) => req<ImageStatus>('GET', `/api/image/character/${id}`),
   dayLog: () => req<DayLog>('GET', '/api/game/log'),
   reread: (id: string) => req<{ view: PlayerView; log: DayLog }>('POST', `/api/game/reread/${encodeURIComponent(id)}`),
-  broadcast: () => req<{ episode: number | null; scenes: { title: string; location: string; mine: boolean; lines: { name: string; text: string }[] }[] }>('GET', '/api/broadcast'),
+  broadcast: () => req<Broadcast>('GET', '/api/broadcast'),
   feedPhoto: (id: string) => req<ImageStatus>('GET', `/api/image/feed/${encodeURIComponent(id)}`),
   selfie: (from: string, tick: number) => req<ImageStatus>('GET', `/api/image/selfie/${encodeURIComponent(from)}/${tick}`),
   charSprite: (id: string, day: number, occasion = 'daily') => req<ImageStatus>('GET', `/api/image/character/${encodeURIComponent(id)}/sprite?day=${day}&occasion=${occasion}`),
@@ -129,7 +133,7 @@ export function streamScene(id: string, on: (event: string, data: any) => void, 
   return new Promise((resolve, reject) => {
     const finish = track('Generating response', 8000);
     const es = new EventSource(`/api/scene/${id}/stream`);
-    const events = ['scene', 'line-start', 'token', 'line-end', 'choice', 'respond', 'outcome', 'commentary', 'freeze', 'done', 'error', 'view', 'arrival-joined', 'arrival-pending'];
+    const events = ['scene', 'reset', 'line-start', 'token', 'line-end', 'choice', 'respond', 'outcome', 'commentary', 'freeze', 'done', 'error', 'view', 'arrival-joined', 'arrival-pending'];
     for (const ev of events) es.addEventListener(ev, (e) => on(ev, JSON.parse((e as MessageEvent).data)));
     es.addEventListener('end', () => {
       es.close();

@@ -5,12 +5,14 @@ import { BUDGETS, playerBudget, type Budget } from './budget';
 import { carPlanNode } from './city';
 import { ROOMS, TRAIT_NAMES } from '../model';
 import { content } from '../content';
-import { clockLabel, coupleOf, flag, housemates, isRoom, placeName, rel, SLOT_MINUTES } from './core';
+import { clockLabel, coupleOf, flag, housemates, isRoom, knowsPlan, placeName, rel, SLOT_MINUTES } from './core';
 import { dateLabel } from './calendar';
 import { jobOf, SOCIAL_ACTIONS } from './agents';
 import { pairSummaryText, topMemories } from './memory';
 import { moodWord, teaserLine } from '../gen/mock';
 import { uk } from '../util';
+import { HOUSEHOLD, householdProblem } from './household';
+import { HOUSEHOLD_ACTIVITIES, type HouseholdActivity } from '../model';
 
 export type Reliability = 'self' | 'witnessed' | 'told' | 'rumor' | 'unknown';
 
@@ -44,6 +46,8 @@ export interface CharView {
   leaving: boolean;
   /** what they're doing right now (only when you can see them) */
   activity: string | null;
+  household?: HouseholdActivity;
+  activityLabel?: string;
   bark: string | null;
   floor: number | null;
   activityUntil: number;
@@ -108,6 +112,7 @@ export interface PlayerView {
   /** clock time inside the block, e.g. "11:20" */
   clock: string;
   minutesLeft: number;
+  householdOptions: { id: HouseholdActivity; reason?: string }[];
   weekday: number;
   /** world day (0-based); picks today's outfits */
   day: number;
@@ -207,6 +212,8 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
       isNew: !!flag(s, `new_${c.id}`) && (flag(s, `new_${c.id}`) as number) >= s.world.episode - 1,
       leaving: !!flag(s, `leaving_${c.id}`),
       activity: visible && !c.isPlayer ? (c.lastAction ?? null) : null,
+      household: visible && c.activityUntil > s.world.minutes ? c.actionHousehold : undefined,
+      activityLabel: visible && c.actionHousehold && c.activityUntil > s.world.minutes ? HOUSEHOLD[c.actionHousehold].label : undefined,
       bark: visible && !c.isPlayer && !['sleep', 'work'].includes(c.lastAction ?? '') ? barkFor(s, c) : null,
       floor: room && visible ? room.floor : null,
       activityUntil: visible ? c.activityUntil : 0,
@@ -287,6 +294,7 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
   const ce = s.world.cityEvent ? content().calendar.events.find((e) => e.id === s.world.cityEvent) : null;
   return {
     gameId: s.gameId,
+    householdOptions: HOUSEHOLD_ACTIVITIES.map(id => ({ id, reason: householdProblem(s, P, id) })),
     openingIntroduction: s.world.episode === 1 && !!s.world.flags.gradualMoveIn && !s.world.flags[`introduced_${P.id}`],
     seed: s.seed,
     episode: s.world.episode,
@@ -294,7 +302,7 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
     finaleEpisode: s.finaleEpisode,
     forecast: s.world.forecast,
     timeline: s.timeline.filter((t) => t.episode >= s.world.episode - 1),
-    invitations: s.invitations.filter((p) => [p.from, p.to].includes(P.id) || p.status === 'accepted'),
+    invitations: s.invitations.filter((p) => [p.from, p.to].includes(P.id) || p.status === 'accepted' && knowsPlan(s, P.id, p)),
     approaches: s.approaches.filter((p) => s.characters[p.from]?.status === 'inHouse'),
     feed: s.feed,
     inventory: s.inventory,
@@ -311,7 +319,7 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
     budget: { level: playerBudget(s), label: BUDGETS[playerBudget(s)], partTime: !!s.world.playerJob },
     tripOffer: tripOffer(s),
     examWeek: !!s.world.flags.examWeek,
-    aired: typeof s.world.flags.aired === 'number' ? s.world.flags.aired : null,
+    aired: s.world.flags.broadcastDays === 3 && typeof s.world.flags.aired === 'number' ? s.world.flags.aired : null,
     playerId: P.id,
     playerLocation: P.location,
     seasonOver: s.seasonOver,
@@ -357,6 +365,7 @@ const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const SLOT_WORD: Record<string, string> = { morning: 'mornings', slot1: 'late mornings', slot2: 'afternoons', slot3: 'early evenings', evening: 'nights', lateNight: 'late nights' };
 
 function barkFor(s: GameState, c: Character): string {
+  if (c.actionHousehold && c.activityUntil > s.world.minutes) return c.actionCompanion ? 'It’s nice having company for this.' : c.actionHousehold === 'meal' ? 'Taste this for me?' : 'Want to lend a hand?';
   if (c.location === 'kitchen' && s.house.dishes > 60 && c.persona.traits[1] > 0.6) return 'Who left all these dishes?';
   if (c.lastAction === 'cook') return 'Taste this for me?';
   if (c.lastAction === 'eat') return 'Anyone want the last bite?';

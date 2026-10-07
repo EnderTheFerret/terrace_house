@@ -466,7 +466,7 @@ describe('image queue', () => {
       }),
     };
     const q = new ImageQueue(backend, new MockImageBackend(dir), new Store(openDb(':memory:')), 'w', dir, null);
-    const bg = q.request(req('sheet-tomorrow'), PRIORITY.prefetch);
+    const bg = q.request(req('sheet-today'), PRIORITY.currentSprite);
     await new Promise((r) => setTimeout(r, 10));
     const release = await q.holdClear(); // a model call starts: waits for the interrupted job to stop
     expect(interrupted).toBe(1);
@@ -514,8 +514,10 @@ async function playEpisode(session: GameSession) {
   while (session.state!.world.episode === ep && !session.state!.seasonOver && guard++ < 60) { // hangouts use part of a block, outings all of it
     const slot = session.state!.world.slot;
     const action = slot === 'morning' || slot === 'evening' ? { type: 'house', activity: 'hangout' } : { type: 'idle' };
-    const { scenes } = await session.act(action);
-    for (const sc of scenes) {
+    await session.act(action);
+    for (let n = 0; n < 30; n++) {
+      const sc = session.summaries().find(s => s.phase !== 'done');
+      if (!sc) break;
       if (sc.phase === 'awaiting-response') session.respond(sc.id, 'join');
       if (!sc.rendered && sc.phase === 'done') continue;
       const events: string[] = [];
@@ -531,7 +533,7 @@ async function playEpisode(session: GameSession) {
 }
 
 describe('game session (mock + failing adapters)', () => {
-  it('closes an observing phone conversation at sundown and logs the exact capped time for replay', async () => {
+  it('keeps brief texts before sundown instantaneous and blocks them during Shabbat', async () => {
     const dir = tmp();
     const store = new Store(openDb(':memory:'));
     const queue = new ImageQueue(new MockImageBackend(dir), new MockImageBackend(dir), store, 'mock', dir, null);
@@ -540,31 +542,28 @@ describe('game session (mock + failing adapters)', () => {
     const generatedKinds: string[] = [];
     const adapter: LlmClient = { name: 'test', health: async () => true, complete: async (r) => { generatedKinds.push(r.kind); return down.complete(r); }, stream: async function* (r) { dialogueCalls++; yield* down.stream(r); } };
     const session = new GameSession(store, new Generator(adapter), queue);
-    await session.newGame({ seed: 7 });
+    await session.newGame({ seed: 7, moveInDay: false });
     for (let i = 0; i < 2; i++) { await session.act({ type: 'sleep' }); await session.endSlot(); }
     expect(session.state!.world.weekday).toBe(5);
     for (let i = 0; i < 3; i++) { await session.act({ type: 'skip' }); await session.endSlot(); }
     expect(session.state!.world.slot).toBe('slot3');
-    // Leave one six-minute reply after the five-minute action; legacy time logs still use three minutes per line.
+    // Texting just before sundown leaves the clock untouched; historical time logs use three minutes per line.
     session.state = passTime(session.state!, 105 / 3, [], 3);
     session.logSeq = store.appendEvent(session.state.gameId, 'time', { lines: 105 / 3 });
     const target = Object.values(session.state.characters).find(c => !c.isPlayer && c.status === 'inHouse' && c.persona.keepsShabbat)!;
     expect(target).toBeDefined();
     generatedKinds.length = 0;
     const { scenes } = await session.act({ type: 'text', target: target.id, text: 'Are you free tonight?' });
-    const phone = scenes.find(sc => sc.chat && sc.isPlayerScene)!;
-    const output: { event: string; data: any }[] = [];
-    await session.stream(phone.id, (event, data) => output.push({ event, data }));
-    expect(session.runs.get(phone.id)!.phase).toBe('done');
-    expect(session.state.world.minutes).toBe(120);
-    expect(output.filter(e => e.event === 'line-end')).toHaveLength(1);
-    expect(output.some(e => e.event === 'choice')).toBe(false);
-    expect(output.find(e => e.event === 'outcome')?.data.cues.join(' ')).toContain('put away for Shabbat');
-    expect(dialogueCalls).toBe(1);
-    expect(generatedKinds).not.toContain('deltas');
-    expect(generatedKinds).not.toContain('commentary');
-    await session.stream(phone.id, () => {});
-    expect(dialogueCalls).toBe(1);
+    expect(scenes).toEqual([]);
+    expect(session.state.world.minutes).toBe(105);
+    expect(session.state.chats[[session.state.playerId, target.id].sort().join('|')]).toHaveLength(2);
+    expect(dialogueCalls).toBe(0);
+    expect(generatedKinds).toEqual(['chat']);
+    expect(replayEvents(store.events(session.state.gameId))).toEqual(session.state);
+    session.state = passTime(session.state, 15 / 3, [], 3);
+    session.logSeq = store.appendEvent(session.state.gameId, 'time', { lines: 15 / 3 });
+    await expect(session.act({ type: 'text', target: target.id, text: 'Still there?' })).rejects.toThrow(/Shabbat/);
+    expect(generatedKinds).toEqual(['chat']);
     expect(replayEvents(store.events(session.state.gameId))).toEqual(session.state);
   });
 
@@ -578,15 +577,17 @@ describe('game session (mock + failing adapters)', () => {
     await playEpisode(session);
     expect(session.state!.world.episode).toBe(2);
     expect(down.calls).toBeGreaterThan(0); // tried, failed, fell back
-    // the end-of-episode studio intermission still runs on templates, host first and last, state untouched
+    // Studio still runs on templates, host first and last; recording it changes only the broadcast remarks.
     expect(session.pendingIntermission).toBe('end');
-    const before = JSON.stringify(session.state);
+    const before = structuredClone(session.state!);
     const im = await session.intermission();
     expect(im.lines.length).toBeGreaterThanOrEqual(3);
     expect(im.lines[0].speaker).toBe('nagumo');
     expect(im.lines.at(-1)!.speaker).toBe('nagumo');
-    expect(JSON.stringify(session.state)).toBe(before);
-    await expect(session.intermission()).rejects.toThrow(/no intermission/);
+    expect({ ...session.state, panelRemarks: before.panelRemarks }).toEqual(before);
+    expect(session.state!.panelRemarks.slice(before.panelRemarks.length).map(r => r.text)).toEqual(im.lines.map(l => l.text));
+    expect(session.state!.panelRemarks.slice(before.panelRemarks.length).every(r => r.episode === 1)).toBe(true);
+    expect(await session.intermission()).toEqual(im);
   });
 
   it('replaying the event log reproduces the exact state (deterministic replay)', async () => {

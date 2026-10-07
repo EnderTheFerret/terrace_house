@@ -12,6 +12,23 @@ async function reachHouse(page: Page) {
   throw new Error('house did not become available');
 }
 
+test('explains bathroom duty and starts tidying from the chore board', async ({ page, request }) => {
+  await request.post('/api/game/new', { data: { seed: 9, seasonLength: 0, moveInDay: false } });
+  await page.goto('/');
+  await page.getByRole('button', { name: /continue · episode 1/ }).click();
+  await reachHouse(page);
+  await page.getByRole('button', { name: 'fridge', exact: true }).click();
+  await expect(page.getByText(/including bathroom cleaning/)).toBeVisible();
+  await expect(page.getByText(/Skipped chores can raise housemate tension/)).toBeVisible();
+  const before = await (await request.get('/api/game')).json();
+  const done = before.view.house.choreLedger[before.view.playerId].done;
+  await page.getByRole('button', { name: 'tidy up', exact: true }).click();
+  await expect.poll(async () => {
+    const after = await (await request.get('/api/game')).json();
+    return after.view.house.choreLedger[after.view.playerId].done;
+  }).toBeGreaterThan(done);
+});
+
 test.beforeEach(async ({ page }, info) => {
   await page.addInitScript(reducedMotion => localStorage.setItem('shared-roof-settings', JSON.stringify({ typewriter: false, reducedMotion, sound: false })), !info.title.startsWith('stairs'));
 });

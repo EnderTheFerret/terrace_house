@@ -44,7 +44,7 @@ export function mockBeatSheet(s: GameState, rng: Rng, ev: EventInstance): SheetR
   // the player only speaks at their choice beat (their intent); everyone else carries the scene
   const npcVoices = all.filter((x) => x !== s.playerId);
   const speakers = npcVoices.length ? npcVoices : all;
-  const topics = [...(TOPICS[t.type] ?? TOPICS[t.tags[0]] ?? TOPICS.default)];
+  const topics = ev.type === 'performance' ? [ev.title, 'the performance', 'having friends in the audience'] : [...(TOPICS[t.type] ?? TOPICS[t.tags[0]] ?? TOPICS.default)];
   const stack: string[] = [topics[0]];
   const beats: Beat[] = [];
   let choiceIndex = -1;
@@ -159,6 +159,8 @@ export interface LineContext {
   replyTo?: { text: string; intent: Intent };
   /** memories recalled by meaning (embeddings) for each speaker, kept for the rest of the scene */
   recalled?: Record<string, string[]>;
+  /** The actual scene, so fallback lines can acknowledge its practical gesture. */
+  event?: EventInstance;
 }
 
 /** Template answer to typed words, colored by how the speaker feels about the player. */
@@ -240,6 +242,16 @@ export function mockLine(s: GameState, rng: Rng, beat: Beat, ctx: LineContext, i
   if (bt === 'accept' && ctx.outcomeHint === 'rejected') bt = 'reject';
   let base: string;
   if (intent) base = rng.pick(INTENT_LINES[intent]);
+  else if (ctx.event?.type === 'performance') {
+    const show = ctx.event;
+    const subject = show.tags.includes('dj') ? 'set' : show.tags.includes('play') ? 'play' : show.tags.includes('comedy') ? 'show' : 'concert';
+    base = beat.speaker === show.roles.a
+      ? rng.pick([`Thanks for coming to my ${subject}. Seeing you in the audience helped.`, `I was nervous before the ${subject}. Then I spotted you out there.`, `That applause at the end of the ${subject} meant a lot.`])
+      : rng.pick([`I'm glad I came to your ${subject}.`, `You looked so at home on stage during the ${subject}.`, `What was it like seeing the housemates in the audience?`]);
+  }
+  else if (ctx.event?.type === 'cook-for' && ['open', 'comfort', 'smalltalk', 'close'].includes(bt)) base = beat.speaker === ctx.event.roles.a
+    ? rng.pick(['I made enough for both of us.', 'Have some while it is warm.'])
+    : rng.pick(['Thanks for making me a plate.', 'What did you make?', 'Have some too.']);
   else if (bt === 'joke' && rng.chance(0.6)) base = rng.pick(HUMOR_JOKES[c.persona.speech.humor]);
   else if (beat.depth === 'smalltalk' && bt === 'open' && rng.chance(0.15)) base = rng.pick(c.persona.speech.exemplars);
   else if (bt === 'close' && rng.chance(0.6)) base = rng.pick(s.world.slot === 'evening' ? CLOSE_NIGHT : s.world.slot === 'morning' ? BANK.close : CLOSE_DAY);
@@ -277,8 +289,9 @@ export function captionFor(beat: Beat): string | null {
 // ---------------------------------------------------------------- chat app
 
 const CHAT: Record<string, string[]> = {
-  friendly: ['you home?', 'buying snacks, want anything', 'lol the fridge situation', 'saw this and thought of you', 'is the bath free'],
-  romantic: ['the sunset from the train today', 'are you awake', 'thanks for earlier. really', 'coffee tomorrow?', 'this song made me think of you'],
+  // unprompted texts claim no outing, errand, plan or earlier moment the engine did not record
+  friendly: ['you home?', 'how is your day going', 'lol the fridge situation', 'saw this and thought of you', 'is the bath free'],
+  romantic: ['how is your day going?', 'was just thinking about you', 'you around later?', 'hope today is treating you ok', 'this song made me think of you'],
   tense: ['we should talk', 'can you not use my shampoo', 'ok', 'whatever', 'fine.'],
   reply: ['haha yes', 'omw', 'ok!', 'sure', 'lol same', 'maybe later', 'thank you', 'yes please'],
 };

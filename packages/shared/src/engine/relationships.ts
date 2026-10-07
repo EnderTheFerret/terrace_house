@@ -1,8 +1,32 @@
 // Relationship deltas: validation, clamping, application, drama scalar.
 import type { DeltaProposal, GameState } from '../model';
 import { DeltaProposal as DeltaProposalSchema } from '../model';
-import { clamp } from '../util';
-import { FEELING_SCALE, MAX_SCENE_DELTA, addMemory, addRel, asym, housemates, rel, romanceGap } from './core';
+import { clamp, uk } from '../util';
+import { FEELING_SCALE, MAX_SCENE_DELTA, addMemory, addRel, asym, belief, housemates, rel, romanceGap } from './core';
+import { affinityFit } from './castgen';
+
+export const hasFeelingDeltas = (p: DeltaProposal) =>
+  [p.affinityDeltas, p.romanceDeltas, p.tensionDeltas, p.trustDeltas].some((ds) => ds.some((d) => d.delta !== 0));
+
+/** A small affinity drift per half-hour together, independent of action chunk sizes. */
+export function sharedTimeAffinity(s: GameState, minutes: number) {
+  const awake = housemates(s).filter((c) => !['sleep', 'nap', 'shower', 'work'].includes(c.lastAction ?? '') && !['bathroom', 'smallBathroom', 'house'].includes(c.location));
+  for (let i = 0; i < awake.length; i++) for (const b of awake.slice(i + 1)) {
+    const a = awake[i];
+    if (a.location !== b.location) continue;
+    const key = `sharedMinutes:${uk(a.id, b.id)}`;
+    const before = Number(s.world.flags[key] ?? 0);
+    const after = before + minutes;
+    s.world.flags[key] = after;
+    const steps = Math.floor(after / 30) - Math.floor(before / 30);
+    if (!steps) continue;
+    const delta = steps * Math.round(0.15 * affinityFit(a.persona, b.persona).score * 1e6) / 1e6;
+    for (const [from, to] of [[a.id, b.id], [b.id, a.id]]) {
+      addRel(s, from, to, 'affinity', delta);
+      rel(s, from, to).affinity = Math.round(rel(s, from, to).affinity * 1e6) / 1e6;
+    }
+  }
+}
 
 /** Clamp every delta to ±MAX_SCENE_DELTA (mood to ±0.3), drop unknown ids/self pairs, merge duplicates. */
 export function sanitizeProposal(raw: unknown, validIds: readonly string[], maxDelta = MAX_SCENE_DELTA): DeltaProposal {
@@ -72,14 +96,24 @@ export function rereadChange(next: DeltaProposal, applied: DeltaProposal, applie
   };
 }
 
-/** Apply a re-read once per scene: the net change from rereadChange and fresh memories, without a second dose of shared-time closeness. */
-export function applyReread(s: GameState, sceneId: string, change: DeltaProposal, participants: string[]) {
-  for (const d of change.affinityDeltas) addRel(s, d.from, d.to, 'affinity', d.delta);
-  for (const d of change.romanceDeltas) addRel(s, d.from, d.to, 'romance', d.delta);
+/** Apply the net correction and fresh memories without a second dose of shared-time closeness. */
+export function applyReread(s: GameState, sceneId: string, change: DeltaProposal, participants: string[], markReread = true, boardChange = change) {
+  for (const field of ['affinity', 'romance'] as const) for (const d of field === 'affinity' ? change.affinityDeltas : change.romanceDeltas) {
+    addRel(s, d.from, d.to, field, d.delta);
+  }
+  for (const field of ['affinity', 'romance'] as const) for (const d of field === 'affinity' ? boardChange.affinityDeltas : boardChange.romanceDeltas) {
+    // Keep the player's noisy estimate, correcting only the conversation they experienced.
+    const known = s.beliefs[s.playerId]?.[`${d.from}>${d.to}`];
+    if (d.from !== s.playerId && (participants.includes(s.playerId) || (known?.conf ?? 0) >= 0.12)) {
+      const be = belief(s, s.playerId, d.from, d.to);
+      be[field] = clamp(be[field] + d.delta, field === 'affinity' ? -100 : 0, 100);
+      be.conf = Math.max(be.conf, 0.45);
+    }
+  }
   for (const d of change.tensionDeltas) addRel(s, d.from, d.to, 'tension', d.delta);
   for (const d of change.trustDeltas) addRel(s, d.from, d.to, 'trust', d.delta);
   for (const m of change.newMemories) addMemory(s, m.charId, m.text, participants, m.salience);
-  s.world.flags[`reread:${sceneId}`] = true;
+  if (markReread) s.world.flags[`reread:${sceneId}`] = true;
 }
 
 /** Drama = Σ_ij tension + asym + romanceGap over in-house ordered pairs. */

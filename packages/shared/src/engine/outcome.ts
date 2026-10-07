@@ -9,9 +9,9 @@ import {
   addFact, addLog, addMemory, addRel, attracted, coupleOf, firstName, housemates, learn, placeName, rel, traitsOf,
 milestoneOf, } from './core';
 import { applyProposal, sanitizeProposal } from './relationships';
-import { gossipCandidate, observe, revealSecret, transmit } from './knowledge';
+import { gossipCandidate, keepsSecret, observe, revealSecret, transmit } from './knowledge';
 import { addGrudge, apologize, mintReference, publicAct } from './social';
-import { markLeaving } from './leave';
+import { invitePartnerToLeave, markLeaving } from './leave';
 import { resolveOn } from './predictions';
 import { completeBeat } from './arcs';
 import { interactionProposal, type IxType } from './interactions';
@@ -63,7 +63,7 @@ const IX_TYPES: Record<string, IxType> = {
 /** Engine (mock) delta proposal: template drama profile scaled by chosen intents and recipients' receptiveness. */
 export function engineProposal(s: GameState, rng: Rng, ev: EventInstance, choices: SceneChoices): DeltaProposal {
   const t = content().eventById.get(ev.templateId)!;
-  const ix = IX_TYPES[t.id];
+  const ix = ev.tags.includes('interaction-help') ? 'help' : ev.tags.includes('interaction-household') ? 'household' : ev.tags.includes('interaction-cold') ? 'cold' : ev.tags.includes('interaction-jealousy') ? 'jealousy' : IX_TYPES[t.id];
   if (ix) return interactionProposal(s, rng, ix, ev.roles.a, ev.roles.b);
   const b = ev.roles;
   const p: DeltaProposal = { affinityDeltas: [], romanceDeltas: [], tensionDeltas: [], trustDeltas: [], newMemories: [], moodDeltas: [] };
@@ -156,16 +156,9 @@ export function resolveConfession(s: GameState, rng: Rng, a: string, b: string, 
     for (const w of new Set([a, b, ...witnesses])) learn(s, w, f.id, 'witnessed');
     addLog(s, { kind: 'couple', text: `${firstName(s, a)} confessed to ${firstName(s, b)} — and ${firstName(s, b)} said yes.`, participants: [a, b], salience: 1, factId: f.id });
     resolveOn(s, 'couple', a, b);
-    // saying yes to someone who is leaving means leaving with them (the show's classic exit)
+    // Accepting a relationship and deciding to graduate are separate decisions.
     const leaver = [a, b].find((id) => typeof s.world.flags[`leaving_${id}`] === 'number');
-    const stayer = leaver === a ? b : a;
-    if (leaver && s.characters[stayer].isPlayer) s.world.flags.canGraduate = leaver;
-    else if (leaver && !s.world.flags[`leaving_${stayer}`]) {
-      markLeaving(s, stayer, `left the house with ${firstName(s, leaver)}`);
-      s.world.flags[`leaving_${stayer}`] = s.world.flags[`leaving_${leaver}`];
-      s.world.flags[`announced_${stayer}`] = true;
-      addLog(s, { kind: 'departure', text: `${firstName(s, stayer)} will leave the house with ${firstName(s, leaver)}.`, participants: [a, b], salience: 1 });
-    }
+    if (leaver) invitePartnerToLeave(s, leaver);
     // jealousy: anyone else with strong feelings for either
     for (const c of housemates(s)) {
       if (c.id === a || c.id === b) continue;
@@ -220,6 +213,8 @@ export function applyEffects(s: GameState, rng: Rng, ev: EventInstance, choices:
       if (rng.chance(pLeave)) {
         markLeaving(s, id, e.leaveReason ?? 'left the house');
         (res.leaving ??= []).push(id);
+        const partner = invitePartnerToLeave(s, id);
+        if (partner) res.leaving.push(partner);
       }
     }
       if (e.house) for (const [k, v] of Object.entries(e.house)) {
@@ -305,6 +300,14 @@ export function applySceneOutcome(
     const fact = gossipCandidate(s, ev.roles.a, ev.roles.b, ev.roles.c);
     if (fact) transmit(s, rng, ev.roles.a, ev.roles.b, fact, ev.location === 'phone' ? [] : housemates(s).filter((c) => c.location === ev.location).map((c) => c.id));
   }
+  if (ev.templateId === 'former-housemate') {
+    for (const [teller, listener] of [[ev.roles.a, ev.roles.b], [ev.roles.b, ev.roles.a]]) {
+      if (choices[listener] === 'deflect') continue;
+      const fact = gossipCandidate(s, teller, listener);
+      if (fact && (fact.kind !== 'secret' || !keepsSecret(s, rng, teller, fact))) transmit(s, rng, teller, listener, fact, participants);
+    }
+    for (const id of participants) addMemory(s, id, ev.premise, participants, 0.6);
+  }
   // scene becomes a fact witnessed by participants (and co-located housemates)
   const witnesses = new Set(participants);
   if (ev.location !== 'phone')
@@ -314,7 +317,7 @@ export function applySceneOutcome(
     subject: participants[0] ?? s.playerId,
     about: participants[1],
     kind: t.tags.includes('conflict') ? 'conflict' : t.tags.includes('romance') ? 'romance' : 'event',
-    content: `${t.title}: ${participants.map((id) => firstName(s, id)).join(' & ')} at the ${placeName(ev.location)}.`,
+    content: `${ev.title}: ${participants.map((id) => firstName(s, id)).join(' & ')} at the ${placeName(ev.location)}.`,
     truth: true,
     sensitivity,
   });

@@ -2,7 +2,7 @@
 // A full keyboard-accessible action list mirrors everything the map offers.
 import { Tip } from '../components/Tip';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { classToday, content, priceLabel, ROOMS, placeName, roomName, shiftToday, TRIPS, type CharView, type PlayerAction, type PlayerView, type Room } from '@shared-roof/shared';
+import { classToday, content, HOUSEHOLD, HOUSEHOLD_ACTIVITIES, priceLabel, ROOMS, placeName, roomName, shiftToday, TRIPS, type HouseholdActivity, type CharView, type PlayerAction, type PlayerView, type Room } from '@shared-roof/shared';
 import { useGame } from '../store';
 import { TopBar, StudioStrip, DigestModal, slotLabel } from '../components/layout';
 import { Btn, Modal, Panel } from '../components/ui';
@@ -80,6 +80,9 @@ export function House() {
   const [invite, setInvite] = useState('');
   const [meetingRoom, setMeetingRoom] = useState<Room>('kitchen');
   const [meetingGuest, setMeetingGuest] = useState('');
+  const [meetingGuests, setMeetingGuests] = useState<string[]>([]);
+  const [household, setHousehold] = useState<HouseholdActivity>('meal');
+  const [householdGuest, setHouseholdGuest] = useState('');
   const [poolOpen, setPoolOpen] = useState(false);
   const [poolGuests, setPoolGuests] = useState<string[]>([]);
   const [assetsReady, setAssetsReady] = useState(false);
@@ -546,7 +549,8 @@ export function House() {
                   </span>
                   {a.talkingTo && <span data-conversation className="mt-1 block bg-paper/85 px-1">going to talk with {byId[a.talkingTo]?.name.split(' ')[0]}</span>}
                   {a.departing && <span className="mt-1 block bg-paper/85 px-1">{a.goingPrivate ? 'taking some private time' : 'heading out'}{a.companion ? ` with ${byId[a.companion]?.name.split(' ')[0]}` : ''}</span>}
-                  {c.bark && a.id === speakingActor && <span className="mt-1 block max-w-40 bg-paper px-2 py-1 text-xs leading-tight">{c.bark}</span>}
+                   {c.activityLabel && <span className="mt-1 block bg-paper/85 px-1">{c.activityLabel}{c.companion ? ` with ${byId[c.companion]?.name.split(' ')[0] ?? 'company'}` : ''}</span>}
+                   {c.bark && a.id === speakingActor && <span className="mt-1 block max-w-40 bg-paper px-2 py-1 text-xs leading-tight">{c.bark}</span>}
                 </div>
               );
             })}
@@ -625,21 +629,31 @@ export function House() {
               {(() => {
                 const partner = chars.find((c) => !c.isPlayer && c.partner === view.playerId);
                 return partner && partner.id !== view.canGraduate ? (
-                  <Btn disabled={busy || walking} onClick={() => setConfirm({ title: `leave the house with ${partner.name.split(' ')[0]}? (you'll create the next housemate who moves in)`, action: { type: 'graduate', with: partner.id } })}>leave with {partner.name.split(' ')[0]}</Btn>
+                  <Btn disabled={busy || walking} onClick={() => setConfirm({ title: `graduate and ask ${partner.name.split(' ')[0]} to come? They can choose to stay; you'll leave alone if they decline, then create your next housemate.`, action: { type: 'graduate', with: partner.id } })}>ask {partner.name.split(' ')[0]} to leave together</Btn>
                 ) : null;
               })()}
               <Btn disabled={busy || walking} onClick={() => setConfirm({ title: 'graduate from the house alone? (your farewell happens now; then you create the next housemate who moves in)', action: { type: 'graduate' } })}>leave the house</Btn>
               <Btn disabled={busy || walking || view.episode < 3 || !!view.finaleEpisode} onClick={() => setConfirm({ title: 'announce the final episode? everyone gets one last chance before the season wraps.', action: { type: 'endSeason' } })}>{view.finaleEpisode ? 'finale announced' : 'wrap the season'}</Btn>
             </div>
           </Panel>
-          {view.aired !== null && view.aired >= view.episode - 2 && <BroadcastPanel episode={view.aired} />}
+          {view.aired !== null && <BroadcastPanel episode={view.aired} />}
           {view.weekday === 5 && ['morning', 'slot1', 'slot2'].includes(view.slot) && (
             <TripPanel chars={npcsHere.filter((c) => c.location !== 'out')} offer={view.tripOffer} disabled={busy || walking} onGo={(node, withIds, roommate) => setConfirm({ title: `leave for ${TRIPS[node].name} with ${withIds.map((id) => byId[id]?.name.split(' ')[0]).join(', ')}? (back tomorrow morning)`, action: { type: 'trip', node, with: withIds, roommate } })} />
           )}
-          <Panel title="invite a housemate">
+           <Panel title="everyday life">
+             <p className="caption mb-2 text-xs">A little housework or time together. Pick once, then chat while you do it. Housemates also lend a hand on their own.</p>
+             <label className="mb-2 flex flex-col gap-1 text-sm">activity<select aria-label="household activity" className="px-panel-soft px-2 py-1" value={household} onChange={e => setHousehold(e.target.value as HouseholdActivity)}>{HOUSEHOLD_ACTIVITIES.map(id => <option key={id} value={id}>{HOUSEHOLD[id].label} · {HOUSEHOLD[id].minutes} min</option>)}</select></label>
+             <label className="mb-2 flex flex-col gap-1 text-sm">company<select aria-label="household company" className="px-panel-soft px-2 py-1" value={householdGuest} onChange={e => setHouseholdGuest(e.target.value)}><option value="">on my own</option>{npcsHere.filter(c => c.location && c.location !== 'out' && !c.household && !['work', 'sleep', 'nap', 'shower'].includes(c.activity ?? '')).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+             <p className="caption mb-2 text-xs">{HOUSEHOLD[household].detail}</p>
+             <Btn primary disabled={busy || walking || unfinished || !!view.householdOptions?.find(o => o.id === household)?.reason} onClick={() => doAct({ type: 'household', activity: household, target: householdGuest || undefined })}>{householdGuest ? 'invite & start together' : 'start activity'}</Btn>
+             {view.householdOptions?.find(o => o.id === household)?.reason && <p className="mt-2 text-xs" role="status">{view.householdOptions.find(o => o.id === household)?.reason}</p>}
+             {npcsHere.filter(c => c.household && !c.companion).map(c => <div key={c.id} className="mt-3 text-sm"><p>{c.name.split(' ')[0]}: {c.activityLabel}</p><Btn className="mt-1" disabled={busy || walking || unfinished} onClick={() => doAct({ type: 'household', activity: c.household!, target: c.id, join: true })}>join {c.name.split(' ')[0]} & talk</Btn></div>)}
+           </Panel>
+           <Panel title="invite housemates">
             <label className="mb-2 flex flex-col gap-1 text-sm">room<select aria-label="meet in room" className="px-panel-soft px-2 py-1" value={meetingRoom} onChange={e => setMeetingRoom(e.target.value as Room)}>{content().house.rooms.filter(r => !r.private && !r.id.startsWith('stairs')).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
             <label className="mb-2 flex flex-col gap-1 text-sm">housemate<select aria-label="invite housemate" className="px-panel-soft px-2 py-1" value={meetingGuest} onChange={e => setMeetingGuest(e.target.value)}><option value="">choose someone</option>{npcsHere.filter(c => c.location !== 'out' && !['work', 'sleep', 'nap', 'shower'].includes(c.activity ?? '')).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-            <Btn primary disabled={busy || walking || unfinished || !meetingGuest} onClick={() => doAct({ type: 'talk', target: meetingGuest, room: meetingRoom })}>go together & talk</Btn>
+             <fieldset className="mb-3 text-sm"><legend>also invite</legend>{npcsHere.filter(c => c.id !== meetingGuest && c.location && c.location !== 'out' && !['work', 'sleep', 'nap', 'shower'].includes(c.activity ?? '')).map(c => <label key={c.id} className="flex items-center gap-2"><input type="checkbox" checked={meetingGuests.includes(c.id)} disabled={!meetingGuests.includes(c.id) && meetingGuests.length >= 3} onChange={e => setMeetingGuests(prev => e.target.checked ? [...prev, c.id] : prev.filter(id => id !== c.id))} />{c.name.split(' ')[0]}</label>)}</fieldset>
+             <Btn primary disabled={busy || walking || unfinished || !meetingGuest} onClick={() => doAct({ type: 'talk', target: meetingGuest, room: meetingRoom, guests: meetingGuests.filter(id => id !== meetingGuest && npcsHere.some(c => c.id === id && c.location && c.location !== 'out' && !['work', 'sleep', 'nap', 'shower'].includes(c.activity ?? ''))) })}>go together & talk</Btn>
             <p className="caption mt-2 text-xs">Meet in this room and continue talking there.</p>
           </Panel>
           <Panel title="who's where">
@@ -702,18 +716,20 @@ function BroadcastPanel({ episode }: { episode: number }) {
   const [data, setData] = useState<Awaited<ReturnType<typeof api.broadcast>> | null>(null);
   return (
     <Panel title={`📺 episode ${episode} has aired`}>
-      <p className="caption text-xs">The house watched it on TV. See what they saw, including the moments you weren't there for.</p>
+      <p className="caption text-xs">Days {(episode - 1) * 3 + 1}–{episode * 3}, aired on day {episode * 3 + 3}. See the important moments the house watched together.</p>
       <Btn className="mt-2 text-xs" onClick={() => void api.broadcast().then(setData)}>watch the episode</Btn>
       {data && (
         <Modal title={`episode ${data.episode ?? episode}, as aired`} onClose={() => setData(null)}>
           <div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto scroll-thin text-sm">
-            {data.scenes.length === 0 && <p className="caption">a quiet episode: nothing made the cut.</p>}
+            {data.highlights.map((moment, i) => <p key={`highlight:${i}`} className="reply-text"><span className="caption">day {moment.day}:</span> {moment.text}</p>)}
+            {data.scenes.length === 0 && data.highlights.length === 0 && data.panel.length === 0 && <p className="caption">a quiet episode: nothing made the cut.</p>}
             {data.scenes.map((sc, i) => (
               <section key={i} className={sc.mine ? 'px-panel-soft p-2' : 'p-2'}>
-                <h3 className="text-xs">{sc.title} · {sc.location}{sc.mine ? ' · you' : ''}</h3>
-                {sc.lines.map((l, j) => <p key={j}><span className="caption">{l.name}:</span> {l.text}</p>)}
+                <h3 className="text-xs">day {sc.day} · {sc.title} · {sc.location}{sc.mine ? ' · you' : ''}</h3>
+                {sc.lines.map((l, j) => <p key={j} className="reply-text"><span className="caption">{l.name}:</span> {l.text}</p>)}
               </section>
             ))}
+            <section aria-label="broadcast panel commentary"><h3 className="text-sm">the panel, on TV</h3>{data.panel.map((line, i) => <p key={i} className="reply-text"><span className="caption">day {line.day} · {line.name}:</span> {line.text}</p>)}</section>
           </div>
         </Modal>
       )}
@@ -763,7 +779,7 @@ function WhoRow({ c, onTalk, disabled }: { c: CharView; onTalk: () => void; disa
         </div>
         <div className="caption text-xs">
           {c.location === 'out' ? 'out' : c.location ? roomName(c.location) : '?'}{c.floor !== null && c.floor !== undefined ? ` · ${c.floor === 0 ? 'ground floor' : 'upstairs'}` : ''}
-          {c.activity ? ` · ${c.activity}` : ''}
+           {c.activityLabel || c.activity ? ` · ${c.activityLabel ?? c.activity}` : ''}
           {c.mood && (
             <>
               {' · '}

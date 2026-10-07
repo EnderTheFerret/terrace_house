@@ -99,8 +99,21 @@ describe('cooking state machine', () => {
     const rs = content().recipes;
     expect(rs.length).toBeGreaterThanOrEqual(8);
     const shapes = new Set(rs.map((r) => r.steps.map((s) => `${s.type}:${s.deps.length}`).join(',')));
-    expect(shapes.size).toBe(rs.length);
-    for (const r of rs) for (const s of r.steps) for (const d of s.deps) expect(r.steps.some((x) => x.id === d)).toBe(true);
+    // Different dishes can share a workflow, while the collection must still offer variety.
+    expect(shapes.size).toBeGreaterThanOrEqual(8);
+    for (const r of rs) {
+      expect(new Set(r.steps.map(s => s.id)).size, r.name).toBe(r.steps.length);
+      for (const s of r.steps) for (const d of s.deps) expect(r.steps.some((x) => x.id === d)).toBe(true);
+      // Verify dependencies actually unlock, including when independent steps run in reverse order.
+      let cooking = startCooking(r);
+      for (let n = 0; n < r.steps.length; n++) {
+        const step = availableSteps(cooking, r).at(-1);
+        expect(step, `${r.name}: dependency deadlock`).toBeDefined();
+        cooking = completeStep(beginStep(cooking, r, step!.id), r, step!.id, 1, step!.seconds);
+      }
+      expect(cooking.done, r.name).toBe(true);
+      expect(cooking.quality, r.name).toBe(1);
+    }
   });
   it('respects dependencies; independent steps in any order; finishes with a quality', () => {
     const r = recipeById('miso-soup');

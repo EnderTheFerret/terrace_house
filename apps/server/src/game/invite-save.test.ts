@@ -37,9 +37,16 @@ it('the player can invite a housemate during a talk, the answer follows how they
 
     // saving while the talk is open is allowed and remembers it
     const id = session.save(1);
-    expect(store.load(id)?.resume.transcript.length).toBeGreaterThan(2);
-    await session.load(id);
-    expect((session as any).interruptedTalk.participants).toContain(other);
+    expect(store.load(id)?.resume.scenes[0].transcript.length).toBeGreaterThan(2);
+    const transcript = structuredClone(run.transcript);
+    const minutes = session.state!.world.minutes;
+    session.load(id);
+    const restored = session.runs.get(run.id)!;
+    expect(restored.phase).toBe('awaiting-choice');
+    expect(restored.ev.participants).toContain(other);
+    expect(restored.transcript).toEqual(transcript);
+    await session.stream(restored.id, () => {});
+    expect(session.state!.world.minutes).toBe(minutes);
   } finally {
     await app.close();
   }

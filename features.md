@@ -2,6 +2,50 @@
 
 Everything below exists in the current code. Where a feature only works in one mode, it says so.
 
+## Added in the October 5–6, 2026 updates
+
+**Shared meal routines**
+- New seasons and resumed active saves have a mandatory first-night welcome dinner after the final move-in introduction. All six residents gather in the kitchen, even if they had other plans; skipping or sleeping stops for this dinner. Existing saves enable meals without advancing time or arrivals.
+- From day two, breakfast gathers one or two available housemates, while evening dinner gathers everyone available. Shifts, lectures, plans, outings, sleep and private routines affect attendance. Students can eat before their late-morning lectures.
+- Meals start while free at home in the first hour of morning/evening, or immediately through **hang out**. Ordinary meals preserve explicit talks and outings. The table supports choices, addressed typed words and listening.
+- Breakfast lasts at least 20 game minutes, dinner 40. The ready-to-eat vegan, kosher spread feeds every diner, uses fridge supplies/shared grocery budget, adds dishes and shared memories, and works on Shabbat. Meal completion is recorded once per day; saves and replay reproduce it.
+
+**Everyday life together (goal 5)**
+- The house's **everyday life** panel offers 15 quick activities: dishes, laundry, recycling, a house clean, sorting shelves, organizing the fridge, cooking for the house, coffee and tea, setting the table, plants, stretching, music, games, studying and small repairs.
+- Choose alone or invite one housemate. You can join a housemate partway through their activity and type freely while it continues. Ending the talk finishes the remaining work; longer talks continue after the activity is done.
+- Activities take 10–40 game minutes and require no extra minigames. Detailed cooking is still available. Dishes, laundry and recycling reduce the existing backlogs; housework credits both helpers. Shared-time bonuses are capped per pair per block.
+- NPCs choose the same activities from needs, personality, hobbies and household backlogs, and may join another NPC. Cooking reserves ingredients once, then serves a real meal to available residents within the recipe's serving count, checking diets and kitchen routines. A meal already underway takes priority; other cooks can join it instead of starting another meal.
+- Supportive check-ins, cold shoulders and jealousy widen NPC conversations. Jealousy needs a recent fact known to that character. Memories and small grudges carry friction into later choices; apologies help repair it.
+
+**Chat log and re-read**
+- A **chat log** screen (top bar) lists every finished conversation of the current day with its full transcript.
+- **Re-read this scene / re-read all** asks the dialogue model to read today's finished scenes again. Affinity, romance, trust and tension are corrected to match what was actually said, and the player's board estimates follow the corrections. Repeated readings replace previous effects; saves and replays reproduce them. Failed or empty readings remain retryable; pending readings and overheard chats are skipped by re-read all.
+- Re-read covers scenes with a written transcript only. NPC-only scenes resolved without dialogue are not included, and earlier days are not touched.
+
+**Overheard housemate conversations**
+- At the end of each time block, up to three background interactions become four lines of real dialogue, including ordinary chats, jokes, shared activities, check-ins, awkward exchanges, cold shoulders and jealousy alongside arguments, flirts, confessions, heart-to-hearts and apologies.
+- The game's rules still decide who interacts, what kind of exchange it is and how it ends (a rejected confession stays polite, a petty argument stays unresolved); the model only voices it.
+- The lines become both housemates' memories. They show in the chat log, marked "overheard", only if you were in the room. No template stand-in: an unusable answer shows nothing.
+- Witnessed conversations from the previous day's last block stay in the next day's log, labeled **last night**. Generation uses the completed block's snapshot and recorded outcome.
+- Runs in the background, one at a time, skipped while you are busy.
+
+**Slower, more believable feelings**
+- Affinity and romance from scenes and background chats count at half strength (`FEELING_SCALE` in `engine/core.ts`), so friendships and crushes build over days. Trust and tension are unchanged.
+- A model reading that moves no feeling at all (an empty proposal) falls back to the game's own numbers instead of applying nothing.
+- Only affinity can go below zero; romance, trust, tension and closeness run 0–100.
+
+**Dialogue quality and the Rocinante model**
+- Replies to typed words are 2–4 sentences and must add something real: a detail from the speaker's life, an honest opinion, a feeling, or a question back. Housemates notice actions written in your text ("I light up a cigarette").
+- Line parsing tolerates roleplay-model formatting: `*actions*`, quote wrapping, backticks, bold or capitalised ids, narration paragraphs, and a speaker's quoted words continuing on the next paragraph. Lines are cut to four sentences.
+- `terrace-rocinante:12b-q4` (Rocinante-X 12B, Mistral v3 Tekken template without `[SYSTEM_PROMPT]`) is set as the lines model in `.env`; see [docs/models/RocinanteX12B.Modelfile](docs/models/RocinanteX12B.Modelfile). Gemma 4 12B still handles structured calls. Rocinante has had only small probes, not a full benchmark.
+- `scripts/conversation-probe.ts` and `scripts/overheard-probe.ts` print sample chats from the real model.
+
+**Fixes**
+- **Class:** a student can join a lecture late (30 minutes of the block must remain, no return leg needed). The message now says "too late: the lecture is nearly over". Before, long chats used up the block and the button failed with "too far for this slot".
+- **Scene images** now stage your own typed action as well as the last NPC speaker's.
+- **Seated housemates** keep foreshortened legs instead of having them cut off.
+- **Relationship board** table caption explains that rows feel about columns, that your row is your real feelings, and that the other rows are your estimate.
+
 ## Added in the October 2–3, 2026 updates
 
 **The house, remade like Terrace House Tokyo 2019–2020**
@@ -138,7 +182,7 @@ Start by walking with **WASD/arrows**, pressing **E** at a person or hotspot, an
 - Calendar: consecutive days, Sunday–Thursday work, Friday half-days and Saturday openings. Seasonal sun/cloud/rain and sharav heatwaves; no generated snow. Holiday dates are fixed game-calendar approximations.
 - Local events: Purim, Independence Day, Shavuot, Pride, Rosh Hashanah, Sukkot, Hanukkah, Friday dinner and beach days. A sharav heatwave keeps people indoors.
 - Season finale screen: an epilogue for every housemate (including those who left) and the panel's prediction score.
-- **You can graduate too**: leave the house alone at any time, or with your partner (or with a leaver who asked you to come). Your farewell plays at the door, your partner's place is refilled, and then you **create your next character**, who rings the doorbell as a stranger to everyone (blank-slate relationships, no job) while the season carries on.
+- **You can graduate too**: leave alone, accept a departing partner's invitation, or ask your partner to come. They can choose to stay; the confirmation explains that you will leave alone if they decline. Your farewell plays at the door, anyone who leaves is replaced, and then you **create your next character**, who rings the doorbell as a stranger while the season carries on.
 
 ## Characters
 - Real mode generates validated persona fields and appearance text, retries an overly similar voice once, and logs complete snapshots for deterministic replay. Mock mode uses seeded archetypes.
@@ -148,7 +192,8 @@ Start by walking with **WASD/arrows**, pressing **E** at a person or hotspot, an
 - Default cast of five original adults (Ron, Kai, Shai, Maya, Shira); stable internal ids remain unchanged. Each has a full persona: Big-Five traits, attachment style, conflict style, ranked values, need decay rates, long- and short-term goals, a secret, fears, tells, speech profile, weekly routine, tastes, hobbies, backstory and homesickness.
 - Speech profiles: sentence length, formality, filler words, humor type, rate-capped catchphrase, chat-app style (stamps, punctuation, reply speed, read-and-ignore chance), three example lines and a "do not" list.
 - **24 personality archetypes** for generated casts (quiet craftsman, hype creator, gentle mediator, anxious caretaker, blunt artist, sunny athlete, cool strategist, dreamy romantic, class clown, homebody gamer, elegant heiress, earnest student, wanderer, big sister, night-shift nurse, ambitious salesperson, aspiring comedian, fashion student, zen instructor, shy illustrator, rebel courier, kindergarten sunshine, jet-setter, country kid). "Randomize cast" uses farthest-point sampling so the five are as different as possible, then resamples until the cast has ≥2 compatible pairs, ≥2 friction pairs, a latent love triangle and a stabilizer.
-- Leaving follows the show: whoever decides to go **announces it to the house** the next day (`I've decided to graduate`), gets one last day in the house, then leaves at the door the morning after. On that last day, a leaver with feelings for someone may make a **last confession** in the backyard (`would you leave with me?`); a yes means they leave together (the player gets the `graduate together` option).
+- Leaving follows the show: whoever decides to go **announces it to the house** the next day, gets one last day, then leaves at the door the morning after. A last-day confession can start a relationship, but leaving together is a separate decision. NPC partners need their own reason to leave and enough mutual goodwill; the player explicitly accepts or stays.
+- **Past residents visit**, including your previous player character: occasional evening reunions after at least three episodes away, with a three-episode cooldown between visits. They keep their saved memories, relationships and knowledge, meet newcomers, and can exchange gossip with its source recorded. They remain guests; they do not take a resident slot or rejoin the group chat.
 - A **welcome party** (shared dinner, `so what do you want to get out of this house?`) for each newcomer, the player included.
 - **Every graduation brings a newcomer**: a replacement of the same gender arrives the same day, right up to the last episode. They are chosen to stir things up (a new triangle, friction with the most settled pair) while staying unlike the existing cast.
 - Every character is 20 or older. This is enforced in the creator, the API and every image prompt.
@@ -240,7 +285,7 @@ Start by walking with **WASD/arrows**, pressing **E** at a person or hotspot, an
 - Mood drifts back to each person's baseline and spreads between people in the same room. Hunger, tiredness, weather and stress affect it.
 - Cliques form from mutual liking. A hostile clique can make a new group chat without someone.
 - Confessions: anyone can confess. The answer is decided by the other person's real feelings. A yes makes a couple and triggers jealousy in others; a no causes rejection and a grudge.
-- Leaving the house: a couple leaves together, an unanswered confession lingers, a streak of low mood, the end of a planned stay (about 40% of housemates have none), or an arc decision. Someone leaving gets a farewell scene at the door.
+- Leaving the house: unresolved rejection, low mood, the end of a planned stay, or an arc decision. Dating alone never forces a departure. Partners leave together only when both agree; leaving separately does not automatically break them up. Residents with no fixed stay can remain until the finale.
 - Memory: each character keeps their 40 most important memories (importance × recency) active and archives the rest for recall, writes an end-of-episode diary (real mode), keeps a relationship note per housemate (LLM-written, template fallback), and the episode gets a "previously" recap.
 
 ## House as shared state

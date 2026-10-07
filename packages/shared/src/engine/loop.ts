@@ -1,7 +1,7 @@
 // Slot loop. Public API is pure: (state, action) → new state (+ plan); randomness only via state.rngState.
 //   createGame → [planSlot → resolveScene* → finishSlot]*
 import type { EventTemplate } from '../contentSchema';
-import type { Character, DeltaProposal, EventInstance, GameState, PlayerAction, Slot } from '../model';
+import type { Character, DeltaProposal, EventInstance, GameState, PlayerAction, Room, Slot } from '../model';
 import { SCHEMA_VERSION, SLOTS } from '../model';
 import { mulberry32, type Rng } from '../rng';
 import { clamp, fill } from '../util';
@@ -14,16 +14,18 @@ import {
 import { applyCalendar, chooseTyphoonDay } from './calendar';
 import { bedroomOf, chooseAction, coordinateOutings, decayNeeds, isShabbat, resolveLocations, satisfy, type AgentAction } from './agents';
 import { candidates, expectedDrama, housemateRoles, sample, type Candidate } from './director';
-import { logInteraction, resolveColocation, resolveRemote, type Interaction } from './interactions';
+import { logInteraction, rememberInteraction, resolveColocation, resolveRemote, type Interaction } from './interactions';
 import { arcCandidates, careerChanges, initArc, refreshJobArc } from './arcs';
 import { applySceneOutcome, engineProposal, npcIntent, type SceneChoices, type SceneResolution } from './outcome';
 import { applyProposal, sanitizeProposal } from './relationships';
-import { autoGroceries, consume, houseTick, initHouse, rotateChores, workCareerTick } from './house';
+import { autoGroceries, houseTick, initHouse, rotateChores, workCareerTick } from './house';
+import { HOUSEHOLD, householdCompanyProblem, householdProblem, joinHousehold, startHousehold, startNpcHouseholds } from './household';
 import { decayGrudges, maybeGroupChatExclusion, updateMoods } from './social';
-import { depart, departLeaving, evaluateLeaves, markLeaving, processArrivals } from './leave';
+import { depart, departLeaving, evaluateLeaves, invitePartnerToLeave, markLeaving, processArrivals } from './leave';
 import { expirePredictions } from './predictions';
 import { compactAll, previouslyRecap, updatePairSummaries } from './memory';
 import { pruneFacts } from './knowledge';
+import { communalMeal, serveCommunalMeal, welcomeDinnerDue } from './meals';
 import { castGenders, defaultCast, DEFAULT_PLAYER, generateCast, initRelationships, playerFromSetup, type PlayerSetup } from './castgen';
 import { fridgeTotal } from './conditions';
 import { ACTIVITY_MINUTES, canUseCar, classToday, CONTRACT_BONUS, contractDays, MISSES_BEFORE_FIRED, reachability, shiftToday, WAGE } from './city';
@@ -36,9 +38,9 @@ function spendFit(s: GameState, a: Extract<PlayerAction, { type: 'goOut' }>, pri
   return afford(playerBudget(s), a.activity === 'gift' && a.item ? GIFT_PRICE[a.item] ?? 1 : price);
 }
 import { airEpisode, airingTonight } from './broadcast';
-import { outsiderMoment } from './outsiders';
+import { outsiderMoment, returningResident } from './outsiders';
+import { performanceScene } from './performances';
 import { leaveOnTrip, maybeNpcTrip, maybeOfferTrip, returningFromTrip, tripProblem, TRIPS } from './trips';
-import { npcRecipe } from './cooking';
 import { advanceLiving, canVisit, GIFT_ITEMS, knock, observeRoutines, recordActivity, relationshipUpkeep, scheduleActivity, settlePlans, socialAction, startPlans, validPlanPlace } from './living';
 
 export interface NewGameOptions {
@@ -50,6 +52,8 @@ export interface NewGameOptions {
   /** Episode 1 starts with the player and one housemate; the others arrive through evening. */
   moveInDay?: boolean;
   moveInVersion?: 1 | 2;
+  /** New sessions enable this; older event logs keep their original scheduling. */
+  communalMeals?: boolean;
 }
 
 /** Legacy saves: which block each arrival comes through the door. */
@@ -130,6 +134,7 @@ export function createGame(o: NewGameOptions): GameState {
   s.world.typhoonDay = chooseTyphoonDay(rng, seasonLength || 365);
   applyCalendar(s, rng);
   rotateChores(s);
+  s.world.flags.communalMeals = o.communalMeals ?? false;
   s.world.flags[`new_${P.id}`] = 1; // the player is the newcomer at the door in episode 1
   if (o.moveInDay && o.moveInVersion === 1) {
     const order = rng.shuffle(all.map(c => c.id));
@@ -266,6 +271,30 @@ export function planMoveInArrival(s0: GameState): { state: GameState; plan: Slot
   return { state: s, plan };
 }
 
+export function planHouseMeal(s0: GameState): { state: GameState; plan: SlotPlan } {
+  const s = cloneState(s0);
+  const plan: SlotPlan = { scenes: [], npcActions: {} };
+  if (welcomeDinnerDue(s) && !Object.values(s.characters).some(c => c.status === 'arriving')) {
+    const until = Math.max(s.world.minutes, ...housemates(s).filter(c => c.actionHousehold).map(c => c.activityUntil));
+    withRng(s, rng => advanceLiving(s, rng, until, new Set(housemates(s).map(c => c.id))));
+  }
+  const meal = communalMeal(s);
+  if (!meal) return { state: s, plan };
+  const { participants, kind, mandatory } = meal;
+  const ev = makeEvent(s, content().eventById.get('casual-chat')!, { a: participants[0], b: participants[1] }, 'kitchen', {
+    participants, isPlayerScene: participants.includes(s.playerId), playerPresent: participants.includes(s.playerId),
+    title: mandatory ? 'welcome dinner · the whole house' : kind === 'breakfast' ? 'breakfast together' : 'house dinner',
+    tags: ['light', 'group', 'communal-meal', kind, ...(mandatory ? ['welcome-dinner'] : [])],
+    premise: `${mandatory ? 'Everyone has finally moved in. All six residents put aside their plans for the mandatory first-night welcome dinner.' : kind === 'breakfast' ? 'A small breakfast before the day begins; only housemates free from work or class join the table.' : 'The house gathers for its evening dinner; anyone working, out or resting keeps their own schedule.'} ${participants.map(id => firstName(s, id)).join(', ')} sit together in the kitchen, sharing ready-to-eat hummus and pita with vegan food and kosher preparation for everyone. They can talk about their day, get to know each other or just listen.`,
+    factRefs: Object.fromEntries(participants.map(id => [id, factRefsFor(s, id, participants)])), freeze: false,
+  });
+  gather(s, ev);
+  for (const id of participants) scheduleActivity(s, s.characters[id], { kind: 'eat', duration: kind === 'breakfast' ? 20 : 40 });
+  s.world.playerNode = participants.includes(s.playerId) ? 'house' : s.world.playerNode;
+  plan.scenes.push({ event: ev, render: ev.isPlayerScene, visible: false, priority: mandatory ? 4 : 3 });
+  return { state: s, plan };
+}
+
 function planMoveInDayAction(s: GameState, action: PlayerAction): { state: GameState; plan: SlotPlan } {
   const pending = planMoveInArrival(s);
   if (pending.plan.scenes.length) return pending;
@@ -276,7 +305,7 @@ function planMoveInDayAction(s: GameState, action: PlayerAction): { state: GameS
     const order = String(s.world.flags.moveIn).split(',');
     const next = order.findIndex(id => s.characters[id]?.status === 'arriving');
     const due = next >= 0 ? MOVE_IN_MINUTES[next] - (SLOT_START[s.world.slot] - 7) * 60 : Infinity;
-    const end = Math.min(SLOT_MINUTES, s.world.minutes + actionMinutes(action), Math.max(s.world.minutes, due));
+    const end = Math.min(SLOT_MINUTES, s.world.minutes + (action.type === 'text' ? 5 : actionMinutes(action)), Math.max(s.world.minutes, due));
     advanceLiving(s, rng, end, new Set(action.type === 'talk' ? [action.target, ...(action.guests ?? [])] : []));
     const ev = planPlayerScene(s, rng, action, acts, invite, talk);
     if (ev) { gather(s, ev); plan.scenes.push({ event: ev, render: true, visible: false, priority: 3 }); }
@@ -294,9 +323,10 @@ const HOUSE_ROOM: Record<string, (c: Character) => string> = {
  * Outings, rest and letting time pass take the whole block.
  */
 export function actionMinutes(a: PlayerAction): number {
+  if (a.type === 'household') return HOUSEHOLD[a.activity].minutes;
   if (a.type === 'house') return { hangout: 10, cook: 60, tidy: 30, rest: SLOT_MINUTES, backyard: 20, hobby: 60 }[a.activity];
-  if (a.type === 'talk' || a.type === 'text') return 5;
-  if (a.type === 'visit' || a.type === 'like' || a.type === 'pool') return 0;
+  if (a.type === 'talk') return 5;
+  if (a.type === 'text' || a.type === 'visit' || a.type === 'like' || a.type === 'pool') return 0;
   if (['endSeason', 'plan', 'respondPlan', 'post'].includes(a.type)) return 5;
   if (a.type === 'gift' || a.type === 'approach') return 5;
   if (a.type === 'favor') return 10;
@@ -314,9 +344,17 @@ export function passTime(s0: GameState, lines: number, participants: string[] = 
 
 export const blockOver = (s: GameState) => s.world.minutes >= SLOT_MINUTES;
 
+export function respondToPlan(s0: GameState, action: Extract<PlayerAction, { type: 'respondPlan' }>): GameState {
+  const s = cloneState(s0);
+  validateAction(s, action);
+  socialAction(s, action);
+  return s;
+}
+
 function validateAction(s: GameState, a: PlayerAction) {
   const P = player(s);
   if (s.awaitingPlayer) throw new Error('create your next housemate first');
+  if (s.world.flags.communalMeals && s.world.flags.moveIn && s.world.episode === 1 && s.world.flags.mealDinner !== 1 && ['graduate', 'trip'].includes(a.type)) throw new Error('Have the first-night welcome dinner before leaving the house or taking an overnight trip.');
   if (a.type === 'pool') validatePool(s, a);
   if (a.type === 'endSeason' && (s.world.episode < 3 || s.finaleEpisode !== null)) throw new Error('wrap is available after episode 3, once per season');
   if ('target' in a && a.target && (a.target === P.id || s.characters[a.target]?.status !== 'inHouse')) throw new Error('that housemate is not available');
@@ -397,9 +435,7 @@ function applyPlayerAction(s: GameState, a: PlayerAction): { invite?: string; ta
       return { talk: a.target };
     case 'talk': {
       const t = s.characters[a.target];
-      const priv = content().house.rooms.find((r) => r.id === t?.location)?.private;
-      // you knock on a bedroom/bathroom door and talk in the living room instead
-      P.location = a.room ?? (t && isRoom(t.location) && !priv ? t.location : 'living');
+      P.location = a.room ?? (t && isRoom(t.location) ? t.location : 'living');
       if (P.location !== 'backyard') P.swimming = false;
       s.world.playerNode = 'house';
       satisfy(P, 'seek');
@@ -470,9 +506,10 @@ function applyPlayerAction(s: GameState, a: PlayerAction): { invite?: string; ta
       return {};
     case 'graduate': {
       // you can always leave alone; leaving *with* someone needs them to be your partner (or to have asked you)
-      const w = a.with && s.characters[a.with]?.status === 'inHouse' && (isCouple(s, P.id, a.with) || flag(s, 'canGraduate') === a.with) ? a.with : undefined;
-      markLeaving(s, P.id, w ? `graduated with ${firstName(s, w)}` : 'graduated alone');
-      if (w) markLeaving(s, w, `graduated with ${P.name.split(' ')[0]}`);
+      const requested = a.with && s.characters[a.with]?.status === 'inHouse' && isCouple(s, P.id, a.with) ? a.with : undefined;
+      markLeaving(s, P.id, 'graduated alone');
+      const w = requested ? invitePartnerToLeave(s, P.id) : null;
+      if (w) s.world.flags[`leaveReason_${P.id}`] = `graduated with ${firstName(s, w)}`;
       s.world.flags.playerGraduated = w ?? 'alone';
       P.location = 'entrance';
       return {};
@@ -501,6 +538,13 @@ function planPlayerScene(s: GameState, rng: Rng, a: PlayerAction, acts: Record<s
   }
   if (a.type === 'goOut' && !isRoom(P.location)) {
     const node = P.location;
+    const show = performanceScene(s);
+    if (show && !['work', 'class', 'gift', 'shop'].includes(a.activity)) {
+      const host = show.participants![0];
+      return makeEvent(s, content().eventById.get('chance-encounter')!, { a: host, b: P.id }, node, {
+        ...show, factRefs: Object.fromEntries(show.participants!.map(id => [id, factRefsFor(s, id, show.participants!)])),
+      });
+    }
     const guests = a.type === 'goOut' ? (a.guests ?? []).filter((id) => s.characters[id]?.status === 'inHouse') : [];
     const here = housemates(s).filter((c) => c.id === P.id || c.id === invite || guests.includes(c.id) || c.location === node);
     let cs = withPlayer(candidates(s, rng, { location: node, pool: here, isPlayerScene: true, activity: a.activity, focus: invite }));
@@ -533,7 +577,7 @@ function planPlayerScene(s: GameState, rng: Rng, a: PlayerAction, acts: Record<s
   if (a.type === 'house' && a.activity === 'rest') return null;
   const pool = housemates(s).filter((c) => c.id === P.id || (available(s, c, acts) && !departing(s, c.id)) || c.id === talk);
   const inRoom = pool.filter((c) => c.location === room || c.id === P.id || c.id === talk);
-  const usePool = inRoom.length >= 2 ? inRoom : pool;
+  const usePool = inRoom;
   // light conversations pull in everyone else hanging out in the room, like the show's living-room talks
   const company = (e: EventInstance | null) => {
     if (!e || !e.tags.includes('light') || !isRoom(e.location)) return e;
@@ -550,27 +594,118 @@ function planPlayerScene(s: GameState, rng: Rng, a: PlayerAction, acts: Record<s
   return company(makeEvent(s, content().eventById.get('casual-chat')!, { a: P.id, b: partner }, room));
 }
 
+const titles: Partial<Record<Interaction['type'], string>> = { help: 'checking in after a long day', household: 'talking while helping around the house', cold: 'a cold shoulder', jealousy: 'a jealous worry' };
 const IX_TEMPLATE: Record<string, string> = {
   chat: 'ix-chat', deep: 'ix-deep', flirt: 'ix-flirt', bicker: 'ix-bicker', awkward: 'ix-awkward', joke: 'ix-joke', confess: 'ix-confess', apology: 'ix-apology', gossip: 'ix-gossip',
+  help: 'ix-deep', household: 'ix-chat', cold: 'ix-awkward', jealousy: 'ix-bicker',
 };
 
 export interface PlanOptions {
   /** render top-k salient NPC scenes even when the player isn't there */
   renderTopK?: number;
+  /** Replay texts logged before instant phone exchanges were introduced. */
+  legacyText?: boolean;
 }
 
 export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions = {}): { state: GameState; plan: SlotPlan } {
+  const result = planAction(s0, action, opts);
+  const { state: s, plan } = result;
+  const airs = !s.seasonOver && action.type !== 'text' && s.world.slot === 'evening' ? airingTonight(s) : null;
+  if (airs !== null) {
+    const participants = housemates(s).filter(c => isRoom(c.location) && !['work', 'sleep', 'nap', 'shower'].includes(c.lastAction ?? '') && (!c.isPlayer || !['skip', 'sleep'].includes(action.type))).map(c => c.id);
+    if (participants.length >= 2) {
+      const premise = airEpisode(cloneState(s), airs, participants);
+      const ev = makeEvent(s, content().eventById.get('broadcast-watch')!, { a: participants[0], b: participants[1] }, 'living', {
+        participants, premise, factRefs: Object.fromEntries(participants.map(id => [id, factRefsFor(s, id, participants)])),
+        isPlayerScene: participants.includes(s.playerId), playerPresent: participants.includes(s.playerId),
+      });
+      plan.scenes.push({ event: ev, render: !['skip', 'sleep'].includes(action.type), visible: false, priority: 2 });
+    }
+  }
+  return result;
+}
+
+/** Queued TV scenes move and inform the audience only when the watch actually begins. */
+export function beginBroadcast(s: GameState, ev: EventInstance): boolean {
+  if (ev.templateId !== 'broadcast-watch' || s.world.flags.broadcastWatchId === ev.id) return false;
+  const airs = airingTonight(s);
+  if (airs === null) return false;
+  ev.premise = airEpisode(s, airs, ev.participants);
+  s.world.flags.broadcastWatchId = ev.id;
+  gather(s, ev);
+  ev.factRefs = Object.fromEntries(ev.participants.map(id => [id, factRefsFor(s, id, ev.participants)]));
+  return true;
+}
+
+function planAction(s0: GameState, action: PlayerAction, opts: PlanOptions): { state: GameState; plan: SlotPlan } {
   const s = cloneState(s0);
   const plan: SlotPlan = { scenes: [], npcActions: {} };
   if (s.seasonOver) return { state: s, plan };
+  if (action.type === 'text' && !opts.legacyText) {
+    validateAction(s, action);
+    return { state: s, plan };
+  }
+  if (welcomeDinnerDue(s)) {
+    const arrival = planMoveInArrival(s);
+    if (arrival.plan.scenes.length) return arrival;
+  }
+  if (welcomeDinnerDue(s) || action.type === 'house' && action.activity === 'hangout' && !action.target) {
+    const meal = planHouseMeal(s);
+    if (meal.plan.scenes.length) return meal;
+  }
   validateAction(s, action);
-  if (action.type === 'talk' && action.room) {
-    const participants = [s.playerId, action.target, ...(action.guests ?? [])];
+  if (action.type === 'household') {
+    const P = player(s);
+    const other = action.target ? s.characters[action.target] : undefined;
+    const owner = action.join ? other : undefined;
+    if (action.join && (!owner?.actionHousehold || owner.actionHousehold !== action.activity || owner.actionHouseholdOwner !== owner.id || owner.activityUntil <= s.world.minutes || owner.actionCompanion)) throw new Error('That activity has finished or already has company.');
+    const remaining = owner ? owner.activityUntil - s.world.minutes : HOUSEHOLD[action.activity].minutes;
+    const problem = householdProblem(s, P, action.activity, remaining, !!owner);
+    if (problem) throw new Error(problem);
+    if (other) {
+      const refusal = householdCompanyProblem(s, P, other) ?? householdProblem(s, other, action.activity, remaining, !!owner) ??
+        (!owner && other.actionHousehold && other.activityUntil > s.world.minutes ? 'They are already doing something. You can join them instead.' : undefined);
+      if (refusal) {
+        addLog(s, { kind: 'system', text: `${firstName(s, other.id)} declined: ${refusal}`, participants: [P.id, other.id], salience: 0.2 });
+        withRng(s, rng => advanceLiving(s, rng, s.world.minutes + 2));
+        return { state: s, plan };
+      }
+    }
+    withRng(s, rng => {
+      const block = `${s.world.episode}:${s.world.slot}`;
+      if (s.world.flags.startedBlock !== block) {
+        s.world.flags.startedBlock = block;
+        for (const c of housemates(s)) decayNeeds(c);
+        houseTick(s, rng, {});
+      }
+      const ok = owner ? joinHousehold(s, P, owner) : startHousehold(s, rng, P, action.activity, other);
+      if (!ok) throw new Error('This activity is no longer available.');
+      s.world.playerNode = 'house';
+      const until = P.activityUntil;
+      advanceLiving(s, rng, other ? Math.min(until, s.world.minutes + 2) : until, new Set([P.id, ...(other ? [other.id] : [])]));
+      if (other) {
+        const task = HOUSEHOLD[action.activity];
+        const ev = makeEvent(s, content().eventById.get('casual-chat')!, { a: P.id, b: other.id }, task.room, {
+          title: `${task.label} together`,
+          premise: `${firstName(s, P.id)} and ${firstName(s, other.id)} ${action.join ? 'are continuing' : 'have started'} to ${task.label}. ${task.detail} They can talk naturally while doing it; there is no need to discuss only the task.`,
+          tags: ['light', 'household', `household-${action.activity}`],
+        });
+        plan.scenes.push({ event: ev, render: true, visible: false, priority: 3 });
+      }
+    });
+    const arrival = planMoveInArrival(s);
+    if (arrival.plan.scenes.length && !plan.scenes.length) return arrival;
+    return { state: s, plan };
+  }
+  if (action.type === 'talk' && (action.room || content().house.rooms.find(r => r.id === s.characters[action.target].location)?.private)) {
+    const room = action.room ?? s.characters[action.target].location as Room;
+    const company = action.room ? action.guests ?? [] : housemates(s).filter(c => c.id !== s.playerId && c.id !== action.target && c.location === room && !['work', 'sleep', 'nap', 'shower', 'cook'].includes(c.lastAction ?? '')).slice(0, 3).map(c => c.id);
+    const participants = [s.playerId, action.target, ...company];
     applyPlayerAction(s, action);
     withRng(s, rng => advanceLiving(s, rng, Math.min(SLOT_MINUTES, s.world.minutes + actionMinutes(action)), new Set(participants)));
-    const ev = makeEvent(s, content().eventById.get('casual-chat')!, { a: s.playerId, b: action.target }, action.room, {
+    const ev = makeEvent(s, content().eventById.get('casual-chat')!, { a: s.playerId, b: action.target }, room, {
       participants,
-      premise: `The housemates moved to the ${placeName(action.room)} together at the player's invitation. Continue their conversation here.`,
+      premise: action.room ? `The selected housemates moved to the ${placeName(room)} together at the player's invitation. Continue their conversation here.` : `${firstName(s, s.playerId)} joins ${participants.filter(id => id !== s.playerId).map(id => firstName(s, id)).join(' and ')} in the ${placeName(room)}. Only the people here take part in this conversation.`,
       factRefs: Object.fromEntries(participants.map(id => [id, factRefsFor(s, id, participants)])),
     });
     gather(s, ev);
@@ -587,7 +722,7 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
     return { state: s, plan };
   }
   const began = s.world.minutes;
-  const end = Math.min(SLOT_MINUTES, began + actionMinutes(action));
+  const end = Math.min(SLOT_MINUTES, began + (action.type === 'text' && opts.legacyText ? 5 : actionMinutes(action)));
   const blockKey = `${s.world.episode}:${s.world.slot}`;
   withRng(s, (rng) => {
     // the block's first action moves the whole world; later actions in the same block only plan the player's scene
@@ -623,7 +758,7 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
       if (c.swimming && c.location === 'backyard' && c.activityUntil > began) acts[c.id] = { kind: 'swim', duration: c.activityUntil - began };
       else if (action.type === 'talk' && c.id === action.target) acts[c.id] = { kind: 'seek', target: P.id };
       else if (c.activityUntil > began && c.lastAction) acts[c.id] = {
-        kind: c.lastAction as AgentAction['kind'], target: c.actionTarget, third: c.actionThird, node: c.actionNode, companion: c.actionCompanion,
+        kind: c.lastAction as AgentAction['kind'], target: c.actionTarget, third: c.actionThird, node: c.actionNode, companion: c.actionCompanion, household: c.actionHousehold,
         room: c.lastAction === 'hobby' && isRoom(c.location) ? c.location as AgentAction['room'] : undefined,
         duration: c.activityUntil - began,
       };
@@ -640,11 +775,7 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
       }
     }
     resolveLocations(s, acts, { [P.id]: P.location });
-    // cooking uses ingredients; empty fridge triggers a grocery run by the most conscientious cook
-    for (const c of npcs(s)) if (acts[c.id].kind === 'cook') {
-      const recipe = npcRecipe(c, s, rng);
-      if (!recipe || !consume(s, recipe.ingredients)) acts[c.id] = { kind: 'retreat' };
-    }
+    startNpcHouseholds(s, rng, acts);
     for (const c of npcs(s)) {
       scheduleActivity(s, c, acts[c.id]);
     }
@@ -657,7 +788,7 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
       const buyer = npcs(s).sort((x, y) => y.persona.traits[1] - x.persona.traits[1])[0];
       if (buyer) autoGroceries(s, buyer.id);
     }
-    houseTick(s, rng, Object.fromEntries(Object.entries(acts).map(([k, v]) => [k, v.kind])));
+    houseTick(s, rng, { ...Object.fromEntries(Object.entries(acts).map(([k, v]) => [k, v.kind])), [P.id]: action.type === 'house' ? action.activity : action.type });
     plan.npcActions = acts;
 
     const busy = new Set<string>();
@@ -701,22 +832,6 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
     // the day after deciding, the leaver tells the whole house (the show's "I've decided to graduate")
     const announcer = leavers.find((c) => !departing(s, c.id) && !flag(s, `announced_${c.id}`) && flag(s, `leaving_${c.id}`) !== s.world.episode);
     if (announcer && !busy.size && (s.world.slot === 'morning' || s.world.slot === 'evening')) playerEv = housePlan('leave-announcement', announcer.id, 'living') ?? playerEv;
-    // broadcast lag: the episode from two episodes ago airs on the living-room TV tonight
-    const airs = s.world.slot === 'evening' ? airingTonight(s) : null;
-    if (airs !== null) {
-      const premise = airEpisode(s, airs);
-      const home = isRoom(P.location) ? [P] : [];
-      const crowd = [...home, ...npcs(s).filter((c) => available(s, c, acts) && !busy.has(c.id) && !departing(s, c.id))].slice(0, 5);
-      if (crowd.length >= 2) {
-        const ev = makeEvent(s, content().eventById.get('broadcast-watch')!, { a: crowd[0].id, b: crowd[1].id }, 'living');
-        const participants = crowd.map((c) => c.id);
-        Object.assign(ev, { participants, premise: `${ev.premise} ${premise}`, factRefs: Object.fromEntries(participants.map((id) => [id, factRefsFor(s, id, participants)])) });
-        participants.forEach((id) => busy.add(id));
-        gather(s, ev);
-        if (ev.isPlayerScene || participants.includes(P.id)) playerEv ??= { ...ev, isPlayerScene: true };
-        else plan.scenes.push({ event: ev, render: true, visible: false, priority: 2 });
-      }
-    }
     // newcomer introductions
     for (const c of housemates(s)) {
       if (!flag(s, `new_${c.id}`) || flag(s, `introduced_${c.id}`) || playerEv) continue;
@@ -741,9 +856,27 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
       playerEv.participants.forEach((id) => busy.add(id));
       gather(s, playerEv);
     }
-
+    const visitHosts = housemates(s).filter((c) => !busy.has(c.id) && !departing(s, c.id) && c.id !== talk && c.id !== invite && (c.isPlayer
+      ? isRoom(P.location) && action.type === 'idle'
+      : available(s, c, acts)));
+    const visit = returningResident(s, rng, visitHosts.filter((c) => !c.isPlayer || !playerEv));
+    if (visit) {
+      visit.guest.lastAction = 'hobby';
+      visit.guest.swimming = false;
+      visit.guest.activityUntil = SLOT_MINUTES;
+      const ev = makeEvent(s, content().eventById.get('former-housemate')!, { a: visit.guest.id, b: visit.host.id }, 'living', { title: visit.title, premise: visit.premise });
+      if (!playerEv && visitHosts.some((c) => c.id === P.id) && !ev.participants.includes(P.id)) {
+        ev.participants.push(P.id);
+        ev.isPlayerScene = ev.playerPresent = true;
+        ev.factRefs[P.id] = factRefsFor(s, P.id, ev.participants);
+      }
+      ev.participants.forEach((id) => busy.add(id));
+      gather(s, ev);
+      if (ev.isPlayerScene) playerEv = ev;
+      else plan.scenes.push({ event: ev, render: true, visible: ev.playerPresent, priority: 2 });
+    }
     // arc beats: at most one per slot
-    const genericPlayerScene = !playerEv || ['casual-chat', 'chance-encounter', 'solo-wander', 'work-shift'].includes(playerEv.templateId);
+    const genericPlayerScene = !playerEv || playerEv.type !== 'performance' && ['casual-chat', 'chance-encounter', 'solo-wander', 'work-shift'].includes(playerEv.templateId);
     const avail = new Set(housemates(s).filter((c) => !c.swimming && !['sleep', 'nap', 'shower'].includes(c.lastAction ?? '') && (!busy.has(c.id) || genericPlayerScene && playerEv?.participants.includes(c.id))).map((c) => c.id));
     if (playerEv && !genericPlayerScene) avail.delete(P.id);
     if (playerEv && !genericPlayerScene) for (const id of playerEv.participants) if (id !== P.id) avail.delete(id);
@@ -797,7 +930,7 @@ export function planSlot(s0: GameState, action: PlayerAction, opts: PlanOptions 
     const ixScenes: { ix: Interaction; ev: EventInstance }[] = [];
     for (const ix of ixs) {
       const t = content().eventById.get(IX_TEMPLATE[ix.type])!;
-      const ev = makeEvent(s, t, { a: ix.a, b: ix.b }, ix.location, { salience: ix.salience });
+      const ev = makeEvent(s, t, { a: ix.a, b: ix.b }, ix.location, { title: titles[ix.type] ?? t.title, salience: ix.salience, premise: ix.summary, tags: [...t.tags, `interaction-${ix.type}`] });
       ixScenes.push({ ix, ev });
     }
 
@@ -913,11 +1046,19 @@ export function resolveScene(
 ): { state: GameState; result: SceneResolution } {
   const s = cloneState(s0);
   let e = ev;
+  beginBroadcast(s, ev);
+  if (ev.tags.includes('household') || ev.tags.includes('communal-meal')) {
+    const until = Math.max(s.world.minutes, ...ev.participants.filter(id => ev.tags.includes('communal-meal') || s.characters[id]?.actionHousehold).map(id => s.characters[id].activityUntil));
+    withRng(s, rng => advanceLiving(s, rng, until, new Set(ev.participants)));
+  }
   if (response === 'join' && !ev.participants.includes(s.playerId)) {
     e = { ...ev, participants: [...ev.participants, s.playerId], isPlayerScene: true };
     player(s).location = ev.location;
   }
   const result = withRng(s, (rng) => applySceneOutcome(s, rng, e, proposal, choices, response));
+  serveCommunalMeal(s, e);
+  const interaction = ev.tags.find(tag => tag.startsWith('interaction-'))?.slice('interaction-'.length);
+  if (interaction) rememberInteraction(s, ev.roles.a, ev.roles.b, interaction, ev.premise);
   // outsiders remember the player
   for (const [, id] of Object.entries(ev.roles)) if (s.recurring[id] && e.participants.includes(s.playerId)) {
     s.recurring[id].metPlayer++;
@@ -931,6 +1072,7 @@ export function resolveScene(
 export function finishSlot(s0: GameState): GameState {
   const s = cloneState(s0);
   if (s.seasonOver) return s;
+  if (welcomeDinnerDue(s)) throw new Error('Have the welcome dinner with the whole house before ending move-in day.');
   withRng(s, (rng) => {
     advanceLiving(s, rng, SLOT_MINUTES);
     settlePlans(s);
@@ -1004,6 +1146,7 @@ export function finishSlot(s0: GameState): GameState {
     if (s.world.cityEvent) addLog(s, { kind: 'calendar', text: `Today: ${content().calendar.events.find((e) => e.id === s.world.cityEvent)?.name}.`, participants: [], salience: 0.4 });
   });
   if (s.world.flags.sleepUntilMorning) {
+    if (welcomeDinnerDue(s)) { delete s.world.flags.sleepUntilMorning; return s; }
     if (s.world.slot === 'morning' || s.seasonOver || s.awaitingPlayer) delete s.world.flags.sleepUntilMorning;
     else {
       const planned = planSlot(s, { type: 'skip' });

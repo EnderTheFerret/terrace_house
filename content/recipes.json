@@ -1,6 +1,74 @@
 {
   "recipes": [
     {
+      "id": "mujaddara", "name": "Mujaddara", "description": "Lentils and rice under a heap of sweet, golden onions.",
+      "ingredients": { "lentils": 2, "rice": 2, "onion": 2, "spice": 1 },
+      "taste": [0.5, 0.2, 0.1, 0.8, 0.6, 0.6], "timeBudget": 85, "serves": 6, "difficulty": 2, "category": "parve", "diet": "vegan", "kosher": true,
+      "steps": [
+        { "id": "onion", "type": "chop", "label": "slice the onions thinly", "deps": [], "seconds": 10, "weight": 1, "params": { "beats": 8, "bpm": 100, "window": 180 } },
+        { "id": "rice", "type": "boil", "label": "simmer the rice and lentils", "deps": [], "seconds": 15, "weight": 1.2, "params": { "target": [10, 12], "max": 17 } },
+        { "id": "caramelize", "type": "saute", "label": "caramelize the onions", "deps": ["onion"], "seconds": 14, "weight": 1.5, "params": { "duration": 12, "bandWidth": 0.3, "bandSpeed": 0.2, "heatRate": 0.5, "coolRate": 0.4 } },
+        { "id": "season", "type": "season", "label": "add cumin and salt", "deps": ["rice"], "seconds": 8, "weight": 1, "params": { "optimum": 0.55, "tolerance": 0.3, "label": "cumin" } },
+        { "id": "plate", "type": "plate", "label": "top the rice with onions", "deps": ["caramelize", "season"], "seconds": 12, "weight": 1, "params": { "items": [{ "id": "rice", "label": "rice" }, { "id": "lentils", "label": "lentils" }, { "id": "onion", "label": "onion" }], "layout": [{ "id": "rice", "x": 0.45, "y": 0.55 }, { "id": "lentils", "x": 0.6, "y": 0.5 }, { "id": "onion", "x": 0.5, "y": 0.35 }] } }
+      ]
+    },
+    {
+      "id": "falafel-pita", "name": "Falafel Pita", "description": "Crisp chickpea bites, chopped salad and a generous drizzle of tahini.",
+      "ingredients": { "chickpea": 2, "pita": 2, "tomato": 1, "cucumber": 1, "tahini": 1, "spice": 1 },
+      "taste": [0.6, 0.1, 0.2, 0.7, 0.9, 0.4], "timeBudget": 90, "serves": 4, "difficulty": 3, "category": "parve", "diet": "vegan", "kosher": true,
+      "steps": [
+        { "id": "salad", "type": "chop", "label": "dice tomato and cucumber", "deps": [], "seconds": 10, "weight": 1, "params": { "beats": 10, "bpm": 110, "window": 150 } },
+        { "id": "season", "type": "season", "label": "season the chickpea mixture", "deps": [], "seconds": 8, "weight": 1, "params": { "optimum": 0.6, "tolerance": 0.28, "label": "spice" } },
+        { "id": "fry", "type": "saute", "label": "fry the falafel until golden", "deps": ["season"], "seconds": 16, "weight": 1.6, "params": { "duration": 14, "bandWidth": 0.24, "bandSpeed": 0.35, "heatRate": 0.6, "coolRate": 0.45 } },
+        { "id": "plate", "type": "plate", "label": "fill the pita", "deps": ["salad", "fry"], "seconds": 14, "weight": 1.2, "params": { "items": [{ "id": "pita", "label": "pita" }, { "id": "chickpea", "label": "falafel" }, { "id": "tomato", "label": "tomato" }, { "id": "tahini", "label": "tahini" }], "layout": [{ "id": "pita", "x": 0.5, "y": 0.6 }, { "id": "chickpea", "x": 0.5, "y": 0.45 }, { "id": "tomato", "x": 0.35, "y": 0.4 }, { "id": "tahini", "x": 0.65, "y": 0.4 }] } }
+      ]
+    },
+    {
+      "id": "lemon-chicken", "name": "Lemon Chicken Bowl", "description": "Sizzling lemon chicken with fluffy rice and sweet peppers.",
+      "ingredients": { "chicken": 2, "rice": 2, "lemon": 1, "pepper": 1, "spice": 1 },
+      "taste": [0.5, 0.1, 0.8, 0.8, 0.5, 0.6], "timeBudget": 90, "serves": 4, "difficulty": 3, "category": "meat", "diet": "omnivore", "kosher": true,
+      "steps": [
+        { "id": "pepper", "type": "chop", "label": "slice peppers and chicken", "deps": [], "seconds": 12, "weight": 1, "params": { "beats": 10, "bpm": 100, "window": 150 } },
+        { "id": "rice", "type": "boil", "label": "cook the rice", "deps": [], "seconds": 16, "weight": 1, "params": { "target": [11, 13], "max": 18 } },
+        { "id": "season", "type": "season", "label": "mix the lemon marinade", "deps": ["pepper"], "seconds": 8, "weight": 1, "params": { "optimum": 0.65, "tolerance": 0.3, "label": "lemon" } },
+        { "id": "pan", "type": "saute", "label": "sear the chicken and peppers", "deps": ["season"], "seconds": 16, "weight": 1.5, "params": { "duration": 14, "bandWidth": 0.25, "bandSpeed": 0.3, "heatRate": 0.65, "coolRate": 0.45 } },
+        { "id": "plate", "type": "plate", "label": "assemble the bowls", "deps": ["rice", "pan"], "seconds": 12, "weight": 1, "params": { "items": [{ "id": "rice", "label": "rice" }, { "id": "chicken", "label": "chicken" }, { "id": "pepper", "label": "pepper" }, { "id": "lemon", "label": "lemon" }], "layout": [{ "id": "rice", "x": 0.4, "y": 0.55 }, { "id": "chicken", "x": 0.6, "y": 0.45 }, { "id": "pepper", "x": 0.35, "y": 0.35 }, { "id": "lemon", "x": 0.65, "y": 0.7 }] } }
+      ]
+    },
+    {
+      "id": "latkes", "name": "Potato Latkes", "description": "Golden potato and onion fritters with crisp, lacy edges.",
+      "ingredients": { "potato": 3, "onion": 1, "egg": 1, "flour": 1 },
+      "taste": [0.6, 0.2, 0.1, 0.6, 1, 0.3], "timeBudget": 65, "serves": 4, "difficulty": 2, "category": "parve", "diet": "vegetarian", "kosher": true,
+      "steps": [
+        { "id": "grate", "type": "chop", "label": "grate potatoes and onion", "deps": [], "seconds": 10, "weight": 1, "params": { "beats": 10, "bpm": 115, "window": 180 } },
+        { "id": "season", "type": "season", "label": "season the fritter mixture", "deps": ["grate"], "seconds": 8, "weight": 1, "params": { "optimum": 0.45, "tolerance": 0.32, "label": "salt" } },
+        { "id": "fry", "type": "saute", "label": "fry the latkes", "deps": ["season"], "seconds": 14, "weight": 1.6, "params": { "duration": 12, "bandWidth": 0.28, "bandSpeed": 0.25, "heatRate": 0.55, "coolRate": 0.45 } },
+        { "id": "plate", "type": "plate", "label": "arrange the crispy latkes", "deps": ["fry"], "seconds": 12, "weight": 1, "params": { "items": [{ "id": "a", "label": "potato" }, { "id": "b", "label": "potato" }, { "id": "c", "label": "potato" }], "layout": [{ "id": "a", "x": 0.35, "y": 0.4 }, { "id": "b", "x": 0.65, "y": 0.4 }, { "id": "c", "x": 0.5, "y": 0.65 }] } }
+      ]
+    },
+    {
+      "id": "strawberry-pancakes", "name": "Strawberry Pancakes", "description": "A weekend stack with juicy strawberries and a little butter.",
+      "ingredients": { "flour": 2, "egg": 1, "milk": 1, "sugar": 1, "strawberry": 1, "butter": 1 },
+      "taste": [0.1, 0.9, 0.2, 0.2, 0.6, 0.8], "timeBudget": 75, "serves": 4, "difficulty": 2, "category": "dairy", "diet": "vegetarian", "kosher": true,
+      "steps": [
+        { "id": "berries", "type": "chop", "label": "slice strawberries", "deps": [], "seconds": 8, "weight": 1, "params": { "beats": 6, "bpm": 100, "window": 180 } },
+        { "id": "batter", "type": "season", "label": "sweeten the pancake batter", "deps": [], "seconds": 8, "weight": 1, "params": { "optimum": 0.4, "tolerance": 0.3, "label": "sugar" } },
+        { "id": "pan", "type": "saute", "label": "cook and flip the pancakes", "deps": ["batter"], "seconds": 14, "weight": 1.5, "params": { "duration": 12, "bandWidth": 0.3, "bandSpeed": 0.2, "heatRate": 0.5, "coolRate": 0.45 } },
+        { "id": "plate", "type": "plate", "label": "stack and top the pancakes", "deps": ["pan", "berries"], "seconds": 12, "weight": 1, "params": { "items": [{ "id": "flour", "label": "flour" }, { "id": "strawberry", "label": "strawberry" }, { "id": "butter", "label": "butter" }], "layout": [{ "id": "flour", "x": 0.5, "y": 0.55 }, { "id": "strawberry", "x": 0.4, "y": 0.35 }, { "id": "butter", "x": 0.6, "y": 0.4 }] } }
+      ]
+    },
+    {
+      "id": "eggplant-tahini", "name": "Eggplant & Tahini", "description": "Tender charred eggplant, lemon tahini and warm pita for sharing.",
+      "ingredients": { "eggplant": 2, "tahini": 1, "lemon": 1, "pita": 2 },
+      "taste": [0.4, 0.2, 0.6, 0.7, 0.4, 0.8], "timeBudget": 65, "serves": 4, "difficulty": 1, "category": "parve", "diet": "vegan", "kosher": true,
+      "steps": [
+        { "id": "cut", "type": "chop", "label": "halve the eggplant", "deps": [], "seconds": 8, "weight": 1, "params": { "beats": 6, "bpm": 90, "window": 200 } },
+        { "id": "pan", "type": "saute", "label": "char the eggplant", "deps": ["cut"], "seconds": 14, "weight": 1.5, "params": { "duration": 12, "bandWidth": 0.35, "bandSpeed": 0.18, "heatRate": 0.5, "coolRate": 0.45 } },
+        { "id": "sauce", "type": "season", "label": "brighten the tahini sauce", "deps": [], "seconds": 8, "weight": 1, "params": { "optimum": 0.55, "tolerance": 0.35, "label": "lemon" } },
+        { "id": "plate", "type": "plate", "label": "drizzle tahini and add pita", "deps": ["pan", "sauce"], "seconds": 12, "weight": 1, "params": { "items": [{ "id": "eggplant", "label": "eggplant" }, { "id": "tahini", "label": "tahini" }, { "id": "pita", "label": "pita" }], "layout": [{ "id": "eggplant", "x": 0.45, "y": 0.5 }, { "id": "tahini", "x": 0.5, "y": 0.35 }, { "id": "pita", "x": 0.7, "y": 0.65 }] } }
+      ]
+    },
+    {
       "id": "miso-soup",
       "name": "Lentil Soup",
       "description": "A Tel Aviv house favorite. Ask who is eating before you start.",

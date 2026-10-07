@@ -40,10 +40,12 @@ it('slices 4x4 walk sheets into real frames without erasing white clothes, jitte
     paint(row, col, col === 2 ? 20 : 12, (col === 2 ? 20 : 12) + 2, 28, 31, [200, 40, 40]); // stepping foot
   }
   paint(2, 0, 2, 5, 2, 5, [0, 200, 0]); // stray mark in the (ignored) right row
+  paint(0, 1, 2, 3, 1, 2, [0, 200, 0]); // isolated mark in a used cell must not change the crop
   const frames = spriteSheetPixels(data, w, w);
   expect(frames.map(d => d.length)).toEqual([3, 3, 3, 3]);
   for (const f of frames.flat()) expect([f.length, f[0].length]).toEqual([40, 32]);
   expect(frames[0][1].flat()).toContain('#ffffff');
+  expect(frames[0][1].findIndex(row => row.some(Boolean))).toBe(0);
   expect(frames[0][0]).not.toEqual(frames[0][2]);
   // shared crop: body pixels stay put between frames, only the foot moves
   expect(frames[0][0].slice(0, 30)).toEqual(frames[0][2].slice(0, 30));

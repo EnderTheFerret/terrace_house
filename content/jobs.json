@@ -2,6 +2,13 @@
   "_comment": "Occupations with a workplace (a city node; 'station' = commutes out of the neighbourhood) and a shift pattern. early = morning+late morning, day = late morning+afternoon, late = afternoon+early evening, night = early evening+night, flex = one slot. days: weekdays (4 of Mon–Fri), weekends (Sat, Sun + 2 weekdays), mixed (any 4 days).",
   "jobs": [
     {
+      "title": "theater actor",
+      "place": "livehouse",
+      "shift": "night",
+      "days": "mixed",
+      "category": "creative"
+    },
+    {
       "title": "carpenter",
       "place": "station",
       "shift": "early",

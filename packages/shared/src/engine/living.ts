@@ -1,16 +1,19 @@
-import type { GameState, PlayerAction } from '../model';
+import { SLOTS, type GameState, type PlayerAction, type Slot } from '../model';
 import type { Rng } from '../rng';
 import { content } from '../content';
 import { clamp, uk } from '../util';
-import { addFact, addLog, addMemory, addRel, clockLabel, firstName, housemates, isRoom, learn, nextId, npcs, player, rel, SLOT_MINUTES } from './core';
-import { bedroomOf, chooseAction, coordinateOutings, durationFor, isShabbat, resolveLocations, satisfy, type AgentAction } from './agents';
+import { addFact, addLog, addMemory, addRel, attracted, clockLabel, firstName, housemates, isRoom, learn, nextId, notePlan, npcs, placeName, planFactId, player, rel, SLOT_MINUTES, SLOT_START } from './core';
+import { bedroomOf, chooseAction, coordinateOutings, durationFor, hasJobNow, isShabbat, resolveLocations, satisfy, type AgentAction } from './agents';
+import { dayForEpisode, weekdayOf, WEEKDAY_NAMES } from './calendar';
+import { inviteDecision } from './talk';
 import { logInteraction, resolveColocation, resolveRemote } from './interactions';
-import { applyProposal, sanitizeProposal } from './relationships';
+import { applyProposal, sanitizeProposal, sharedTimeAffinity } from './relationships';
 import { apologize } from './social';
 import { resolveConfession } from './outcome';
-import { consume, postGroupChat, workCareerTick } from './house';
+import { postGroupChat, workCareerTick } from './house';
 import { ACTIVITY_MINUTES, reachability } from './city';
-import { npcRecipe } from './cooking';
+import { completeHouseholds, startNpcHouseholds } from './household';
+import { offerPerformances, rememberPerformance, startPerformances } from './performances';
 
 /** Gifts and the hobby that makes them land; price levels are in budget.ts (GIFT_PRICE). */
 export const GIFT_ITEMS: Record<string, { hobby?: string }> = {
@@ -36,6 +39,7 @@ export function observeRoutines(s: GameState) {
 }
 
 export function scheduleActivity(s: GameState, c: GameState['characters'][string], a: AgentAction, start = s.world.minutes) {
+  if (a.kind === 'household' && c.actionHousehold) return;
   c.swimming = a.kind === 'swim';
   c.lastAction = a.kind;
   c.actionTarget = a.target;
@@ -73,7 +77,10 @@ export function settlePlans(s: GameState) {
       addRel(s, a.id, b.id, 'trust', kept ? 4 : -5);
       addRel(s, b.id, a.id, 'trust', kept ? 4 : -5);
       if (kept) { addRel(s, a.id, b.id, 'closeness', 4); addRel(s, b.id, a.id, 'closeness', 4); }
-      addLog(s, { kind: 'system', text: `${firstName(s, a.id)} and ${firstName(s, b.id)} ${kept ? 'kept' : 'missed'} their plan at ${content().city.nodes.find((n) => n.id === p.node)?.name ?? p.node}.`, participants: [a.id, b.id], salience: 0.4 });
+      if (kept && p.performance) rememberPerformance(s, p);
+      // a private plan's outcome reaches only those who know about the plan (the log's fact gate)
+      const secret = !!s.facts[planFactId(p)];
+      addLog(s, { kind: secret ? 'summary' : 'system', factId: secret ? planFactId(p) : undefined, text: `${firstName(s, a.id)} and ${firstName(s, b.id)} ${kept ? 'kept' : 'missed'} their plan at ${content().city.nodes.find((n) => n.id === p.node)?.name ?? p.node}.`, participants: [a.id, b.id], salience: 0.4 });
     }
   }
 }
@@ -86,12 +93,90 @@ export function validPlanPlace(s: GameState, destination: string, from: string, 
   return [from, to].some((id) => { const c = s.characters[id]; return c && [bedroomOf(c), c.gender === 'man' ? 'balconyM' : 'balconyW'].includes(destination); });
 }
 
+/** "right now", "today at 16:00", "tomorrow at 10:00" or "on Fri at 20:00" for a planned block. */
+export function planWhen(s: GameState, p: { episode: number; slot: Slot }): string {
+  if (p.episode === s.world.episode && p.slot === s.world.slot) return 'right now';
+  const at = `at ${clockLabel(p.slot, 0)}`;
+  return p.episode === s.world.episode ? `today ${at}` : p.episode === s.world.episode + 1 ? `tomorrow ${at}` : `on ${WEEKDAY_NAMES[weekdayOf(dayForEpisode(p.episode))]} ${at}`;
+}
+
+const PLAN_ROOMS: [string, RegExp][] = [['backyard', /\b(?:backyard|pool)\b/i], ['living', /\b(?:living room|lounge|sofa|couch)\b/i], ['kitchen', /\bkitchen\b/i]];
+/** City places by id or by a name word no other place shares ("coffee", "port", "yarkon"). */
+function planPlace(text: string): string | undefined {
+  const nodes = content().city.nodes.filter((n) => !['home', 'workplace'].includes(n.type));
+  const keys = nodes.map((n) => [n.id, ...n.type.split('-'), ...(n.name.toLowerCase().match(/\p{L}{4,}/gu) ?? [])]);
+  const count = new Map<string, number>();
+  for (const k of keys) for (const w of new Set(k)) count.set(w, (count.get(w) ?? 0) + 1);
+  const words = new Set(text.toLowerCase().match(/\p{L}+/gu) ?? []);
+  // a distinctive name word outweighs a bare id: "flea market" is Jaffa's, plain "market" is Carmel
+  const score = keys.map((k, i) => (words.has(nodes[i].id) ? 1 : 0) + 1.5 * [...new Set(k)].filter((w) => count.get(w) === 1 && words.has(w)).length);
+  const best = Math.max(...score);
+  return best > 0 ? nodes[score.indexOf(best)].id : PLAN_ROOMS.find(([, re]) => re.test(text))?.[0];
+}
+
+const INVITING = /\?\s*$|\b(?:want to|wanna|let'?s|shall we|should we|how about|would you|come with|join me|are you free|you free|up for|with me|together|meet (?:me|up))\b/i;
+/** asking someone out rather than hanging out: the plan becomes a private date */
+const DATE_WORDS = /\b(?:a date|on a date|date night|just (?:the two of )?us|romantic)\b/i;
+export type TalkPlan = { node: string; episode: number; slot: Slot; date?: boolean };
+const TIME_WORDS: [RegExp, Slot][] = [[/\b(?:late night|midnight)\b/i, 'lateNight'], [/\bbreakfast\b/i, 'morning'], [/\b(?:lunch|noon|afternoon)\b/i, 'slot2'], [/\b(?:after work|sunset)\b/i, 'slot3'], [/\b(?:evening|tonight|dinner)\b/i, 'evening'], [/\b(?:morning|brunch)\b/i, 'slot1']];
+
+/**
+ * A later meet-up the player proposes in their own words ("cafe tomorrow morning?", "beach at 4?"): a place plus a day or
+ * time that is still ahead. Going somewhere right now stays the invite button's job.
+ * ponytail: English keyword reading; an LLM extraction pass only if typed plans routinely slip through.
+ */
+export function proposedPlan(s: GameState, text: string): TalkPlan | null {
+  if (!INVITING.test(text)) return null;
+  const node = planPlace(text);
+  if (!node) return null;
+  const weekday = WEEKDAY_NAMES.findIndex((d) => new RegExp(`\\b${d}[a-z]*day\\b`, 'i').test(text));
+  let ahead = /\btomorrow\b/i.test(text) ? 1 : /\b(?:today|tonight|later|this (?:morning|afternoon|evening))\b/i.test(text) ? 0
+    : weekday >= 0 ? (weekday - s.world.weekday + 7) % 7 || 7 : undefined;
+  const clock = text.match(/\b(?:at|around|by)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b|\b(\d{1,2})(?::\d{2})?\s*(am|pm)\b/i);
+  let slot: Slot | undefined;
+  if (clock) {
+    let h = Number(clock[1] ?? clock[4]);
+    const half = (clock[3] ?? clock[5])?.toLowerCase();
+    if (half === 'pm' && h < 12) h += 12;
+    else if (half === 'am' && h === 12) h = 0;
+    else if (!half && (h < 7 || h < 12 && /\b(?:tonight|evening|dinner)\b/i.test(text))) h += 12;
+    slot = h >= 23 || h < 2 ? 'lateNight' : [...SLOTS].reverse().find((sl) => SLOT_START[sl] <= h);
+  } else slot = TIME_WORDS.find(([re]) => re.test(text))?.[1];
+  if (ahead === undefined && !slot) return null;
+  const now = SLOTS.indexOf(s.world.slot);
+  if (ahead === undefined) ahead = SLOTS.indexOf(slot!) > now ? 0 : 1;
+  slot ??= ahead ? 'slot1' : SLOTS[now + 1];
+  if (!slot || ahead === 0 && SLOTS.indexOf(slot) <= now) return null;
+  return { node, episode: s.world.episode + ahead, slot, ...(DATE_WORDS.test(text) ? { date: true } : {}) };
+}
+
+/** Would housemate `id` agree to meet then? The same feelings read as a spot invitation, checked against that block's work, Shabbat and plans. */
+export function planDecision(s: GameState, id: string, plan: TalkPlan, transcript: { speaker: string; text: string }[], seed: string): { accept: boolean; reason: string } {
+  const c = s.characters[id];
+  if (!c) return { accept: false, reason: 'is not around' };
+  const then: GameState = { ...s, world: { ...s.world, episode: plan.episode, slot: plan.slot, minutes: 0, weekday: weekdayOf(dayForEpisode(plan.episode)) }, characters: { ...s.characters, [id]: { ...c, lastAction: undefined } } };
+  if (hasJobNow(then, c)) return { accept: false, reason: 'has work then' };
+  if (!validPlanPlace(s, plan.node, s.playerId, id)) return { accept: false, reason: 'would rather not meet there' };
+  if (s.invitations.some((p) => [p.from, p.to].includes(id) && p.episode === plan.episode && p.slot === plan.slot && ['pending', 'accepted'].includes(p.status))) return { accept: false, reason: 'already has plans then' };
+  return inviteDecision(then, id, transcript, { date: !!plan.date, seed });
+}
+
+/** An agreed talk or text plan goes on the shared calendar; startPlans and settlePlans then run it like any other. */
+export function addTalkPlan(s0: GameState, from: string, to: string, plan: TalkPlan): GameState {
+  const s = structuredClone(s0);
+  s.invitations.push({ id: nextId(s, 'plan'), from, to, ...plan, status: 'accepted' });
+  notePlan(s, s.invitations.at(-1)!);
+  addLog(s, { kind: 'calendar', text: `${firstName(s, to)} agreed to meet ${firstName(s, from)} at ${placeName(plan.node)} ${planWhen(s, plan)}.`, participants: [from, to], salience: 0.3 });
+  return s;
+}
+
 /** Open to the sky: weather (rain, heat) reaches it. Every other house room and city place is indoors. */
 export const isOutdoors = (place: string) =>
   ['backyard', 'balconyW', 'balconyM'].includes(place) || ['beach', 'park', 'scenic', 'harbor'].includes(content().city.nodes.find((n) => n.id === place)?.type ?? '');
 
 export function startPlans(s: GameState) {
-  for (const p of s.invitations.filter((p) => p.status === 'accepted' && p.episode === s.world.episode && p.slot === s.world.slot)) {
+  startPerformances(s);
+  for (const p of s.invitations.filter((p) => !p.performance && p.status === 'accepted' && p.episode === s.world.episode && p.slot === s.world.slot)) {
     if (s.world.flags[`planStarted_${p.id}`]) continue;
     s.world.flags[`planStarted_${p.id}`] = true;
     if (!validPlanPlace(s, p.node, p.from, p.to)) { p.status = 'declined'; continue; }
@@ -126,8 +211,9 @@ export function startPlans(s: GameState) {
 }
 
 function hourlyLife(s: GameState, rng: Rng) {
+  offerPerformances(s, rng);
   const P = player(s);
-  const actions: Record<string, AgentAction> = Object.fromEntries(npcs(s).map((c) => [c.id, { kind: (c.lastAction ?? 'retreat') as AgentAction['kind'], target: c.actionTarget, third: c.actionThird, node: c.actionNode }]));
+  const actions: Record<string, AgentAction> = Object.fromEntries(npcs(s).map((c) => [c.id, { kind: (c.lastAction ?? 'retreat') as AgentAction['kind'], target: c.actionTarget, third: c.actionThird, node: c.actionNode, household: c.actionHousehold }]));
   for (const ix of resolveColocation(s, rng, actions, P.id)) {
     // Short overheard moments grow relationships more slowly than full conversations.
     for (const changes of [ix.proposal.affinityDeltas, ix.proposal.romanceDeltas, ix.proposal.trustDeltas, ix.proposal.tensionDeltas, ix.proposal.moodDeltas]) for (const d of changes) d.delta *= 0.12;
@@ -152,10 +238,11 @@ function hourlyLife(s: GameState, rng: Rng) {
     const b = housemates(s).filter((c) => c.id !== a.id).sort((x, y) => rel(s, a.id, y.id).affinity - rel(s, a.id, x.id).affinity)[0];
     const node = rng.pick(['market', 'cafe', 'park']);
     if (b) {
-      const p = { id: nextId(s, 'plan'), from: a.id, to: b.id, episode: s.world.episode + 1, slot: 'slot1' as const, node, status: b.isPlayer ? 'pending' as const : 'accepted' as const };
+      const p = { id: nextId(s, 'plan'), from: a.id, to: b.id, episode: s.world.episode + 1, slot: 'slot1' as const, node, status: b.isPlayer ? 'pending' as const : 'accepted' as const, ...(attracted(a, b) && rel(s, a.id, b.id).romance >= 30 ? { date: true } : {}) };
       s.invitations.push(p);
+      notePlan(s, p);
       if (b.isPlayer && !isShabbat(s, a)) {
-        (s.chats[uk(a.id, b.id)] ??= []).push({ from: a.id, text: `${content().city.nodes.find((n) => n.id === node)?.name ?? node} tomorrow morning? Check the shared calendar.`, tick: s.world.tick, readBy: [], ignoredBy: [] });
+        (s.chats[uk(a.id, b.id)] ??= []).push({ from: a.id, text: `${content().city.nodes.find((n) => n.id === node)?.name ?? node} tomorrow morning? Check your plans.`, tick: s.world.tick, readBy: [], ignoredBy: [] });
       }
     }
   }
@@ -177,23 +264,24 @@ export function advanceLiving(s: GameState, rng: Rng, to: number, protectedIds: 
         if (s.world.carUsedBy === null) s.world.carUsedBy = c.id;
         else if (s.world.carUsedBy !== actions[c.id].companion) actions[c.id] = { kind: 'hobby' };
       }
-      if (actions[c.id].kind === 'cook') {
-        const recipe = npcRecipe(c, s, rng);
-        if (!recipe || !consume(s, recipe.ingredients)) actions[c.id] = { kind: 'retreat' };
-      }
       if (actions[c.id].kind === 'work') workCareerTick(s, rng, c);
     }
+    startNpcHouseholds(s, rng, actions);
     resolveLocations(s, actions, fixed);
     for (const c of due) { scheduleActivity(s, c, actions[c.id]); satisfy(c, actions[c.id].kind, durationFor(actions[c.id]) / SLOT_MINUTES); }
     startPlans(s);
   };
+  completeHouseholds(s);
   reschedule();
   while (s.world.minutes < end) {
     const now = s.world.minutes;
-    const expiry = Math.min(end, ...npcs(s).filter((c) => !protectedIds.has(c.id) && c.activityUntil > now).map((c) => c.activityUntil));
+    const expiry = Math.min(end, ...housemates(s).filter((c) => c.activityUntil > now && (c.actionHousehold || !c.isPlayer && !protectedIds.has(c.id))).map((c) => c.activityUntil));
     const nextHour = (Math.floor(now / 60) + 1) * 60;
     const sundown = s.world.slot === 'slot3' && now < 120 && [5, 6].includes(s.world.weekday) ? 120 : SLOT_MINUTES;
-    s.world.minutes = Math.min(expiry, nextHour, sundown, end);
+    const next = Math.min(expiry, nextHour, sundown, end);
+    sharedTimeAffinity(s, next - now);
+    s.world.minutes = next;
+    completeHouseholds(s);
     if (s.world.minutes === 120 && s.world.slot === 'slot3') for (const c of npcs(s)) {
       if (isShabbat(s, c) && ['cook', 'work', 'text', 'goOut'].includes(c.lastAction ?? '')) { c.activityUntil = s.world.minutes; c.actionNode = undefined; }
     }
@@ -209,8 +297,9 @@ export function socialAction(s: GameState, a: PlayerAction): { talk?: string } {
   switch (a.type) {
     case 'plan': {
       const other = s.characters[a.target];
-      const accepted = rel(s, other.id, P.id).trust >= 20 && !isShabbat(s, other);
-      s.invitations.push({ id: nextId(s, 'plan'), from: P.id, to: a.target, episode: a.episode, slot: a.slot, node: a.node, status: accepted ? 'accepted' : 'declined' });
+      const accepted = rel(s, other.id, P.id).trust >= 20 && !isShabbat(s, other) && (!a.date || attracted(other, P));
+      s.invitations.push({ id: nextId(s, 'plan'), from: P.id, to: a.target, episode: a.episode, slot: a.slot, node: a.node, status: accepted ? 'accepted' : 'declined', ...(a.date ? { date: true } : {}) });
+      notePlan(s, s.invitations.at(-1)!);
       addLog(s, { kind: 'system', text: `${firstName(s, other.id)} ${accepted ? 'accepted' : 'declined'} your invitation.`, participants: [P.id, other.id], salience: 0.3 });
       break;
     }

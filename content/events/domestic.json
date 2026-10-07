@@ -249,7 +249,7 @@
         "joke",
         "apologize"
       ],
-      "premise": "Past midnight, {b} is still laughing on a video call in the living room. {a} comes down in pajamas.",
+      "premise": "{b} is laughing loudly on a video call in the living room. {a} comes down, trying to rest.",
       "effects": [
         {
           "house": {

@@ -2,7 +2,29 @@ import { expect, it } from 'vitest';
 import { createGame, eventTemplate, makeEvent, type LlmRequest } from '@shared-roof/shared';
 import { Generator } from './generate';
 import { MockLlm } from '../llm/mock';
-import { freezeRequest } from '../image/requests';
+import { freezeRequest, sceneMeal } from '../image/requests';
+
+it('recognizes an untagged dinner without treating cooking dinner as a seated meal', () => {
+  const s = createGame({ seed: 21 });
+  const ev = makeEvent(s, eventTemplate('casual-chat'), { a: s.playerId, b: 'ren' }, 'kitchen', { premise: 'They are eating dinner together.' });
+  expect(sceneMeal(ev)).toBe(true);
+  expect(freezeRequest(s, ev, () => null).prompt).toContain('Everyone is seated around the dining table');
+  const prep = { ...ev, premise: 'They are preparing dinner together.' };
+  expect(sceneMeal(prep)).toBe(false);
+  const prompt = freezeRequest(s, prep, () => null).prompt;
+  expect(prompt.match(/hands busy preparing the meal/g)).toHaveLength(2);
+  expect(prompt).not.toContain('Everyone is seated');
+});
+
+it('uses activity-related CG poses for everyone at clubs, cafes and karaoke', () => {
+  const s = createGame({ seed: 7 });
+  const ev = makeEvent(s, eventTemplate('casual-chat'), { a: s.playerId, b: 'ren' }, 'bar', { premise: 'They are dancing together on a club dance floor.' });
+  expect(freezeRequest(s, ev, () => null).prompt.match(/dancing together to the music/g)).toHaveLength(2);
+  const coffee = { ...ev, location: 'cafe', premise: 'They talk over coffee at a cafe table.' };
+  expect(freezeRequest(s, coffee, () => null).prompt.match(/holding or sipping from a coffee cup/g)).toHaveLength(2);
+  const singing = { ...ev, location: 'karaoke', premise: 'They sing karaoke together.' };
+  expect(freezeRequest(s, singing, () => null).prompt.match(/singing into a microphone/g)).toHaveLength(2);
+});
 
 it('stages current dialogue by participant ID and ignores invalid or unknown poses', async () => {
   const s = createGame({ seed: 21 });
@@ -21,6 +43,19 @@ it('stages current dialogue by participant ID and ignores invalid or unknown pos
   answer = 'not JSON';
   expect(await gen.shot(s, ev, lines)).toEqual({});
   expect(await new Generator(mock).shot(s, ev, lines)).toEqual({});
+});
+
+it('seats everyone at meals and uses furniture for quiet room conversations', () => {
+  const s = createGame({ seed: 7 });
+  const ev = makeEvent(s, eventTemplate('casual-chat'), { a: s.playerId, b: 'ren' }, 'kitchen');
+  ev.tags = ['communal-meal'];
+  const meal = freezeRequest(s, ev, () => null);
+  expect(meal.prompt).toContain('Everyone is seated around the dining table');
+  expect(meal.prompt.match(/seated on a dining chair/g)).toHaveLength(2);
+  expect(freezeRequest(s, { ...ev, tags: [], location: 'living' }, () => null).prompt).toContain('sitting naturally on the sofa');
+  const sofa = { ...ev, tags: [], location: 'living', premise: 'They sit together on the sofa.' };
+  expect(sceneMeal(sofa)).toBe(false);
+  expect(freezeRequest(s, sofa, () => null).prompt).not.toContain('dining table');
 });
 
 it("stages the player's typed action alongside the NPC who answered", async () => {

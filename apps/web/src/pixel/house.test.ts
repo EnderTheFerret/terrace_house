@@ -3,6 +3,16 @@ import { content, createGame, projectForPlayer } from '@shared-roof/shared';
 import { conversationPlaces, facing, findPath, passable, poolPlaces, poolSeat, seatFor, solidTiles, swimSolids, withinPoolWater } from './house';
 
 describe('house layout', () => {
+  it('allows walking across the empty floor above both tubs while blocking the tubs themselves', () => {
+    for (const [floor, x, y] of [[0, 1, 15], [1, 23, 1]]) {
+      const solid = solidTiles(floor);
+      for (const tx of [x, x + 1]) {
+        expect(passable(tx, y - 1, tx, y, solid, floor)).toBe(true);
+        expect(passable(tx, y, tx, y + 1, solid, floor)).toBe(false);
+      }
+      expect(passable(x, y, x + 1, y, solid, floor)).toBe(true);
+    }
+  });
   it('stages conversation partners on adjacent reachable floor tiles and faces them toward each other', () => {
     const s = createGame({ seed: 9, moveInDay: false });
     s.characters.ren.lastAction = 'seek'; s.characters.ren.actionTarget = 'mio';

@@ -9,7 +9,7 @@ import type { Store } from '../db';
 
 const imageStep = (req: ImageRequest) => req.kind === 'portrait' ? req.subjectKey.includes(':expression:') ? 'expression' : req.subjectKey.includes(':outfit:') ? 'outfit' : req.kind : req.kind;
 
-export const PRIORITY = { playerPortrait: 100, portrait: 60, currentScene: 50, freeze: 45, location: 30, prefetch: 10 } as const;
+export const PRIORITY = { playerPortrait: 100, currentSprite: 80, portrait: 60, currentScene: 50, freeze: 45, location: 30, prefetch: 10 } as const;
 
 export function cacheKey(workflowHash: string, r: ImageRequest): string {
   return createHash('sha256').update(`${workflowHash}\n${r.prompt}\n${r.negative}\n${r.seed}\n${r.width}x${r.height}${r.reference ? `\n${r.reference}` : ''}${r.reference2 ? `\n${r.reference2}` : ''}${r.references?.length ? `\n${r.references.join('\n')}` : ''}${r.editRegion ? `\nedit:${r.editRegion}` : ''}${r.framing ? `\nframe:${r.framing}` : ''}`).digest('hex');
@@ -142,6 +142,8 @@ export class ImageQueue {
   }
 
   status(key: string): ImageStatus {
+    const pre = this.assets?.lookup(key);
+    if (pre) return { key, status: 'ready', url: pre, placeholder: false };
     return this.state.get(key) ?? { key, status: 'failed' };
   }
 
@@ -197,9 +199,9 @@ export class ImageQueue {
   hold(): () => void {
     this.held++;
     // dialogue preempts background art: stop a running prefetch/scenery job and put it back in the queue
-    // (images the player asked for and portraits finish; freeze-frames yield: a 70 s photo ahead of every scene doubled it)
+    // Explicit scene photos finish; daily outfits and walk sheets yield even when they have a high drawing priority.
     // ponytail: a player who never pauses between scenes starves freeze-frames; they finish once dialogue stops
-    if (this.running && this.running.priority < PRIORITY.currentScene && this.backend.interrupt && this.backend.name !== 'mock') {
+    if (this.running && (this.running.priority < PRIORITY.currentScene || this.running.priority === PRIORITY.currentSprite || this.running.req.kind === 'sprite' || this.running.req.subjectKey.includes(':outfit:')) && this.backend.interrupt && this.backend.name !== 'mock') {
       // only ComfyUI is told to stop; aborting our own fetch mid-read crashes Node's undici (ERR_INVALID_STATE)
       this.preempted = this.running;
       void this.backend.interrupt();

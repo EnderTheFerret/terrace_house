@@ -74,7 +74,8 @@ export class OllamaClient implements LlmClient {
   async complete(req: LlmRequest): Promise<string> {
     const r = await this.fetchImpl(`${this.url}/api/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: this.body(req, false), signal: this.signal(req) });
     if (!r.ok) throw new Error(`ollama ${r.status}: ${(await r.text()).slice(0, 200)}`);
-    const j = (await r.json()) as { message?: { content?: string } };
+    const j = (await r.json()) as { message?: { content?: string }; done_reason?: string };
+    if (j.done_reason === 'length') throw new Error('Reply exceeded its generation limit; try a shorter reply.');
     return j.message?.content ?? '';
   }
 
@@ -93,9 +94,10 @@ export class OllamaClient implements LlmClient {
         const line = buf.slice(0, nl).trim();
         buf = buf.slice(nl + 1);
         if (!line) continue;
-        const j = JSON.parse(line) as { message?: { content?: string }; done?: boolean; error?: string };
+        const j = JSON.parse(line) as { message?: { content?: string }; done?: boolean; done_reason?: string; error?: string };
         if (j.error) throw new Error(j.error);
         if (j.message?.content) yield j.message.content;
+        if (j.done_reason === 'length') throw new Error('Reply exceeded its generation limit; try a shorter reply.');
         if (j.done) return;
       }
     }

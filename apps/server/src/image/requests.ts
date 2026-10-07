@@ -97,6 +97,8 @@ export function cutoutRequest(source: string, of: ImageRequest): ImageRequest {
   return { kind: 'cutout', prompt: '', negative: '', seed: 0, width: of.width, height: of.height, subjectKey: `cutout:solid-v2:${of.subjectKey}`, reference: source, meta: of.meta };
 }
 
+export const sceneMeal = (ev: EventInstance) => ev.tags.some(tag => ['communal-meal', 'household-meal'].includes(tag)) || !/\b(cooking|preparing|making|baking)\b/i.test(ev.premise ?? '') && /\b(eating|dinner|breakfast|sharing a meal)\b/i.test(ev.premise ?? '');
+
 const expressionTags: Record<Emotion, string> = {
   neutral: 'calm natural expression', happy: 'happy expression, warm smile, bright eyes',
   sad: 'sad expression, downturned mouth, sorrowful eyes', angry: 'angry expression, furrowed brows, tight lips',
@@ -187,11 +189,17 @@ export function freezeRequest(s: GameState, ev: EventInstance, fileOf: (r: Image
   });
   // each person is staged on their own: where they are (in the water or not) and the body language of their last line
   const anySwimming = people.some((c) => c.swimming);
-  const lastSpeaker = lines.at(-1)?.speaker;
+  const meal = sceneMeal(ev);
+  const activity = `${ev.title} ${ev.premise ?? ''} ${context}`;
+  const dancing = /\b(dancing|dance floor|club|nightclub)\b/i.test(activity) || ['club', 'livehouse'].includes(ev.location);
+  const cooking = ev.tags.includes('household-cook') || /\b(cooking|preparing|chopping|baking|kneading)\b/i.test(activity);
+  const seated = meal || ev.location === 'living' || ev.location.startsWith('bedroom') || ev.location.startsWith('balcony') || ['cafe', 'bar'].includes(ev.location);
+  const lastSpeaker = lines.findLast(l => people.some(c => c.id === l.speaker))?.speaker;
   const staging = (c: Character) => {
     const felt = lines.findLast((l) => l.speaker === c.id && l.emotion)?.emotion;
     return [
       c.swimming ? 'in the pool water up to the chest' : anySwimming ? 'out of the water and dry, sitting at the pool edge or on a lounger' : '',
+      !anySwimming && meal ? 'seated on a dining chair at the table, eating from a plate, legs beneath the table' : !anySwimming && dancing ? 'dancing together to the music, moving arms and legs naturally on the dance floor' : !anySwimming && cooking ? 'working at the kitchen counter with food and utensils, hands busy preparing the meal' : !anySwimming && ev.location === 'cafe' ? 'seated at a cafe table, talking over coffee, holding or sipping from a coffee cup' : !anySwimming && ev.location === 'karaoke' ? 'singing into a microphone, moving with the music' : !anySwimming && seated ? ev.location === 'living' ? 'sitting naturally on the sofa' : ev.location.startsWith('bedroom') ? 'sitting on the edge of a bed' : 'seated on a chair' : '',
       poses[c.id] ?? '',
       !poses[c.id] && c.id === lastSpeaker ? 'talking, mid-gesture' : '',
       poses[c.id] ? '' : POSE[felt ?? 'neutral'],
@@ -208,7 +216,7 @@ export function freezeRequest(s: GameState, ev: EventInstance, fileOf: (r: Image
   const [W, H] = size('freeze');
   return {
     kind: 'freeze',
-    prompt: `${config.stylePrefix}, adult, age 20+, freeze frame still at ${loc}, exactly ${people.length} people, each of them appears once, nobody else. Wide shot with all heads and upper bodies clearly visible. From left to right: ${who}. Draw each listed housemate once, with their distinct hair and clothes. Candid conversation, not lined up, not posing for the camera. ${style}, ${timeOfDay(ev.slot)} lighting, ${['rain', 'typhoon', 'snow'].includes(s.world.weather) && !isOutdoors(ev.location) ? `${s.world.weather} only outside the windows, dry indoors` : `${s.world.weather} weather`}. No other people, duplicate people, background figures, mirrors, speech bubbles, captions or text${context ? `, ${sanitizePromptText(context)}` : ''}`,
+    prompt: `${config.stylePrefix}, adult, age 20+, freeze frame still at ${loc}, exactly ${people.length} people, each of them appears once, nobody else. Wide shot with all heads and upper bodies clearly visible. ${meal ? 'Everyone is seated around the dining table with plates and food, nobody standing. ' : ''}Scene activity: ${sanitizePromptText(activity)}. From left to right: ${who}. Draw each listed housemate once, with their distinct hair and clothes. Natural candid poses matching the scene activity, not lined up, not posing for the camera. ${style}, ${timeOfDay(ev.slot)} lighting, ${['rain', 'typhoon', 'snow'].includes(s.world.weather) && !isOutdoors(ev.location) ? `${s.world.weather} only outside the windows, dry indoors` : `${s.world.weather} weather`}. No other people, duplicate people, background figures, mirrors, speech bubbles, captions or text${context ? `, ${sanitizePromptText(context)}` : ''}`,
     negative: GLOBAL_NEGATIVE,
     seed: hashSeed(ev.id) % 100000,
     width: W,

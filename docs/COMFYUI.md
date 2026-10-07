@@ -84,6 +84,12 @@ The script downsamples and palette-quantizes each image into true pixel art and 
 `apps/web/public/assets/manifest.json`. The server serves these before queueing anything, in both modes. Pass a
 substring to regenerate only some files, for example `... jobs.json portraits/kaito`.
 
+Cooking uses `scripts/assets/cooking-jobs.json` with the same generator and workflow. It contains a 5-by-3 dish atlas,
+a 5-by-5 ingredient atlas and five separate four-frame action strips. Run
+`<ComfyUI>/python_embeded/python.exe scripts/assets/comfy_gen.py scripts/assets/cooking-jobs.json` to generate missing
+files; pass an output filename to regenerate that asset. The resulting PNGs in `apps/web/public/assets/cooking/`
+are bundled with the game. The browser animates the strips while cooking, pauses them in the guide and respects reduced motion.
+
 ## 6. Scene and portrait references
 
 Scene images and freeze-frames use `workflows/group_ref.api.json`: Qwen-Image 2.1 Turbo Q8 GGUF,
