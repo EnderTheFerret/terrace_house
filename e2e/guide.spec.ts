@@ -13,7 +13,9 @@ async function reachHouse(page: Page) {
     }
     const choice = page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first();
     const next = page.getByRole('button', { name: /^(begin|continue|ok|leave them be|to the studio|back to the house|next episode|roll credits|that's all)$/ }).first();
-    if (await choice.isVisible()) await choice.click();
+    const done = page.getByRole('button', { name: "that's all", exact: true }); // talks are open-ended: end yours after one answer
+    if (await done.isVisible()) await done.click();
+    else if (await choice.isVisible()) await choice.click();
     else if (await next.isVisible()) await next.click();
     else await page.waitForTimeout(150);
   }
@@ -80,8 +82,9 @@ test('guide pauses the world and returns to the house and an ongoing talk', asyn
   await page.getByRole('button', { name: "that's all", exact: true }).click();
   await reachHouse(page);
   await page.getByRole('button', { name: 'cook', exact: true }).click();
-  await page.getByRole('button', { name: /^Hummus & Pita/ }).click();
-  await page.getByRole('button', { name: 'simmer chickpeas (boil)', exact: true }).click();
+  // housemates cook from the shared fridge too; lentils last the morning where pita and chickpeas may not
+  await page.getByRole('button', { name: /^Lentil Soup/ }).click();
+  await page.getByRole('button', { name: 'simmer the lentils (boil)', exact: true }).click();
   await page.getByRole('button', { name: 'light the stove', exact: true }).click();
   await page.getByRole('button', { name: 'activity guide', exact: true }).click();
   await page.waitForTimeout(17000); // would overboil if the timer kept running

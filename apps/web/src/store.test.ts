@@ -92,6 +92,25 @@ describe('phone replies during an unfinished scene', () => {
   });
 });
 
+it.each([true, false])('ending a talk stays on a move-in welcome so the player can pick whom to keep talking with (welcome=%s)', async (welcome) => {
+  const original = useGame.getState();
+  const intro = welcome ? { id: 'ron', name: 'Ron Levi', age: 28, occupation: 'cook', hometown: 'Haifa' } : null;
+  const live = { id: 'welcome', choice: ['support'], lines: [], done: false, header: { moveIn: welcome, intro } } as unknown as LiveScene;
+  const choose = vi.spyOn(api, 'choose').mockResolvedValue(undefined as never);
+  const playLive = vi.fn(async () => useGame.setState(st => ({ live: { ...st.live!, done: true } })));
+  const finishSlot = vi.fn(async () => {}), nextScene = vi.fn(async () => {});
+  try {
+    useGame.setState({ view, scenes: [], live, playLive, finishSlot, nextScene });
+    await useGame.getState().endTalk();
+    expect(choose).toHaveBeenCalledWith('welcome', { done: true });
+    expect(finishSlot).toHaveBeenCalledTimes(welcome ? 0 : 1);
+    expect(useGame.getState().live).toMatchObject({ id: 'welcome', done: true });
+  } finally {
+    useGame.setState(original, true);
+    vi.restoreAllMocks();
+  }
+});
+
 describe('findInvite', () => {
   it('offers a shared room when a housemate suggests moving the conversation there', () => {
     expect(findInvite([line('kai', "Let's head to the kitchen for coffee.")], view)).toMatchObject({ from: 'kai', node: 'kitchen', activity: 'talk' });

@@ -144,7 +144,9 @@ export function PixelImage({ url, factor = 8, className, style, alt }: { url: st
 
 /** Track an image request until ready. */
 export function useImage(request: (() => Promise<ImageStatus>) | null, deps: unknown[]): ImageStatus | null {
-  const [st, setSt] = useState<ImageStatus | null>(null);
+  // status is tagged with the inputs it answers, so a new request never shows the previous one's image
+  const key = JSON.stringify([!!request, ...deps]);
+  const [st, setSt] = useState<{ key: string; s: ImageStatus } | null>(null);
   const enabled = useGame((s) => s.settings.images);
   useEffect(() => {
     if (!request || !enabled) {
@@ -153,18 +155,18 @@ export function useImage(request: (() => Promise<ImageStatus>) | null, deps: unk
     }
     const ac = new AbortController();
     setSt(null);
-    const update = (s: ImageStatus) => { if (!ac.signal.aborted) setSt(s); };
+    const update = (s: ImageStatus) => { if (!ac.signal.aborted) setSt({ key, s }); };
     request()
       .then((s) => {
         if (ac.signal.aborted) return;
         update(s);
         return waitImage(s, update, ac.signal);
       })
-      .catch(() => { if (!ac.signal.aborted) setSt({ key: '', status: 'failed' }); });
+      .catch(() => update({ key: '', status: 'failed' }));
     return () => ac.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, ...deps]);
-  return st;
+  return st?.key === key ? st.s : null;
 }
 
 /**
@@ -179,11 +181,11 @@ export function Stand({ char, outfit, emotion, height, refresh = '' }: { char: {
   const face = useImage(emotion !== 'neutral' || outfit.customExpression ? () => api.stand(char.id, outfit, emotion) : null, [char.id, char.portraitSeed, look, outfit.occasion, outfit.day, outfit.outfit, outfit.customExpression, emotion, refresh, tick]);
   const ok = (s: ImageStatus | null) => (s?.status === 'ready' && s.url ? s.url : null);
   const wanted = (emotion !== 'neutral' || outfit.customExpression) && (!face?.emotion || face.emotion === emotion) && !face?.placeholder ? ok(face) : null;
-  // useImage drops to null whenever its inputs change: keep the last figure on screen until the next one is ready,
-  // instead of flashing the neutral cut-out or the framed fallback portrait on every line
+  // useImage drops to null whenever its inputs change: keep the last figure on screen while the next face's status is
+  // unknown (usually ready at once), instead of flashing neutral on every line; a face still being drawn shows neutral
   const last = useRef<{ url: string; emotion: Emotion } | null>(null);
-  const drawing = !wanted && (emotion !== 'neutral' || !!outfit.customExpression) && (!face || face.status === 'queued' || face.status === 'running');
-  const shown = wanted ? { url: wanted, emotion } : drawing && last.current ? last.current : ok(base) ? { url: ok(base)!, emotion: 'neutral' as const } : last.current;
+  const asking = !wanted && (emotion !== 'neutral' || !!outfit.customExpression) && !face;
+  const shown = wanted ? { url: wanted, emotion } : asking && last.current ? last.current : ok(base) ? { url: ok(base)!, emotion: 'neutral' as const } : last.current;
   if (shown) last.current = shown;
   // 409 while the outfit or expression portrait is being drawn: ask again shortly
   const waiting = base?.status === 'failed' || face?.status === 'failed';

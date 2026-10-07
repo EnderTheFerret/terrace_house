@@ -424,6 +424,9 @@ export const useGame = create<State>((set, get) => ({
       await api.choose(live.id, { done: true });
       await get().playLive(live.id);
       if (!get().live?.done || get().live?.error) return;
+      // a move-in welcome ends on its panel: the player picks whom to keep talking with (or continues)
+      const h = get().live?.header;
+      if (h?.moveIn && h.intro && h.intro.id !== get().view?.playerId) return;
       if (get().scenes.some(s => s.phase !== 'done')) await get().nextScene();
       else await get().finishSlot(false);
     } catch (e) {

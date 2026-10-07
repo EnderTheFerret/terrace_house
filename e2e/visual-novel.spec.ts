@@ -13,15 +13,23 @@ test('visual novel shows the group, answers every mention, and preserves typed w
   while (Date.now() < houseDeadline) {
     const hangout = page.getByRole('button', { name: 'hang out', exact: true });
     if (await hangout.and(page.locator('button:enabled')).isVisible()) break;
+    const done = page.getByRole('button', { name: "that's all", exact: true }); // talks are open-ended
+    if (await done.isVisible()) { await done.click(); continue; }
     const choice = page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first();
     if (await choice.isVisible()) { await choice.click(); continue; }
     const next = page.getByRole('button', { name: /^(begin|continue|ok|leave them be|to the studio|back to the house|next episode)$/ }).first();
     if (await next.and(page.locator('button:enabled')).isVisible()) await next.click();
     else await page.waitForTimeout(500);
   }
-  await page.getByRole('button', { name: 'hang out', exact: true }).click();
+  // "hang out" only gathers whoever is already in the room; invite two housemates for a sure group
+  const home = (await (await request.get('/api/game')).json()).view.characters.filter((c: any) => !c.isPlayer && c.location && c.location !== 'out' && !c.household && !['work', 'sleep', 'nap', 'shower', 'cook', 'eat'].includes(c.activity));
+  expect(home.length).toBeGreaterThanOrEqual(2);
+  await page.getByLabel('meet in room', { exact: true }).selectOption('living');
+  await page.getByLabel('invite housemate', { exact: true }).selectOption(home[0].id);
+  await page.getByRole('group', { name: 'also invite' }).getByRole('checkbox', { name: home[1].name.split(' ')[0], exact: true }).check();
+  await page.getByRole('button', { name: 'go together & talk', exact: true }).click();
   const say = page.getByLabel('say something in your own words');
-  await expect(say).toBeVisible();
+  await expect(say).toBeVisible({ timeout: 30_000 }); // everyone walks to the room first
   await page.route('**/api/scene/*/choose', route => route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'temporary conflict' }) }), { times: 1 });
   await page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first().click();
   await expect(say).toBeVisible();

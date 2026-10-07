@@ -20,6 +20,8 @@ async function playUntil(page: Page, until: () => Promise<boolean>, maxSteps = 2
     if (await until()) return studio;
     const choice = page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first();
     const steps: [() => Promise<boolean>, () => Promise<void>][] = [
+      // talks are open-ended: answer once, then end your part
+      [() => btn(page, "that's all").isVisible(), () => btn(page, "that's all").click()],
       [() => choice.isVisible(), () => choice.click()],
       [() => btn(page, 'leave them be').isVisible(), () => btn(page, 'leave them be').click()],
       [() => btn(page, 'to the studio').isVisible(), () => btn(page, 'to the studio').click()],
@@ -72,7 +74,9 @@ test('creator → episode 1 → studio intermissions → episode 2', async ({ pa
 
   await expect(page.getByRole('heading', { name: 'EPISODE 1' })).toBeVisible();
   await btn(page, 'begin').click();
-  await expect(page.getByRole('region', { name: /what will you do\?/ })).toBeVisible();
+  // move-in day opens at the door: meet the first housemates, then the house
+  const house = page.getByRole('region', { name: /what will you do\?/ });
+  await playUntil(page, () => house.isVisible());
   await expect(page.getByLabel(/top-down view of the share house/)).toBeVisible();
 
   // play the whole first day: the panel cuts in mid-episode and again at the end

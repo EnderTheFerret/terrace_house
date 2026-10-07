@@ -709,6 +709,8 @@ function planAction(s0: GameState, action: PlayerAction, opts: PlanOptions): { s
       factRefs: Object.fromEntries(participants.map(id => [id, factRefsFor(s, id, participants)])),
     });
     gather(s, ev);
+    // whoever accepted the invitation came to talk: they put their phone down and can be addressed
+    if (action.room) for (const id of participants) if (id !== s.playerId) { s.characters[id].lastAction = 'seek'; s.characters[id].activityUntil = Math.min(SLOT_MINUTES, s.world.minutes + 30); }
     plan.scenes.push({ event: ev, render: true, visible: false, priority: 3 });
     return { state: s, plan };
   }

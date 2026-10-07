@@ -2,7 +2,8 @@ import { expect, test } from '@playwright/test';
 
 test('ultrawide view and gradual move-in conversations', async ({ page, request }, info) => {
   await page.setViewportSize({ width: 3440, height: 1440 });
-  await page.addInitScript(() => localStorage.setItem('shared-roof-settings', JSON.stringify({ typewriter: false, reducedMotion: true, sound: false, tutorial: false })));
+  // motion on: reduced motion snaps walkers a tile per frame, and this test measures walking speed
+  await page.addInitScript(() => localStorage.setItem('shared-roof-settings', JSON.stringify({ typewriter: false, reducedMotion: false, sound: false, tutorial: false })));
   await request.post('/api/game/new', { data: { seed: 7, moveInDay: true } });
   await page.goto('/');
   await page.getByRole('button', { name: /continue · episode 1/ }).click();
@@ -22,6 +23,9 @@ test('ultrawide view and gradual move-in conversations', async ({ page, request 
   const joined = game.view.characters.find((c: any) => !c.isPlayer && c.name.split(' ')[0] !== original).name.split(' ')[0];
   const locations = game.view.characters.map((c: any) => [c.id, c.location]);
   await page.getByRole('button', { name: "that's all", exact: true }).click();
+  // someone just moved in: the panel offers whom to keep talking with; explore the house instead
+  await expect(page.getByRole('group', { name: 'who will you keep talking with?' })).toBeVisible();
+  await page.getByRole('button', { name: 'continue', exact: true }).click();
   const canvas = page.getByLabel(/^top-down view of the share house/);
   await expect(canvas).toBeVisible();
   await expect(input).not.toBeVisible();
@@ -84,6 +88,7 @@ test('ultrawide view and gradual move-in conversations', async ({ page, request 
   await page.getByRole('button', { name: /^meet / }).click();
   await expect(input).toBeVisible();
   await page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first().click();
+  await page.getByRole('button', { name: "that's all", exact: true }).click(); // the welcome ends, then you pick who to keep talking with
   await page.getByRole('button', { name: `keep talking with ${original}`, exact: true }).click();
   await expect(input).toBeVisible();
   expect((await (await request.get('/api/game')).json()).scenes[0].participants).toContain(game.view.characters.find((c: any) => c.name.split(' ')[0] === original).id);

@@ -8,6 +8,7 @@ it('invites available housemates into a shared room without advancing the whole 
     const s = createGame({ seed: 7, moveInDay });
     const guests = Object.values(s.characters).filter(c => !c.isPlayer).slice(0, 2);
     for (const c of guests) { c.status = 'inHouse'; c.location = 'living'; c.lastAction = 'seek'; c.activityUntil = 0; }
+    guests[1].lastAction = 'text'; // texting on the sofa, but free to come along
     s.characters[s.playerId].location = 'living';
     const before = structuredClone(s);
     const action = PlayerAction.parse({ type: 'talk', target: guests[0].id, room: 'kitchen', guests: [guests[1].id] });
@@ -18,6 +19,7 @@ it('invites available housemates into a shared room without advancing the whole 
     expect(plan.scenes).toHaveLength(1);
     expect(plan.scenes[0].event).toMatchObject({ location: 'kitchen', participants: [s.playerId, ...guests.map(c => c.id)] });
     expect(projectForPlayer(state).occupancy?.kitchen).toEqual(expect.arrayContaining([s.playerId, ...guests.map(c => c.id)]));
+    for (const c of guests) expect(state.characters[c.id].lastAction).toBe('seek'); // phones down: both can be addressed
     expect(GameState.safeParse(state).success).toBe(true);
     for (const room of ['bedroomM', 'bathroom', 'balconyW'] as const) expect(() => planSlot(s, { ...action, room })).toThrow(/shared room/);
     expect(PlayerAction.safeParse({ ...action, room: 'not-a-room' }).success).toBe(false);
