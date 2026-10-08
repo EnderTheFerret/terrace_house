@@ -74,6 +74,13 @@ export function settlePlans(s: GameState) {
     if (p.status === 'pending') { p.status = 'declined'; continue; }
     const kept = a?.status === 'inHouse' && b?.status === 'inHouse' && a.location === p.node && b.location === p.node;
     p.status = kept ? 'kept' : 'broken';
+    // a broken plan with the player gets a text: "waited for you" from whoever showed up, "sorry" from whoever didn't
+    const other = p.from === s.playerId ? b : p.to === s.playerId ? a : undefined;
+    if (!kept && other && other.status === 'inHouse') {
+      const there = other.location === p.node;
+      planText(s, other.id, there ? `I waited at ${placeName(p.node)}... guess something came up?` : `sorry I didn't make it to ${placeName(p.node)}, I got stuck. rain check?`);
+      if (there) addMemory(s, other.id, `${firstName(s, s.playerId)} didn't show up for our plan at ${placeName(p.node)}.`, [other.id, s.playerId], 0.6);
+    }
     if (a && b) {
       addRel(s, a.id, b.id, 'trust', kept ? 4 : -5);
       addRel(s, b.id, a.id, 'trust', kept ? 4 : -5);
@@ -267,8 +274,17 @@ export function startPlans(s: GameState) {
       c.actionNode = p.node;
       maybeDrink(s, c, p.node, 0.1);
       if (route?.needsCar && s.world.carUsedBy === null) s.world.carUsedBy = c.id;
+      // the other person is the player and not there yet: a nudge, like anyone would send
+      if ([p.from, p.to].includes(s.playerId) && player(s).location !== p.node) planText(s, id, isRoom(p.node) ? `I'm in the ${placeName(p.node).toLowerCase()}, come find me` : `heading to ${placeName(p.node)} now, see you there?`);
     }
   }
+}
+
+/** A housemate texts the player about a plan they share (on the way, waiting, sorry). Shabbat keeps phones away. */
+function planText(s: GameState, from: string, text: string) {
+  const c = s.characters[from];
+  if (!c || c.isPlayer || isShabbat(s, c)) return;
+  (s.chats[uk(from, s.playerId)] ??= []).push({ from, text, tick: s.world.tick, readBy: [], ignoredBy: [] });
 }
 
 function hourlyLife(s: GameState, rng: Rng) {

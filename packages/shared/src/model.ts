@@ -164,6 +164,9 @@ export const Character = z.object({
   arrivedEp: z.number().int(),
   leftEp: z.number().int().optional(),
   leftReason: z.string().optional(),
+  /** a graduate who moved back in: the day they returned and why */
+  returnedEp: z.number().int().optional(),
+  returnReason: z.string().optional(),
   contractEp: z.number().int(),
   archetypeId: z.string().optional(),
   lowMoodStreak: z.number().int().default(0),
@@ -495,7 +498,8 @@ export const GameState = z.object({
   seasonOver: z.boolean(),
   epilogues: z.record(z.string(), z.string()).optional(),
   counters: z.record(z.string(), z.number()),
-  pendingArrivals: z.array(z.object({ gender: Gender, ep: z.number().int() })),
+  /** `returning`: a former housemate the player asked back fills this spot instead of a stranger */
+  pendingArrivals: z.array(z.object({ gender: Gender, ep: z.number().int(), returning: z.string().optional() })),
   previously: z.string().default(''),
   /** the player's character graduated; the game waits for the player's next housemate to move in */
   awaitingPlayer: z.boolean().default(false),
@@ -551,6 +555,8 @@ export const PlayerAction = z.discriminatedUnion('type', [
   z.object({ type: z.literal('trip'), node: z.string(), with: z.array(z.string()).min(1).max(3), roommate: z.string().optional() }),
   z.object({ type: z.literal('plan'), target: z.string(), node: z.string(), episode: z.number().int().min(1), slot: Slot, date: z.boolean().optional() }),
   z.object({ type: z.literal('respondPlan'), id: z.string(), accept: z.boolean() }),
+  /** message a former housemate to move back into an open spot */
+  z.object({ type: z.literal('askBack'), target: z.string() }),
   z.object({ type: z.literal('approach'), id: z.string(), accept: z.boolean() }),
   z.object({ type: z.literal('gift'), target: z.string(), item: z.string().max(60) }),
   z.object({ type: z.literal('favor'), target: z.string(), kind: z.enum(['coffee', 'note']) }),

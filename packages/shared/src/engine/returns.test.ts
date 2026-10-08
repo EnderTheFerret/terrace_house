@@ -7,7 +7,9 @@ import { DEFAULT_PLAYER } from './castgen';
 import { addFact, addMemory, housemates, learn, rel } from './core';
 import { candidates } from './director';
 import { epilogueFor } from './epilogue';
-import { agreesToLeave, depart, departLeaving, evaluateLeaves, invitePartnerToLeave, leaveReasons, markLeaving } from './leave';
+import { agreesToLeave, askBack, depart, departLeaving, evaluateLeaves, invitePartnerToLeave, leaveReasons, markLeaving, processArrivals, RETURN_AFTER } from './leave';
+import { settlePlans, startPlans } from './living';
+import { nameMemories } from './relationships';
 import { createGame, finishSlot, joinNewPlayer, makeEvent, planSlot, resolveScene } from './loop';
 import { resolveConfession } from './outcome';
 import { pastResidents, returningResident } from './outsiders';
@@ -113,6 +115,96 @@ describe('mutual graduation', () => {
     invitePartnerToLeave(s, 'ren');
     depart(s, s.characters.ren);
     expect(s.world.flags.canGraduate).toBeUndefined();
+  });
+});
+
+describe('graduates moving back', () => {
+  function gone(id = 'ren') {
+    const s = createGame({ seed: 5 });
+    for (const c of housemates(s)) c.contractEp = 999;
+    s.world.episode = 3;
+    markLeaving(s, id, 'decided the house was not for them');
+    depart(s, s.characters[id]);
+    s.pendingArrivals = [];
+    s.world.episode = 3 + RETURN_AFTER;
+    return s;
+  }
+
+  it('lets the player ask a graduate back once a same-gender housemate is leaving, and they take that room', () => {
+    const s = gone();
+    for (const k of ['affinity', 'trust'] as const) rel(s, 'ren', s.playerId)[k] = 40;
+    expect(() => askBack(s, 'ren')).toThrow(/no room/);
+    const leaver = housemates(s).find((c) => !c.isPlayer && c.gender === s.characters.ren.gender)!;
+    markLeaving(s, leaver.id, 'reached the end of their stay');
+    const asked = askBack(s, 'ren');
+    expect(asked.world.flags[`askedBack_${s.characters.ren.gender}`]).toBe('ren');
+    expect(asked.chats[[s.playerId, 'ren'].sort().join('|')].at(-1)?.text).toMatch(/I'm in/);
+    depart(asked, asked.characters[leaver.id]);
+    expect(asked.pendingArrivals.at(-1)).toMatchObject({ returning: 'ren' });
+    const arrived = processArrivals(asked, mulberry32(1));
+    expect(arrived.map((c) => c.id)).toEqual(['ren']);
+    const ren = asked.characters.ren;
+    expect(ren).toMatchObject({ status: 'inHouse', returnedEp: asked.world.episode, location: 'entrance' });
+    expect(ren.returnReason).toContain('asked them to come back');
+    expect(leaveReasons(asked, ren)).toEqual([]); // no instant re-departure from the old contract or mood
+    expect(asked.house.groupChat.members).toContain('ren');
+    expect(asked.memory.ren.at(-1)?.text).toContain('moved back');
+  });
+
+  it('declines when they no longer like the player, and refuses graduates who only just left', () => {
+    const s = gone();
+    rel(s, 'ren', s.playerId).affinity = -30;
+    s.pendingArrivals.push({ gender: s.characters.ren.gender, ep: s.world.episode });
+    expect(askBack(s, 'ren').pendingArrivals[0].returning).toBeUndefined();
+    s.world.episode = s.characters.ren.leftEp! + 1;
+    expect(() => askBack(s, 'ren')).toThrow(/can't move back/);
+  });
+
+  it('sometimes comes back on their own, sooner for someone still in the house, with a "back" arrival scene', () => {
+    const s = gone();
+    const pull = housemates(s).find((c) => !c.isPlayer && s.characters.ren.interestedIn.includes(c.gender))!;
+    rel(s, 'ren', pull.id).romance = 60;
+    const backs = Array.from({ length: 20 }, (_, i) => {
+      const t = structuredClone(s);
+      t.pendingArrivals.push({ gender: t.characters.ren.gender, ep: t.world.episode });
+      return processArrivals(t, mulberry32(i + 1))[0];
+    }).filter((c) => c.id === 'ren');
+    expect(backs.length).toBeGreaterThan(5);
+    expect(backs[0].returnReason).toContain(`thinking about ${pull.name.split(' ')[0]}`);
+    const t = structuredClone(s);
+    t.pendingArrivals.push({ gender: t.characters.ren.gender, ep: t.world.episode, returning: 'ren' });
+    processArrivals(t, mulberry32(1));
+    for (const c of housemates(t)) if (c.id !== 'ren') t.world.flags[`introduced_${c.id}`] = true;
+    t.world.slot = 'evening';
+    const { plan } = planSlot(t, { type: 'idle' });
+    const intro = plan.scenes.find((sc) => sc.event.templateId === 'arrival-intro' && sc.event.participants.includes('ren'))?.event;
+    expect(intro?.title).toContain('is back');
+    expect(intro?.premise).toContain('moving back in');
+  });
+});
+
+describe('plans in texts and memories by name', () => {
+  it('texts the player when a shared plan starts without them, and again when they no-show', () => {
+    const s = createGame({ seed: 5 });
+    s.world.episode = 2; s.world.slot = 'slot1'; s.world.weekday = 0;
+    const friend = housemates(s).find((c) => !c.isPlayer && !c.persona.routine.jobSlots.some((j) => j.slot === 'slot1'))!;
+    s.invitations.push({ id: 'plan-t', from: s.playerId, to: friend.id, episode: 2, slot: 'slot1', node: 'cafe', status: 'accepted' });
+    startPlans(s);
+    const thread = () => s.chats[[s.playerId, friend.id].sort().join('|')] ?? [];
+    expect(thread().at(-1)?.text).toContain('Rothschild Coffee');
+    settlePlans(s); // end of the block: the player stayed home
+    expect(s.invitations[0].status).toBe('broken');
+    expect(thread().at(-1)?.text).toMatch(/waited|sorry/);
+  });
+
+  it('writes model memories with real first names instead of ids', () => {
+    const s = createGame({ seed: 5 });
+    const empty = { affinityDeltas: [], romanceDeltas: [], tensionDeltas: [], trustDeltas: [], moodDeltas: [] };
+    const [a, b] = housemates(s).filter((c) => !c.isPlayer);
+    const cap = (id: string) => id[0].toUpperCase() + id.slice(1);
+    const out = nameMemories(s, { ...empty, newMemories: [{ charId: a.id, text: `${cap(a.id)} and the player make plans; ${b.id} laughed.`, salience: 0.5 }] });
+    const first = (id: string) => s.characters[id].name.split(' ')[0];
+    expect(out.newMemories[0].text).toBe(`${first(a.id)} and ${first(s.playerId)} make plans; ${first(b.id)} laughed.`);
   });
 });
 

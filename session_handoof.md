@@ -2,6 +2,14 @@
 
 Updated: 2026-10-07 (Asia/Jerusalem). Latest workflow status is below; older sections record earlier experiments.
 
+## Returning graduates and world realism (2026-10-08, later)
+- [x] **Graduates move back** (`leave.ts`): after `RETURN_AFTER` = 4 days away a graduate (never a former player character, never one who left with their partner, at most once) can fill a same-gender vacancy instead of a stranger: 20% on their own, 60% when someone in the house still pulls them (romance ≥ 40). Reasons: the player asked, "couldn't stop thinking about X", a second chance after leaving unhappy, or a life reason. `rejoin` restores every system, gives a fresh stay of the old contract length, re-inits their arc, keeps old memories/relationships, and the door scene becomes "X is back".
+- [x] **Ask them back:** phone → plans → "former housemates" → "ask them to move back" (`askBack` action, logged `ask-back`, replayed). Allowed once a same-gender housemate is leaving or a room is open; they agree when they still like/trust the player.
+- [x] **Plan texts:** when a shared plan starts without the player the housemate texts "heading to X now"; a no-show gets "I waited at X…" (and a memory), a housemate who didn't make it texts "sorry… rain check?".
+- [x] **Names in memories:** model memories saying "Hana and player…" are rewritten with first names (`nameMemories`).
+- [x] **Texts aren't stage directions:** chat replies that start with the sender's own name or describe the phone ("Shira's phone buzzes… types back") are rejected.
+- **Verified:** typecheck, ESLint, full vitest (`SIM_SEEDS=20`) 388/388. **Not verified:** the phone "former housemates" card in a browser (no graduates in the current save).
+
 ## Invites, readings, board and stray CGs (2026-10-08)
 - **User report:** invites through chat/phone broken; flirting/friendliness didn't move relationships; board hard to read; wants earlier days and texts re-readable; CGs drawn without the player.
 - [x] **Invite parsing** (`living.ts`): full place names win ("Dizengoff Square"); the place must sit in an inviting sentence ("Drinking at the bar later. Want gossip?" no longer books Noga for the bar and then breaks the plan); `planConflict` lets you join someone already going to the same place (her own DJ set).

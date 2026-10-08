@@ -7,6 +7,7 @@ import { ROOMS, TRAIT_NAMES } from '../model';
 import { content } from '../content';
 import { clockLabel, coupleOf, flag, housemates, isRoom, knowsPlan, placeName, rel, SLOT_MINUTES } from './core';
 import { conditionOf } from './drink';
+import { returnable } from './leave';
 import { dateLabel } from './calendar';
 import { jobOf, SOCIAL_ACTIONS } from './agents';
 import { pairSummaryText, topMemories } from './memory';
@@ -168,6 +169,8 @@ export interface PlayerView {
   references: { text: string; kind: string; members: string[] }[];
   log: { tick: number; episode: number; slot: string; text: string; kind: string }[];
   couples: { a: string; b: string; status: string }[];
+  /** graduates (not your own past characters): who could move back now, and who already agreed to */
+  formerHousemates: { id: string; name: string; leftEp: number; leftReason: string; canAsk: boolean; room: boolean; coming: boolean; reply?: string }[];
 }
 
 const tier = (b: BeliefEntry | undefined): Reliability => (!b || b.conf < 0.12 ? 'unknown' : b.conf >= 0.45 ? 'witnessed' : b.conf >= 0.25 ? 'told' : 'rumor');
@@ -360,7 +363,18 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
     references: s.references.filter((r) => r.members.includes(P.id)).map((r) => ({ text: r.text, kind: r.kind, members: r.members })),
     log: visibleLog,
     couples: s.couples.filter((c) => c.a === P.id || c.b === P.id || characters.find((x) => x.id === c.a)?.partner).map((c) => ({ a: c.a, b: c.b, status: c.status })),
+    formerHousemates: formerHousemates(s),
   };
+}
+
+function formerHousemates(s: GameState): PlayerView['formerHousemates'] {
+  const ready = new Set(returnable(s).map((c) => c.id));
+  const coming = new Set<unknown>([...s.pendingArrivals.map((p) => p.returning), ...Object.entries(s.world.flags).filter(([k]) => k.startsWith('askedBack_')).map(([, v]) => v)]);
+  const room = (g: string) => s.pendingArrivals.some((p) => p.gender === g && !p.returning)
+    || (housemates(s).some((h) => !h.isPlayer && h.gender === g && flag(s, `leaving_${h.id}`) !== undefined) && !flag(s, `askedBack_${g}`));
+  return Object.values(s.characters).filter((c) => c.status === 'left' && c.leftEp !== undefined && !c.isPlayer && c.id !== 'player' && !c.id.startsWith('player-'))
+    .map((c) => ({ id: c.id, name: c.name, leftEp: c.leftEp!, leftReason: c.leftReason ?? 'left', canAsk: ready.has(c.id), room: room(c.gender), coming: coming.has(c.id),
+      reply: s.chats[uk(c.id, s.playerId)]?.filter((m) => m.from === c.id).at(-1)?.text }));
 }
 
 export const roomName = (id: string) => placeName(id);

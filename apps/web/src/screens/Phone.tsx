@@ -87,6 +87,17 @@ export function Phone() {
                 <label className="col-span-2 flex items-center gap-1 text-xs"><input type="checkbox" checked={asDate} onChange={(e) => setAsDate(e.target.checked)} />as a date (private: only the two of you know, unless someone tells)</label>
                 <Btn disabled={busy || !target || episode < view.episode} primary>make plan</Btn>
               </form>
+              {view.formerHousemates.length > 0 && <>
+                <h2 className="mt-3 text-sm">former housemates</h2>
+                {view.formerHousemates.map((f) => <div key={f.id} className="rounded bg-white p-2 text-sm">
+                  <p>{f.name} <span className="caption text-xs">· left on day {f.leftEp}: {f.leftReason}</span></p>
+                  {f.reply && <p className="caption text-xs">“{f.reply}”</p>}
+                  {f.coming ? <p className="caption text-xs">agreed to move back into the next open room.</p> : <>
+                    <Btn className="mt-1 text-xs" disabled={busy || !f.canAsk || !f.room} onClick={() => submit({ type: 'askBack', target: f.id })}>ask them to move back</Btn>
+                    {!f.canAsk ? <p className="caption text-xs">not yet: they need a few days away, and come back at most once.</p> : !f.room && <p className="caption text-xs">no room for them yet. ask when a housemate is leaving.</p>}
+                  </>}
+                </div>)}
+              </>}
               <h2 className="mt-3 text-sm">your day</h2>
               {view.timeline.filter((t) => t.episode === view.episode).map((t, i) => <p key={i} className="text-xs"><span className="caption">{t.clock} · {slotLabel(t.slot)}</span> {t.text}</p>)}
             </>}

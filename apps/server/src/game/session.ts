@@ -7,7 +7,7 @@ import {
    type Commentary, type DeltaProposal, type Footage, type SceneChoices, type EventInstance, type GameState, type Intent, type LineContext, type NewGameOptions, type PlannedScene, airedBroadcast, broadcastDays, broadcastHighlights, broadcastPanel, beginBroadcast,
    type PlayerEdit, type PlayerSetup, type PredictionCond, type Emotion, type Beat, type ArtworkEdit, classifyIntent, debugEdit, type DebugEdit, lineEmotion, orderDrinks, venueDrinks, editPlayer, inviteDecision, joinNewPlayer, recordChat, recordPlayerWords, replyBeatType,
    passTime, recordDiary, reactionTo, feltEmotion, blockOver, isShabbat, SLOT_START, MINUTES_PER_LINE, occasionFor, occasionForCharacter, outfitFor, typedResponders, queueNpcPlans, SLOT_MINUTES, recordConversation, makeEvent, respondToPlan,
-   addTalkPlan, planDecision, planWhen, proposedPlan, TYPED_MAX, applyPlanRead, planConflict, dropUnattracted, welcomedFlirts,
+   addTalkPlan, planDecision, planWhen, proposedPlan, TYPED_MAX, applyPlanRead, planConflict, dropUnattracted, welcomedFlirts, askBack, nameMemories,
 } from '@shared-roof/shared';
 import { z } from 'zod';
 import type { Store } from '../db';
@@ -28,6 +28,9 @@ const REPLY_EMOTION: Partial<Record<Intent, Emotion>> = { flirt: 'shy', confront
 const ChoiceSchema = z.object({ intent: IntentSchema.optional(), text: z.string().trim().min(1).max(TYPED_MAX).optional(), recipient: z.string().min(1).max(80).optional(), retry: z.boolean().optional(), done: z.boolean().optional(), listen: z.boolean().optional(), hangout: z.boolean().optional(), via: z.enum(['button', 'key', 'typed', 'invite']).optional(), invite: z.object({ node: z.string(), date: z.boolean().optional(), with: z.string().optional() }).optional() });
 /** How many times the player can stay quiet and let a group keep talking in one scene. */
 const MAX_LISTENS = 3;
+/** A model's relationship reading made safe: clamped, romance only with attraction, real names in memories, welcomed flirts counted. */
+const cleanReading = (s: GameState, raw: unknown, participants: string[], transcript: Line[]) =>
+  welcomedFlirts(s, transcript, nameMemories(s, dropUnattracted(s, sanitizeProposal(raw, participants))));
 /** Words that might settle, move or call off a plan; only then is the model asked to read the calendar off the talk. */
 const PLAN_TALK = /\d|\b(?:tonight|tomorrow|today|later|morning|afternoon|evening|weekend|\w+day|see you|meet|come|coming|join|plans?|cancel|can'?t make it|rain ?check|another time|works)\b/i;
 
@@ -143,7 +146,7 @@ export class GameSession {
     try {
       const raw = await this.gen.deltas(snapshot, run.ev, run.transcript, choices, new Budget(2));
       if (raw) {
-        const read = welcomedFlirts(snapshot, run.transcript, dropUnattracted(snapshot, sanitizeProposal(raw, run.ev.participants)));
+        const read = cleanReading(snapshot, raw, run.ev.participants, run.transcript);
         if (hasFeelingDeltas(read)) proposal = read;
       }
     } catch (e) {
@@ -455,6 +458,12 @@ export class GameSession {
     if (action.type === 'respondPlan') {
       this.state = respondToPlan(s, action);
       this.log('plan-response', { action });
+      this.autosave();
+      return { view: this.view(), scenes: this.summaries() };
+    }
+    if (action.type === 'askBack') {
+      this.state = askBack(s, action.target);
+      this.log('ask-back', { target: action.target });
       this.autosave();
       return { view: this.view(), scenes: this.summaries() };
     }
@@ -836,7 +845,7 @@ export class GameSession {
       const next = await this.gen.deltas(s, p.event as EventInstance, p.transcript as Line[], p.choices ?? {}, new Budget(2));
       if (!next) throw new Error('the dialogue model did not answer; nothing changed');
       const participants = (p.participants as string[]).filter((x) => s.characters[x]);
-      const read = welcomedFlirts(s, p.transcript as Line[], dropUnattracted(s, sanitizeProposal(next, participants)));
+      const read = cleanReading(s, next, participants, p.transcript as Line[]);
       // an empty read would subtract everything the scene did; treat it as no answer so it can be retried
       if (!hasFeelingDeltas(read)) throw new Error('the model found no feelings to change in this scene; try re-reading again');
       const change = rereadChange(read, sanitizeProposal(p.proposal, participants), typeof p.feelingScale === 'number' ? p.feelingScale : 1);
@@ -1306,7 +1315,7 @@ export class GameSession {
     const readingSnapshot = run.endedByPlayer && run.said.length ? structuredClone(s) : undefined;
     // a proposal that moves no feeling (a model shrug) falls back to the engine's
     const rawProposal = run.endedByPlayer ? null : await this.gen.deltas(s, ev, run.transcript, ac.choices, closingBudget);
-    const llmProposal = rawProposal ? welcomedFlirts(s, run.transcript, dropUnattracted(s, sanitizeProposal(rawProposal, ev.participants))) : null;
+    const llmProposal = rawProposal ? cleanReading(s, rawProposal, ev.participants, run.transcript) : null;
     const po = proposeOutcome(s, ev, ac.choices);
     s = po.state;
     const moves = llmProposal && hasFeelingDeltas(llmProposal);

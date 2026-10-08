@@ -2,7 +2,7 @@
 import {
   applyReread, autoChoices, createGame, finishSlot, panelPrediction, planSlot, proposeOutcome, recordCommentary, resolveScene, applyCooking,
   applyDrinks, debugEdit, editPlayer, joinNewPlayer, recordChat, recordConversation, recordPlayerWords, passTime, recordDiary, planMoveInArrival, planHouseMeal, queueNpcPlans,
-  type EventInstance, type GameState, beginBroadcast, respondToPlan, addTalkPlan, applyPlanRead,
+  type EventInstance, type GameState, beginBroadcast, respondToPlan, addTalkPlan, applyPlanRead, askBack,
 } from '@shared-roof/shared';
 import { applyCharacterSnapshot } from './personas';
 
@@ -52,6 +52,9 @@ export function replayEvents(events: LoggedEvent[]): GameState {
       }
       case 'reread':
         applyReread(s!, p.id, p.change, p.participants, true, p.boardChange ?? { ...p.change, affinityDeltas: [], romanceDeltas: [] }, p.episode);
+        break;
+      case 'ask-back':
+        s = askBack(s!, p.target);
         break;
       case 'plan-read':
         s = applyPlanRead(s!, p.a, p.b, p.read);

@@ -185,7 +185,9 @@ export class Generator {
       try {
         const t = (await this.linesLlm.complete(req)).trim().split('\n')[0].replace(/^["“]|["”]$/g, '');
         const c = s.characters[from];
-        if (t && t.length < 200 && contentCheck(t) && dialogueCheck(t, [firstName(s, from), firstName(s, to)]).ok && (!c || voiceCheck(t, c.persona.speech).ok)) return t;
+        // a text is what they type, not a stage direction ("Shira's phone buzzes… she types back quickly")
+        const narration = new RegExp(`^\\s*${firstName(s, from)}\\b|\\*|\\b(?:types|texts|writes) back\\b|\\bphone (?:buzzes|vibrates|lights up)\\b`, 'i');
+        if (t && t.length < 200 && !narration.test(t) && contentCheck(t) && dialogueCheck(t, [firstName(s, from), firstName(s, to)]).ok && (!c || voiceCheck(t, c.persona.speech).ok)) return t;
       } catch (e) {
         logFailure(req.prompt, (e as Error).message, 'chat');
       }

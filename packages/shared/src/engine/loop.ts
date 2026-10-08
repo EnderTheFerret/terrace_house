@@ -327,7 +327,7 @@ export function actionMinutes(a: PlayerAction): number {
   if (a.type === 'household') return HOUSEHOLD[a.activity].minutes;
   if (a.type === 'house') return { hangout: 10, cook: 60, tidy: 30, rest: SLOT_MINUTES, backyard: 20, hobby: 60 }[a.activity];
   if (a.type === 'talk') return 5;
-  if (a.type === 'text' || a.type === 'visit' || a.type === 'like' || a.type === 'pool') return 0;
+  if (a.type === 'text' || a.type === 'visit' || a.type === 'like' || a.type === 'pool' || a.type === 'askBack') return 0;
   if (['endSeason', 'plan', 'respondPlan', 'post'].includes(a.type)) return 5;
   if (a.type === 'gift' || a.type === 'approach') return 5;
   if (a.type === 'favor') return 10;
@@ -865,6 +865,10 @@ function planAction(s0: GameState, action: PlayerAction, opts: PlanOptions): { s
       const greeter = c.isPlayer ? npcs(s).filter((o) => available(s, o, acts)).sort((x, y) => y.persona.traits[2] - x.persona.traits[2])[0] : P;
       if (!greeter || (greeter.isPlayer && !isRoom(P.location))) continue;
       const ev = makeEvent(s, t, { a: c.id, b: greeter.id }, 'entrance');
+      if (c.returnedEp === s.world.episode) Object.assign(ev, {
+        title: `${firstName(s, c.id)} is back`,
+        premise: `${c.name} rings the doorbell with a suitcase: they lived here from day ${c.arrivedEp} to day ${c.leftEp} and are moving back in (${c.returnReason}). Whoever lived with them remembers them and how they left; anyone who arrived since meets them for the first time. Use only what each person knows.`,
+      });
       if (moveInDay) {
         // move-in day: everyone already here comes to the door for introductions (name, age, job)
         const extra = housemates(s).filter((o) => !ev.participants.includes(o.id) && (o.isPlayer ? isRoom(P.location) : available(s, o, acts)) && !busy.has(o.id)).slice(0, 3).map((o) => o.id);

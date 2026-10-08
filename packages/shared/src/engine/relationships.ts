@@ -2,7 +2,7 @@
 import type { DeltaProposal, GameState } from '../model';
 import { DeltaProposal as DeltaProposalSchema } from '../model';
 import { clamp, uk } from '../util';
-import { FEELING_SCALE, MAX_SCENE_DELTA, addMemory, addRel, asym, attracted, belief, housemates, rel, romanceGap } from './core';
+import { FEELING_SCALE, MAX_SCENE_DELTA, addMemory, addRel, asym, attracted, belief, firstName, housemates, rel, romanceGap } from './core';
 import { affinityFit } from './castgen';
 
 export const hasFeelingDeltas = (p: DeltaProposal) =>
@@ -56,6 +56,16 @@ export function sanitizeProposal(raw: unknown, validIds: readonly string[], maxD
       .filter((m) => ok.has(m.charId) && Number.isFinite(m.delta))
       .map((m) => ({ charId: m.charId, delta: clamp(m.delta, -0.3, 0.3) })),
   };
+}
+
+/** Model-written memories sometimes use ids ("Hana and player make plans"); write them with the people's real first names. */
+export function nameMemories(s: GameState, p: DeltaProposal): DeltaProposal {
+  const ids = Object.keys(s.characters).sort((a, b) => b.length - a.length);
+  const byId = new Map(ids.map((id) => [id.toLowerCase(), id]));
+  const re = new RegExp(`\\b(?:the )?(${ids.map((id) => id.replace(/[-]/g, '\\-')).join('|')})\\b`, 'gi');
+  // "the player" → "Adam" as well as "hana" → "Noga"
+  const fix = (t: string) => t.replace(re, (_, w: string) => firstName(s, byId.get(w.toLowerCase())!));
+  return { ...p, newMemories: p.newMemories.map((m) => ({ ...m, text: fix(m.text) })) };
 }
 
 /** Romance only grows where the feeling one is attracted to the other; a model reading can't make Ron fall for Adam. */
