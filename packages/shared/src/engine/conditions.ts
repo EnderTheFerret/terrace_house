@@ -148,7 +148,8 @@ export function evalCond(s: GameState, c: Cond, b: Binding, rng: Rng | null, hou
     if (!eater || !owner || !s.house.labeledFood.some((f) => f.owner === owner && f.eatenBy === eater)) return false;
   }
   if (c.chance !== undefined) {
-    if (!rng || !rng.chance(c.chance)) return false;
+    const hungover = c.hungoverChance && (s.characters[b.a ?? '']?.hangover ?? 0) > 0 ? c.hungoverChance : 0;
+    if (!rng || !rng.chance(Math.min(1, c.chance + hungover))) return false;
   }
   return true;
 }

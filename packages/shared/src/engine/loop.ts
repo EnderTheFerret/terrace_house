@@ -42,7 +42,7 @@ import { outsiderMoment, returningResident } from './outsiders';
 import { performanceScene } from './performances';
 import { leaveOnTrip, maybeNpcTrip, maybeOfferTrip, returningFromTrip, tripProblem, TRIPS } from './trips';
 import { getDrunk, maybeDrink, servesDrinks, soberUp } from './drink';
-import { advanceLiving, canVisit, GIFT_ITEMS, knock, observeRoutines, recordActivity, relationshipUpkeep, scheduleActivity, settlePlans, socialAction, startPlans, validPlanPlace } from './living';
+import { advanceLiving, canVisit, GIFT_ITEMS, knock, observeRoutines, queueFollowUps, recordActivity, relationshipUpkeep, scheduleActivity, settlePlans, socialAction, startPlans, validPlanPlace } from './living';
 
 export interface NewGameOptions {
   seed: number;
@@ -1086,6 +1086,8 @@ export function resolveScene(
   }
   const result = withRng(s, (rng) => applySceneOutcome(s, rng, e, proposal, choices, response));
   serveCommunalMeal(s, e);
+  if (e.templateId === 'job-mishap' && e.roles.a) rememberMishap(s, e.roles.a, e.location);
+  queueFollowUps(s, e, result.proposal);
   const interaction = ev.tags.find(tag => tag.startsWith('interaction-'))?.slice('interaction-'.length);
   if (interaction) rememberInteraction(s, ev.roles.a, ev.roles.b, interaction, ev.premise);
   // outsiders remember the player
@@ -1094,6 +1096,18 @@ export function resolveScene(
     s.recurring[id].lastSeenEp = s.world.episode;
   }
   return { state: s, result };
+}
+
+/** A bad shift comes home with you: housemates you're close to hear about it and may bring it up later. */
+function rememberMishap(s: GameState, who: string, place: string) {
+  const hungover = (s.characters[who]?.hangover ?? 0) > 0;
+  const f = addFact(s, { subject: who, kind: 'event', content: `${firstName(s, who)} had a rough shift at ${placeName(place)}${hungover ? ' while hungover' : ''}.`, truth: true, sensitivity: 0.3 });
+  learn(s, who, f.id, 'self');
+  for (const h of housemates(s)) {
+    if (h.id === who || rel(s, who, h.id).closeness < 15) continue;
+    learn(s, h.id, f.id, 'told', who);
+    addMemory(s, h.id, `${firstName(s, who)} told me work went badly today${hungover ? ' (they were hungover)' : ''}.`, [h.id, who], 0.35);
+  }
 }
 
 // ---------------------------------------------------------------- slot end

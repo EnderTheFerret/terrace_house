@@ -1,6 +1,6 @@
 // Shared prompt pieces + budgeted assembly. Order: rules → persona → relationship → memories → premise → output.
 import {
-  bodyState, conditionOf, firstName, knownFacts, placeName, pairSummaryText, topMemories, referencesFor, TRAIT_NAMES, moodWord, content, TRIPS, outsiderOf, clockLabel, dateLabel, planWhen, isOutdoors, isRoom, knowsPlan, planFactId,
+  bodyState, conditionOf, firstName, knownFacts, placeName, pairSummaryText, topMemories, referencesFor, TRAIT_NAMES, moodWord, content, TRIPS, outsiderOf, clockLabel, dateLabel, planWhen, isOutdoors, isRoom, knowsPlan, planFactId, routineLabel, weeklyRoutine,
   type Character, type EventInstance, type GameState,
 } from '@shared-roof/shared';
 import { worldInfoBlock } from './lorebook';
@@ -131,7 +131,8 @@ export function personaCard(s: GameState, c: Character, opts: { compact?: boolea
     `Speech: ${sp.sentenceLen.mean <= 8 ? 'brief' : 'conversational'} sentences; ${sp.formality >= 0.7 ? 'measured and polite' : sp.formality <= 0.2 ? 'casual' : 'easygoing'}. Humor and hesitation are optional.`,
     'Do not repeat a filler, catchphrase or opening from their recent lines. Their voice is also what they notice, want and avoid.',
     `Wants: ${p.goals.long.text}. Right now: ${p.goals.short.text}. These guide their choices, not topics to recite.`,
-  ];
+    c.isPlayer ? '' : `Every week: ${routineLabel(weeklyRoutine(c))}. They keep it unless work comes first.`,
+  ].filter(Boolean);
   const body = bodyState(c);
   if (body) lines.push(`Physical state right now (shapes how they talk and act, do not narrate it as a label): ${body}`);
   if (opts.examples !== false) lines.push(`Voice examples (cadence only, not lines to copy): ${sp.exemplars.map(e => `"${e}"`).join(' ')}`);

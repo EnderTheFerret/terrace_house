@@ -26,6 +26,8 @@ export const Cond = z.object({
   carFree: z.boolean().optional(),
   mood: z.string().optional(),
   chance: z.number().optional(),
+  /** added to `chance` when role `a` is hungover (a rough morning makes a mishap likelier) */
+  hungoverChance: z.number().optional(),
   lastDate: z.array(z.string()).length(2).optional(),
   /** romance ladder: the pair's current milestone (0 none, 1 first date, 2 second date, 3 hand-holding, 4 first kiss) equals `is` */
   milestone: z.array(z.string()).length(2).optional(),

@@ -1,9 +1,9 @@
-import { SLOTS, type GameState, type PlayerAction, type Slot } from '../model';
+import { SLOTS, type DeltaProposal, type GameState, type PlayerAction, type Slot } from '../model';
 import type { Rng } from '../rng';
 import { content } from '../content';
 import { clamp, uk } from '../util';
 import { addFact, addLog, addMemory, addRel, attracted, clockLabel, firstName, housemates, isRoom, learn, nextId, notePlan, npcs, placeName, planFactId, player, rel, SLOT_MINUTES, SLOT_START } from './core';
-import { bedroomOf, chooseAction, coordinateOutings, durationFor, hasJobNow, isShabbat, resolveLocations, satisfy, type AgentAction } from './agents';
+import { bedroomOf, chooseAction, coordinateOutings, durationFor, hasJobNow, isShabbat, resolveLocations, satisfy, weeklyRoutine, type AgentAction } from './agents';
 import { dayForEpisode, weekdayOf, WEEKDAY_NAMES } from './calendar';
 import { inviteDecision } from './talk';
 import { maybeDrink } from './drink';
@@ -187,6 +187,9 @@ export function planConflict(s: GameState, id: string, plan: TalkPlan, moving?: 
   if (!c) return 'is not around';
   const then: GameState = { ...s, world: { ...s.world, episode: plan.episode, slot: plan.slot, minutes: 0, weekday: weekdayOf(dayForEpisode(plan.episode)) }, characters: { ...s.characters, [id]: { ...c, lastAction: undefined } } };
   if (hasJobNow(then, c)) return 'has work then';
+  // their standing weekly thing, unless the plan is to join them there
+  const r = weeklyRoutine(c);
+  if (!c.isPlayer && r.weekday === then.world.weekday && r.slot === plan.slot && r.node !== plan.node && !isShabbat(then, c)) return `already has ${r.what} then, like every week`;
   if (!validPlanPlace(s, plan.node, s.playerId, id)) return 'would rather not meet there';
   // already going there then (their own DJ set, say): the player is welcome to come along
   if (s.invitations.some((p) => [p.from, p.to].includes(id) && !(moving && [p.from, p.to].includes(moving)) && p.episode === plan.episode && p.slot === plan.slot && p.node !== plan.node && ['pending', 'accepted'].includes(p.status))) return 'already has plans then';
@@ -278,6 +281,44 @@ export function startPlans(s: GameState) {
       if ([p.from, p.to].includes(s.playerId) && player(s).location !== p.node) planText(s, id, isRoom(p.node) ? `I'm in the ${placeName(p.node).toLowerCase()}, come find me` : `heading to ${placeName(p.node)} now, see you there?`);
     }
   }
+}
+
+/**
+ * After a good moment with the player (their liking rose clearly, or any romance), a housemate texts about it later: at
+ * most once a day each. Queued here at scene end; the session writes the words when the block is over.
+ */
+export function queueFollowUps(s: GameState, ev: { participants: string[]; location: string; title: string }, p: DeltaProposal) {
+  if (!ev.participants.includes(s.playerId) || ev.location === 'phone') return;
+  for (const id of ev.participants) {
+    if (id === s.playerId || s.characters[id]?.status !== 'inHouse' || s.world.flags[`followedUp_${id}`] === s.world.episode) continue;
+    const warm = p.affinityDeltas.some((d) => d.from === id && d.to === s.playerId && d.delta >= 3) || p.romanceDeltas.some((d) => d.from === id && d.to === s.playerId && d.delta > 0);
+    if (warm) s.world.flags[`followUp_${id}`] = `${ev.title}|${ev.location}|${p.romanceDeltas.some((d) => d.from === id && d.to === s.playerId && d.delta > 0) ? 'romance' : 'friend'}`;
+  }
+}
+
+/** Who has a follow-up text queued, with what it is about. */
+export function followUpsDue(s: GameState): { id: string; title: string; place: string; romance: boolean }[] {
+  return Object.entries(s.world.flags).filter(([k, v]) => k.startsWith('followUp_') && typeof v === 'string').map(([k, v]) => {
+    const [title, place, kind] = String(v).split('|');
+    return { id: k.slice('followUp_'.length), title, place, romance: kind === 'romance' };
+  }).filter((f) => s.characters[f.id]?.status === 'inHouse');
+}
+
+/** The words when no model writes them. */
+export function followUpTemplate(s: GameState, f: { id: string; place: string; romance: boolean }): string {
+  const where = placeName(f.place).toLowerCase();
+  const pick = (xs: string[]) => xs[(s.world.tick + f.id.length) % xs.length];
+  return f.romance ? pick([`can't stop smiling about earlier at the ${where} 🙂`, `today at the ${where} was really nice. just saying`, 'ok I had way too much fun with you today'])
+    : pick([`that was fun earlier at the ${where}, let's do it again`, 'good talk today btw', `needed that today, thanks for earlier`]);
+}
+
+/** Send (or quietly drop, with no text) a queued follow-up. */
+export function sendFollowUp(s0: GameState, id: string, text: string): GameState {
+  const s = structuredClone(s0);
+  delete s.world.flags[`followUp_${id}`];
+  s.world.flags[`followedUp_${id}`] = s.world.episode;
+  if (text) planText(s, id, text);
+  return s;
 }
 
 /** A housemate texts the player about a plan they share (on the way, waiting, sorry). Shabbat keeps phones away. */

@@ -4,7 +4,7 @@ import { budgetOf } from './budget';
 import type { Job } from '../contentSchema';
 import { NEEDS } from '../model';
 import type { Rng } from '../rng';
-import { softmaxSample } from '../rng';
+import { hashSeed, softmaxSample } from '../rng';
 import { clamp } from '../util';
 import { content } from '../content';
 import { attracted, belief, coupleOf, flag, housemates, isCouple, isDaySlot, rel, traitsOf, SLOT_MINUTES, SLOT_START } from './core';
@@ -181,6 +181,36 @@ export function jobNode(c: Character): string {
   return 'station'; // commute out of the neighbourhood
 }
 
+export interface WeeklyRoutine { what: string; weekday: number; slot: Slot; node: string }
+const FRIDAY_OUT: WeeklyRoutine = { what: 'a Friday night out with friends from home', weekday: 5, slot: 'evening', node: 'bar' };
+const ROUTINES: WeeklyRoutine[] = [
+  { what: 'pickup football at Yarkon Park', weekday: 2, slot: 'slot3', node: 'park' },
+  { what: 'an early surf session', weekday: 1, slot: 'slot1', node: 'beach' },
+  { what: 'open-mic night', weekday: 3, slot: 'evening', node: 'karaoke' },
+  { what: 'the weekly market run', weekday: 4, slot: 'slot2', node: 'market' },
+  { what: 'a jam session with their band', weekday: 0, slot: 'evening', node: 'livehouse' },
+];
+
+/**
+ * Everyone has one standing thing a week, fixed by who they are (no rolls): half of those who don't keep Shabbat go out
+ * with friends from home on Friday night, the rest have a weekday habit. Plans that land on it clash.
+ */
+export function weeklyRoutine(c: Pick<Character, 'id' | 'name' | 'persona'>): WeeklyRoutine {
+  const h = hashSeed(`${c.id}:${c.name}:routine`);
+  if (!c.persona.keepsShabbat && h % 2 === 0) return FRIDAY_OUT;
+  return ROUTINES[Math.floor(h / 2) % ROUTINES.length];
+}
+
+/** Their standing thing, if it is on right now (work, Shabbat, a typhoon or move-in day come first). */
+export function routineNow(s: GameState, c: Character): WeeklyRoutine | null {
+  const r = weeklyRoutine(c);
+  if (c.isPlayer || c.status !== 'inHouse' || r.weekday !== s.world.weekday || r.slot !== s.world.slot || s.world.episode <= c.arrivedEp) return null;
+  return isShabbat(s, c) || hasJobNow(s, c) || s.world.weather === 'typhoon' ? null : r;
+}
+
+/** "pickup football at Yarkon Park, Tue 16:00": how the house knows someone's standing thing. */
+export const routineLabel = (r: WeeklyRoutine) => `${r.what}, ${['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'][r.weekday]} ${r.slot === 'evening' ? 'evenings' : r.slot === 'slot1' ? 'mornings' : 'afternoons'}`;
+
 /** Enumerate candidate actions and score U_i(a). */
 export function candidateActions(s: GameState, c: Character): AgentAction[] {
   const slot = s.world.slot;
@@ -297,6 +327,8 @@ export function autonomyOptions(s: GameState, c: Character): AgentAction[] {
   const away = s.world.flags[`away_${c.id}`];
   if (typeof away === 'string') return [{ kind: 'goOut', node: away, duration: SLOT_MINUTES }];
   if (hasJobNow(s, c) && s.world.cityEvent !== 'heatwave') return [{ kind: 'work', node: jobNode(c) }];
+  const routine = routineNow(s, c);
+  if (routine) return [{ kind: 'goOut', node: routine.node, duration: SLOT_MINUTES }];
   const rooms = COMMON_ROOMS.filter(r => r !== 'backyard' || s.world.weather !== 'typhoon');
   const base = candidateActions(s, c).filter(a => {
     if (a.kind === 'exercise' && s.world.weather === 'typhoon') return false;
@@ -339,6 +371,13 @@ export function chooseAction(s: GameState, rng: Rng, c: Character): AgentAction 
   // away on an overnight trip: stays at the trip spot until the group comes home
   const away = s.world.flags[`away_${c.id}`];
   if (typeof away === 'string') return { kind: 'goOut', node: away, duration: SLOT_MINUTES, utility: 1 };
+  // their weekly thing: they go, and the house sees the habit
+  const routine = routineNow(s, c);
+  if (routine) {
+    const seen = (s.observedRoutines[c.id] ??= []);
+    if (!seen.includes(routineLabel(routine))) seen.push(routineLabel(routine));
+    return { kind: 'goOut', node: routine.node, duration: SLOT_MINUTES, utility: 1 };
+  }
   const plan = s.npcPlans?.[c.id];
   if (plan) {
     delete s.npcPlans[c.id];

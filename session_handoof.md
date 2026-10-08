@@ -2,6 +2,13 @@
 
 Updated: 2026-10-07 (Asia/Jerusalem). Latest workflow status is below; older sections record earlier experiments.
 
+## Follow-up texts, mornings after, weekly routines (2026-10-08, latest)
+- [x] **Follow-up texts:** a scene where a housemate's liking of the player rose by ≥3 (raw) or any romance queues a text (`queueFollowUps` in `resolveScene`, flag `followUp_<id>`); after the block ends the session writes it (model via `gen.chat` with a note, template when mock) and `sendFollowUp` records it; once per person per day; logged `follow-up`, replayed.
+- [x] **Morning after** (`drink.ts` `morningAfter`): people who got drunk in the same block gain closeness +3 / affinity +1 and a memory; anyone who got drunk (≥2) becomes a witnessed house fact; sober housemates with conscientiousness ≥ 0.7 lose 1 affinity toward them. No rolls.
+- [x] **Bad shifts:** `job-mishap` gets `hungoverChance: 0.35` (new `Cond` field) on top of 0.45; after the scene, housemates with closeness ≥ 15 learn "had a rough shift (while hungover)" as told by the player, plus a memory.
+- [x] **Weekly routines** (`agents.ts` `weeklyRoutine`): one fixed thing per person from a hash: half of non-Shabbat-keepers go out with friends from home on Friday nights, the rest football / surf / open mic / market run / band jam. On that block they go out (work, Shabbat, typhoon and move-in day win), the house records it in the bible's routines, prompts list it, and `planConflict` declines plans that land on it ("already has … then, like every week") unless the plan is to join them there.
+- **Verified:** typecheck, ESLint, full vitest (`SIM_SEEDS=20`) 393/393 incl. new `realism.test.ts`. **Not verified:** live model follow-up texts.
+
 ## Returning graduates and world realism (2026-10-08, later)
 - [x] **Graduates move back** (`leave.ts`): after `RETURN_AFTER` = 4 days away a graduate (never a former player character, never one who left with their partner, at most once) can fill a same-gender vacancy instead of a stranger: 20% on their own, 60% when someone in the house still pulls them (romance ≥ 40). Reasons: the player asked, "couldn't stop thinking about X", a second chance after leaving unhappy, or a life reason. `rejoin` restores every system, gives a fresh stay of the old contract length, re-inits their arc, keeps old memories/relationships, and the door scene becomes "X is back".
 - [x] **Ask them back:** phone → plans → "former housemates" → "ask them to move back" (`askBack` action, logged `ask-back`, replayed). Allowed once a same-gender housemate is leaving or a room is open; they agree when they still like/trust the player.

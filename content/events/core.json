@@ -541,7 +541,8 @@
       },
       "pre": [
         {
-          "chance": 0.45
+          "chance": 0.45,
+          "hungoverChance": 0.35
         }
       ],
       "weight": 1.5,

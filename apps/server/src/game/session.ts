@@ -7,7 +7,7 @@ import {
    type Commentary, type DeltaProposal, type Footage, type SceneChoices, type EventInstance, type GameState, type Intent, type LineContext, type NewGameOptions, type PlannedScene, airedBroadcast, broadcastDays, broadcastHighlights, broadcastPanel, beginBroadcast,
    type PlayerEdit, type PlayerSetup, type PredictionCond, type Emotion, type Beat, type ArtworkEdit, classifyIntent, debugEdit, type DebugEdit, lineEmotion, orderDrinks, venueDrinks, editPlayer, inviteDecision, joinNewPlayer, recordChat, recordPlayerWords, replyBeatType,
    passTime, recordDiary, reactionTo, feltEmotion, blockOver, isShabbat, SLOT_START, MINUTES_PER_LINE, occasionFor, occasionForCharacter, outfitFor, typedResponders, queueNpcPlans, SLOT_MINUTES, recordConversation, makeEvent, respondToPlan,
-   addTalkPlan, planDecision, planWhen, proposedPlan, TYPED_MAX, applyPlanRead, planConflict, dropUnattracted, welcomedFlirts, askBack, nameMemories,
+   addTalkPlan, planDecision, planWhen, proposedPlan, TYPED_MAX, applyPlanRead, planConflict, dropUnattracted, welcomedFlirts, askBack, nameMemories, followUpsDue, followUpTemplate, sendFollowUp,
 } from '@shared-roof/shared';
 import { z } from 'zod';
 import type { Store } from '../db';
@@ -681,6 +681,7 @@ export class GameSession {
     const prevSlot = s.world.slot;
     this.state = finishSlot(s);
     this.log('end-slot', {});
+    await this.sendFollowUps();
     await this.enrichNewCharacters(Object.keys(s.characters));
     this.autosave();
     const ns = this.state;
@@ -694,6 +695,21 @@ export class GameSession {
     this.pendingIntermission = newEpisode ? 'end' : prevSlot === 'slot2' ? 'mid' : null;
     this.intermissionResult = undefined;
     return { view: this.view(), newEpisode, seasonOver: ns.seasonOver, intermission: this.pendingIntermission };
+  }
+
+  /** Housemates who enjoyed time with the player earlier text about it once the block is over ("that was fun at the pool"). */
+  private async sendFollowUps() {
+    const s = this.requireState();
+    const due = followUpsDue(s);
+    if (!due.length) return;
+    const P = s.playerId;
+    const texts = await Promise.all(due.map((f) => this.gen.real
+      ? this.gen.chat(s, f.id, P, new Budget(1), `Send ${firstName(s, P)} one short, natural text following up on "${f.title}" at ${placeName(f.place)} earlier today. You ${f.romance ? 'liked them and it showed' : 'enjoyed it'}; you may suggest doing it again. Only the message itself.`)
+      : Promise.resolve(followUpTemplate(s, f))));
+    due.forEach((f, i) => {
+      this.state = sendFollowUp(this.requireState(), f.id, texts[i]);
+      this.log('follow-up', { id: f.id, text: texts[i] });
+    });
   }
 
   /**

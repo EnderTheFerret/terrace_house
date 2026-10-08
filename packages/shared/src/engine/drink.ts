@@ -4,7 +4,7 @@ import type { Character, Emotion, EventInstance, GameState } from '../model';
 import { hashSeed } from '../rng';
 import { clamp } from '../util';
 import { content } from '../content';
-import { addLog, firstName, housemates, placeName, traitsOf } from './core';
+import { addFact, addLog, addMemory, addRel, firstName, housemates, learn, placeName, traitsOf } from './core';
 
 const DRINK_TYPES = ['bar', 'karaoke', 'venue'];
 const NIGHT = ['slot3', 'evening', 'lateNight'];
@@ -128,10 +128,37 @@ export function applyDrinks(s0: GameState, changes: Record<string, number>): Gam
 }
 
 /**
+ * What last night means the next morning. People who got drunk in the same place bonded a little over it; someone who
+ * got properly drunk is the house's breakfast topic (everyone home knows), and a sober, orderly housemate is less
+ * impressed. Deterministic: no rolls.
+ */
+function morningAfter(s: GameState) {
+  const night = housemates(s).filter((c) => (c.drunkPeak ?? 0) >= 1 && typeof s.world.flags[`drank_${c.id}`] === 'string');
+  for (let i = 0; i < night.length; i++) for (const b of night.slice(i + 1)) {
+    const a = night[i];
+    if (s.world.flags[`drank_${a.id}`] !== s.world.flags[`drank_${b.id}`]) continue;
+    for (const [x, y] of [[a, b], [b, a]]) {
+      addRel(s, x.id, y.id, 'closeness', 3);
+      addRel(s, x.id, y.id, 'affinity', 1);
+      addMemory(s, x.id, `Got drinks with ${firstName(s, y.id)} last night.`, [x.id, y.id], 0.35);
+    }
+  }
+  for (const c of housemates(s).filter((h) => (h.drunkPeak ?? 0) >= 2)) {
+    const f = addFact(s, { subject: c.id, kind: 'event', content: `${c.name} got ${DRUNK_LABEL[c.drunkPeak]} last night and is paying for it this morning.`, truth: true, sensitivity: 0.2 });
+    for (const h of housemates(s)) {
+      learn(s, h.id, f.id, h.id === c.id ? 'self' : 'witnessed');
+      if (h.id === c.id || night.includes(h) || h.isPlayer) continue;
+      if (traitsOf(h).C >= 0.7) addRel(s, h.id, c.id, 'affinity', -1);
+    }
+  }
+}
+
+/**
  * End of a block: everyone sobers up a level, and the afternoon clears a hangover. At the end of the day, the night's worst
  * level becomes tomorrow morning's hangover (tipsy costs nothing).
  */
 export function soberUp(s: GameState, endOfDay: boolean) {
+  if (endOfDay) morningAfter(s);
   for (const c of housemates(s)) {
     if (endOfDay) {
       const h = (c.drunkPeak ?? 0) >= 2 ? c.drunkPeak - 1 : 0;
