@@ -2,7 +2,7 @@
 import {
   engineProposal, hashSeed, mockBeatSheet, mockCommentary, mockIntermission, mockLine, chatLine, mulberry32,
   type EventInstance, type GameState, type LlmClient, type LlmRequest, type Beat, type LineContext, type SceneChoices,
-  type PredictionCond, type Intent,
+  type PredictionCond, type Intent, type Footage,
 } from '@shared-roof/shared';
 
 export type MockContext =
@@ -11,7 +11,7 @@ export type MockContext =
   | { kind: 'deltas'; state: GameState; event: EventInstance; choices: SceneChoices }
   | { kind: 'commentary'; state: GameState; event: EventInstance; outcome?: 'accepted' | 'rejected' | 'none'; predictionCond: PredictionCond | null }
   | { kind: 'chat'; state: GameState; from: string; to: string }
-  | { kind: 'intermission'; state: GameState; at: 'mid' | 'end'; since: number }
+  | { kind: 'intermission'; state: GameState; at: 'mid' | 'end'; since: number; footage?: Footage[] }
   | { kind: 'text'; text: string };
 
 export class MockLlm implements LlmClient {
@@ -43,7 +43,7 @@ export class MockLlm implements LlmClient {
       case 'chat':
         return chatLine(c.state, rng, c.from, c.to);
       case 'intermission':
-        return JSON.stringify(mockIntermission(c.state, rng, c.at, c.since));
+        return JSON.stringify(mockIntermission(c.state, rng, c.at, c.since, c.footage));
       case 'text':
         return c.text;
     }

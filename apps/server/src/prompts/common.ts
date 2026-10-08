@@ -1,6 +1,6 @@
 // Shared prompt pieces + budgeted assembly. Order: rules → persona → relationship → memories → premise → output.
 import {
-  firstName, knownFacts, placeName, pairSummaryText, topMemories, referencesFor, TRAIT_NAMES, moodWord, content, TRIPS, outsiderOf, clockLabel, dateLabel, planWhen, isOutdoors, isRoom, knowsPlan, planFactId,
+  bodyState, conditionOf, firstName, knownFacts, placeName, pairSummaryText, topMemories, referencesFor, TRAIT_NAMES, moodWord, content, TRIPS, outsiderOf, clockLabel, dateLabel, planWhen, isOutdoors, isRoom, knowsPlan, planFactId,
   type Character, type EventInstance, type GameState,
 } from '@shared-roof/shared';
 import { worldInfoBlock } from './lorebook';
@@ -75,6 +75,21 @@ export function plansBlock(s: GameState, id: string): string {
   ].filter(Boolean).join('\n');
 }
 
+/** Ask the model whether two people settled (or changed, or called off) a meet-up in this conversation. */
+export function planReadPrompt(s: GameState, a: string, b: string, lines: { speaker: string; text: string }[]): string {
+  const places = content().city.nodes.filter((n) => !['home', 'workplace'].includes(n.type)).map((n) => `${n.id}: ${n.name}`).join('; ');
+  const name = (id: string) => s.characters[id] ? firstName(s, id) : id;
+  return [
+    `Read this conversation between ${name(a)} and ${name(b)} and report whether they settled a meet-up. Return JSON only.`,
+    dayLine(s, [a, b]),
+    plansBlock(s, a) || `${name(a)} has no plans with anyone yet.`,
+    `City places (id: name): ${places}. At home: backyard, living, kitchen.`,
+    `Conversation, oldest first:\n${lines.map((l) => `${name(l.speaker)}: ${l.text}`).join('\n')}`,
+    'Fields: "agreed" true only when both clearly said yes to the same place and time (a question nobody answered, or a "maybe", is not agreement); "place" the place id, or "" if unclear; "when" like "tonight at 21:30", "tomorrow at 10:00" or "Friday at 20:00"; "date" true only if it was framed as a romantic date; "cancel" true only if they called off a plan they already had.',
+    'If they changed an existing plan\'s time or place, report the new agreed time and place. Going to watch the other one perform somewhere counts as meeting there.',
+  ].join('\n');
+}
+
 /** Public knowledge about the house: everyone's move-in introduction, so nobody guesses a job. */
 export function housematesBlock(s: GameState): string {
   const mates = Object.values(s.characters).filter((c) => c.status === 'inHouse' && !c.isPlayer)
@@ -100,7 +115,8 @@ export function aboutPlayer(s: GameState): string {
   const P = s.characters[s.playerId];
   const first = P.name.split(' ')[0];
   const intro = s.world.episode > P.arrivedEp ? ` From move-in introductions: ${P.age}, works as ${P.occupation}, from ${P.hometown}.` : '';
-  return `About ${first} (the player):${intro} Anything else about ${first} (family, past, partner, job details, plans, opinions, how their day went) is unknown unless ${first} said it or a speaker's memories list it. Ask instead of assuming.`;
+  const state = conditionOf(P);
+  return `About ${first} (the player):${intro}${state ? ` ${first} is visibly ${state} right now; others notice and react naturally.` : ''} Anything else about ${first} (family, past, partner, job details, plans, opinions, how their day went) is unknown unless ${first} said it or a speaker's memories list it. Ask instead of assuming.`;
 }
 
 /** Compressed persona card (speech params, exemplars, do-not list, needs/mood). */
@@ -116,6 +132,8 @@ export function personaCard(s: GameState, c: Character, opts: { compact?: boolea
     'Do not repeat a filler, catchphrase or opening from their recent lines. Their voice is also what they notice, want and avoid.',
     `Wants: ${p.goals.long.text}. Right now: ${p.goals.short.text}. These guide their choices, not topics to recite.`,
   ];
+  const body = bodyState(c);
+  if (body) lines.push(`Physical state right now (shapes how they talk and act, do not narrate it as a label): ${body}`);
   if (opts.examples !== false) lines.push(`Voice examples (cadence only, not lines to copy): ${sp.exemplars.map(e => `"${e}"`).join(' ')}`);
   if (sp.doNot.length) lines.push(`Do not: ${sp.doNot.join('; ')}.`);
   if (!opts.compact) {
@@ -261,4 +279,4 @@ export function assemble(sections: Section[], maxTokens: number): string {
 }
 
 // ponytail: chars/4 estimate against Ollama's 8192 num_ctx; group scenes need room for memories and plans, not just cards.
-export const TOKEN_BUDGET = { beats: 3000, lines: 3500, deltas: 1000, commentary: 1000, chat: 1400, flavor: 400, summary: 600 } as const;
+export const TOKEN_BUDGET = { beats: 3000, lines: 3500, deltas: 1000, commentary: 1400, intermission: 2400, chat: 1400, flavor: 400, summary: 600 } as const;

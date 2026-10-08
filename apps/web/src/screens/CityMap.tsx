@@ -1,7 +1,7 @@
 // City map: pixel-art canvas rendered from content/city.json, reachable nodes highlighted by remaining slot cost.
 import { Tip } from '../components/Tip';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { afford, content, reachability, shiftToday, ACTIVITY_MINUTES, GIFT_ITEMS, GIFT_PRICE, priceLabel, type PlayerAction, type CityNode } from '@shared-roof/shared';
+import { afford, content, reachability, servesDrinks, shiftToday, ACTIVITY_MINUTES, GIFT_ITEMS, GIFT_PRICE, priceLabel, type PlayerAction, type CityNode } from '@shared-roof/shared';
 import { useGame } from '../store';
 import { useWorldClock } from '../useWorldClock';
 import { TopBar, StudioStrip, slotLabel } from '../components/layout';
@@ -97,6 +97,7 @@ export function CityMap() {
   const [activity, setActivity] = useState<string>('wander');
   const [invite, setInvite] = useState<string>('');
   const [contract, setContract] = useState(false);
+  const [drink, setDrink] = useState(false);
   const [item, setItem] = useState('flowers');
   const [scale, setScale] = useState(3);
   useWorldClock(!!sel);
@@ -163,12 +164,24 @@ export function CityMap() {
     setActivity(n.activities.includes('date') ? 'date' : n.activities[0] ?? 'wander');
     setInvite('');
     setContract(false);
+    setDrink(false);
   };
+  const drinks = !!sel && servesDrinks(sel.id);
   const needsInvite = activity === 'date' || activity === 'invite';
+  // an accepted plan for this block at the selected place, with the other person already there
+  const plans = sel ? view.invitations.filter((p) => p.status === 'accepted' && !p.performance && p.node === sel.id && p.episode === view.episode && p.slot === view.slot && [p.from, p.to].includes(view.playerId)) : [];
+  const mates = view.characters.filter((c) => sel && c.cityLocation === sel.id && plans.some((p) => [p.from, p.to].includes(c.id)));
+  const joinPlan = () => {
+    if (!sel || !mates.length) return;
+    const activity = plans.length === 1 && plans[0].date && sel.activities.includes('date') ? 'date' : sel.activities.includes('invite') ? 'invite' : sel.activities.find((a) => !['work', 'class'].includes(a)) ?? 'wander';
+    const r = byNode[sel.id];
+    setSel(null);
+    void act({ type: 'goOut', node: sel.id, activity: activity as never, invite: mates[0].id, guests: mates.length > 1 ? mates.slice(1).map((c) => c.id) : undefined, useCar: r?.needsCar, drink: drinks && drink });
+  };
   const go = () => {
     if (!sel) return;
     const r = byNode[sel.id];
-    const a: PlayerAction = { type: 'goOut', node: sel.id, activity: activity as never, invite: needsInvite ? invite || undefined : undefined, useCar: r?.needsCar, contract: activity === 'work' && contract, item: activity === 'gift' ? item : undefined };
+    const a: PlayerAction = { type: 'goOut', node: sel.id, activity: activity as never, invite: needsInvite ? invite || undefined : undefined, useCar: r?.needsCar, contract: activity === 'work' && contract, item: activity === 'gift' ? item : undefined, drink: drinks && drink && !['work', 'class'].includes(activity) };
     setSel(null);
     void act(a);
   };
@@ -196,7 +209,7 @@ export function CityMap() {
         </div>
         <Panel title={`${slotLabel(view.slot)} · where to? (${Math.max(0, view.minutesLeft - ACTIVITY_MINUTES)} min for travel there and back)`} className="flex w-96 shrink-0 flex-col overflow-hidden">
           <ul className="flex-1 overflow-y-auto pr-1 text-sm scroll-thin">
-            {view.characters.filter(c => !c.isPlayer && c.cityLocation).map(c => <li key={`visitor-${c.id}`} className="mb-2 text-xs">{c.name.split(' ')[0]} · at {content().city.nodes.find(n => n.id === c.cityLocation)?.name}{c.companion ? ` with ${view.characters.find(p => p.id === c.companion)?.name.split(' ')[0]}` : ''}</li>)}
+            {view.characters.filter(c => !c.isPlayer && c.cityLocation).map(c => <li key={`visitor-${c.id}`} className="mb-2 text-xs">{c.name.split(' ')[0]} · at {content().city.nodes.find(n => n.id === c.cityLocation)?.name}{c.condition ? ` · ${c.condition}` : ''}{c.companion ? ` with ${view.characters.find(p => p.id === c.companion)?.name.split(' ')[0]}` : ''}</li>)}
             {nodes
               .map((n) => ({ n, r: byNode[n.id] }))
               .sort((a, b) => Number(b.r?.reachable) - Number(a.r?.reachable) || (a.r?.minutes ?? 999) - (b.r?.minutes ?? 999))
@@ -238,6 +251,12 @@ export function CityMap() {
       {sel && (
         <Modal title={sel.name} onClose={() => setSel(null)}>
           <p className="mb-3 text-sm">{sel.description}</p>
+          {mates.length > 0 && (
+            <div className="mb-3 flex items-center gap-3">
+              <Btn primary disabled={busy} onClick={joinPlan}>join {mates.map((c) => c.name.split(' ')[0]).join(' & ')} · {plans.length === 1 && plans[0].date ? 'your date' : 'your plan'}</Btn>
+              <span className="caption text-xs">already here</span>
+            </div>
+          )}
           <fieldset className="mb-3">
             <legend className="caption mb-1 text-xs">what will you do?</legend>
             <div className="flex flex-wrap gap-2">
@@ -266,6 +285,12 @@ export function CityMap() {
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
+            </label>
+          )}
+          {drinks && !['work', 'class'].includes(activity) && (
+            <label className="mb-3 flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={drink} onChange={(e) => setDrink(e.target.checked)} />
+              have a few drinks <span className="caption text-xs">(others may join in; tomorrow may hurt)</span>
             </label>
           )}
           {activity === 'gift' && <label className="mb-3 flex items-center gap-2 text-sm">gift

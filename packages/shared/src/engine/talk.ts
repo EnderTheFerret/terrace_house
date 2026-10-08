@@ -1,7 +1,7 @@
 // Free-text talk: the player types what they say; the engine reads an intent from it (so relationships move the
 // same way as with the buttons), housemates remember the words, and phone conversations land in the chat thread.
 import { TYPED_MAX, type BeatType, type Character, type DeltaProposal, type Emotion, type GameState, type Intent } from '../model';
-import { addLog, addMemory, cloneState, firstName, rel } from './core';
+import { addLog, addMemory, attracted, cloneState, firstName, rel } from './core';
 import { isShabbat } from './agents';
 import { truncate } from '../util';
 
@@ -45,13 +45,27 @@ export function typedAffinityFallback(s: GameState, participants: string[], tran
   return p.affinityDeltas.length ? p : null;
 }
 
+/**
+ * A flirt the listener took well (the reading raised their liking of the player) earns a little romance from a listener
+ * attracted to the player, even when the model wrote none: small models under-read flirting.
+ */
+export function welcomedFlirts(s: GameState, transcript: { speaker: string; text: string; recipient?: string }[], p: DeltaProposal): DeltaProposal {
+  const flirts = transcript.filter((l) => l.speaker === s.playerId && classifyIntent(l.text, ['flirt', 'honest']) === 'flirt');
+  if (!flirts.length) return p;
+  const toAll = flirts.some((l) => !l.recipient || l.recipient === 'everyone');
+  const add = p.affinityDeltas
+    .filter((d) => d.to === s.playerId && d.delta > 0 && (toAll || flirts.some((l) => l.recipient === d.from)) && s.characters[d.from] && attracted(s.characters[d.from], s.characters[s.playerId]) && !p.romanceDeltas.some((r) => r.from === d.from && r.to === s.playerId))
+    .map((d) => ({ from: d.from, to: s.playerId, delta: Math.min(4, Math.max(2, d.delta)) }));
+  return add.length ? { ...p, romanceDeltas: [...p.romanceDeltas, ...add] } : p;
+}
+
 // ponytail: keyword cues, not an NLU model; the LLM still reads the exact words when writing replies.
 const CUES: [Intent, RegExp, number][] = [
   ['confess', /\b(i (really )?(like|love) you|fallen for you|feelings for you|go out with me|be my (girl|boy|)friend|date me|i'?m into you)\b/i, 3],
   ['apologize', /\b(sorry|apologi[sz]e|my (bad|fault)|forgive me)\b/i, 2.5],
   ['decline', /\b(not interested|just friends|don'?t feel the same|no thanks|no[,!]|(?:do not|don'?t) want (?:to |a |any |go on a )*(?:date|kiss|romance)|i'?m not ready|i can'?t (do|date) )/i, 2.2],
   ['confront', /\b(why did you|what the hell|not (ok|okay|fair)|you always|you never|seriously\?|unacceptable|lied|liar|stop it|i'?m (angry|upset|mad))\b/i, 2],
-  ['flirt', /\b(cute|pretty|handsome|beautiful|gorgeous|date|kiss|miss(ed)? you|thinking about you|you look (really |so |super )?(nice|good|great|amazing|cute)|just (the two of )?us)\b/i, 1.8],
+  ['flirt', /\b(cute|pretty|handsome|beautiful|gorgeous|date|kiss|wink(s|ed)?|flirt(y|ing|ily)?|miss(ed)? (you|me)|thinking about you|you look (really |so |super )?(nice|good|great|amazing|cute)|just (the two of )?us)\b/i, 1.8],
   ['support', /\b(you'?ve got this|i'?m here|here for you|proud of you|it'?s (ok|okay)|don'?t worry|you can do it|on your side|need anything|i believe in you)\b/i, 1.8],
   ['joke', /\b(haha+|lol|lmao|joke|kidding|funny)\b|😂/i, 1.5],
   ['tease', /\b(blushing|admit it|oh really|sure you are|nice try|busted|caught you)\b|😏/i, 1.5],

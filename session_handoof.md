@@ -2,6 +2,18 @@
 
 Updated: 2026-10-07 (Asia/Jerusalem). Latest workflow status is below; older sections record earlier experiments.
 
+## Invites, readings, board and stray CGs (2026-10-08)
+- **User report:** invites through chat/phone broken; flirting/friendliness didn't move relationships; board hard to read; wants earlier days and texts re-readable; CGs drawn without the player.
+- [x] **Invite parsing** (`living.ts`): full place names win ("Dizengoff Square"); the place must sit in an inviting sentence ("Drinking at the bar later. Want gossip?" no longer books Noga for the bar and then breaks the plan); `planConflict` lets you join someone already going to the same place (her own DJ set).
+- [x] **LLM plan read:** `Generator.planRead` (main model, JSON) reads a text thread or scene and `applyPlanRead` adds / moves / accepts / cancels the pair's plan; engine still blocks work/place conflicts. Runs after texts and typed scene turns when a keyword gate (`PLAN_TALK`) matches; logged as `plan-read` (replayed). Real gemma4 probe on the saved threads: Noga → Florentin Basement tonight; Shira → café tomorrow 10:00 (blocked: her shift).
+- [x] **Invited outings** (`loop.ts`): a picked template keeps "arranged to come together" instead of "a chance encounter… neither planned this".
+- [x] **Readings:** prompt now covers romance (with allowed attraction directions and the player's flirt lines) and trust; `rereadChange` keeps the scene's value for pairs the reading omits (was wiping trust gains); `dropUnattracted`; `welcomedFlirts` adds +2..4 romance when an attracted listener's liking rose after a flirt.
+- [x] **Chat log:** browse any day (`/api/game/log?day=N`), re-read earlier scenes (memories dated to that day); today's page lists text threads with "check texts for plans".
+- [x] **Board:** edges ≥2 shown (was ≥8, hiding nearly everything); "how they feel about you" panel in words + numbers.
+- [x] **CGs:** the stray non-player CGs were feed photos of NPC posts; only posts from/with the player get artwork now (server + client). Old images stay in the gallery.
+- **Verified:** typecheck, ESLint on changed files, full vitest with `SIM_SEEDS=20` 383/383, browser check of board/chat log on a copy of the real save, live Ollama probes of plan read and readings.
+- **Not verified:** a full live play-through of texting → plan → outing.
+
 ## Time, plans and grounded dialogue (2026-10-07)
 - **User report:** characters invented things about the player, talked about "last week" on day 1, had no sense of time, plans (calendar or phone) or real interactions with other housemates.
 - [x] **Day and clock:** `dayLine` (`prompts/common.ts`) replaces "episode N" in scene, phone, overheard and autonomy prompts: day number, date, clock, who moved in today, how long people have lived together.

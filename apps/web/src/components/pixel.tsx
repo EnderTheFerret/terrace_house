@@ -195,7 +195,7 @@ export function Stand({ char, outfit, emotion, height, refresh = '' }: { char: {
 }
 
 /** Character portrait: procedural pixel portrait immediately, crossfades to the generated one when ready. */
-const EXPRESSION_ICONS: Record<Emotion, string> = { neutral: '😐', happy: '😊', shy: '😳', awkward: '😅', annoyed: '😒', sad: '😢', excited: '🤩', nervous: '😰', tender: '🥰', angry: '😠' };
+const EXPRESSION_ICONS: Record<Emotion, string> = { neutral: '😐', happy: '😊', shy: '😳', awkward: '😅', annoyed: '😒', sad: '😢', excited: '🤩', nervous: '😰', tender: '🥰', angry: '😠', drunk: '🥴' };
 const expressionLabel = (emotion: Emotion) => emotion === 'tender' ? 'in love' : emotion;
 
 export function Portrait({ charId, appearance, gender, seed, size = 128, label, expressions = false, outfit }: { charId: string; appearance: Appearance; gender: string; seed: number; size?: number; label: string; expressions?: boolean; outfit?: OutfitRef }) {

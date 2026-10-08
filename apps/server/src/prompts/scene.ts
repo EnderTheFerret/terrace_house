@@ -1,5 +1,5 @@
 // Scene prompts: beat sheet (stage 1), line realization (stage 2), delta proposal.
-import { firstName, guestCharacter, outsiderOf, type Beat, type EventInstance, type GameState, type Intent } from '@shared-roof/shared';
+import { attracted, classifyIntent, firstName, guestCharacter, outsiderOf, type Beat, type EventInstance, type GameState, type Intent } from '@shared-roof/shared';
 import { content } from '@shared-roof/shared';
 import { RULES, TOKEN_BUDGET, aboutPlayer, assemble, elsewhereBlock, housematesBlock, knowledgeBlock, loreBlock, memoriesBlock, nowLine, personaCard, plansBlock, relationshipLine, sceneHeader, type Section } from './common';
 
@@ -140,6 +140,10 @@ export function linesPrompt(
 
 export function deltaPrompt(s: GameState, ev: EventInstance, transcript: { speaker: string; text: string; recipient?: string }[], choices: Record<string, string>): string {
   const ids = ev.participants.join(', ');
+  const people = ev.participants.map((id) => s.characters[id]).filter(Boolean);
+  const canFall = people.flatMap((a) => people.filter((b) => b !== a && attracted(a, b)).map((b) => `${a.id}→${b.id}`));
+  // small models under-read flirting; point at the lines so the listener's reaction gets judged
+  const flirts = transcript.filter((l) => l.speaker === s.playerId && classifyIntent(l.text, ['flirt', 'honest']) === 'flirt').map((l) => `"${l.text}"`);
   return assemble(
     [
       { text: 'Evaluate relationship changes after a conversation between adult housemates. Return JSON matching the schema, rather than dialogue.', priority: 100, required: true },
@@ -154,6 +158,9 @@ export function deltaPrompt(s: GameState, ev: EventInstance, transcript: { speak
           'Read the transcript: a sincere compliment, kindness or shared laugh raises the listener\'s affinity toward the speaker (about +2 to +4); rudeness or dismissal lowers it. Do not return empty arrays for a real exchange.',
           `The player is ${s.playerId}. For the player's words, include the addressed housemate's affinity toward ${s.playerId} (from=housemate_id, to=${s.playerId}). A housemate appreciates being complimented; do not report only the player's feelings about being welcomed. Respect explicit (to id) addressees.`,
           'Judge the words actually spoken, even when they contradict the premise or chosen intents. An insult such as "I hate you" warrants negative affinity from its listener toward its speaker, not a friendly arrival bonus.',
+          `romanceDeltas: flirting, a compliment on looks, a wink, teasing chemistry or asking someone out raises the listener's romance toward the speaker when the listener plays along or seems pleased (about +2 to +6); a flirt the listener rejects lowers affinity instead. Romance is only possible in these directions: ${canFall.join(', ') || 'none'}.`,
+          flirts.length ? `${s.playerId} flirted here: ${flirts.join(' ')}. Decide from the replies whether the listener welcomed it (romance toward ${s.playerId} up) or brushed it off (affinity down a little).` : '',
+          'trustDeltas: opening up, keeping a promise, making real plans together or standing up for someone raises the listener\'s trust in the speaker (+2 to +5); lying, gossiping about them or breaking a promise lowers it.',
           'newMemories: one short memory per participant who would remember this, salience 0..1.',
           'Return all six fields: affinityDeltas, romanceDeltas, tensionDeltas, trustDeltas, newMemories, moodDeltas. Populate affinityDeltas with actual {"from":"listener_id","to":"speaker_id","delta":signed_number} entries for this exchange. Unchanged fields may be empty arrays.',
         ].join('\n'),

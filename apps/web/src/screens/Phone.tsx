@@ -3,7 +3,7 @@ import { Tip } from '../components/Tip';
 import { PixelImage, useImage } from '../components/pixel';
 import { api, type ImageStatus } from '../api';
 import { useEffect, useState } from 'react';
-import { content, freezePixels, pixelsToSvg, reachability, SLOTS, type Slot } from '@shared-roof/shared';
+import { content, freezePixels, pixelsToSvg, reachability, SLOTS, type PlayerView, type Slot } from '@shared-roof/shared';
 import { unreadMessages, useGame } from '../store';
 import { TopBar, slotLabel } from '../components/layout';
 import { Btn } from '../components/ui';
@@ -13,6 +13,7 @@ export function Phone() {
   const tab = useGame((s) => s.phoneTab);
   const setTab = (phoneTab: string) => useGame.setState({ phoneTab });
   const [draft, setDraft] = useState('');
+  const [also, setAlso] = useState<string[]>([]);
   const [postKind, setPostKind] = useState<'photo' | 'story'>('photo');
   const [target, setTarget] = useState('');
   const [node, setNode] = useState('market');
@@ -32,7 +33,7 @@ export function Phone() {
   const blocked = busy || !!pending;
   const destinations = reachability('house', view.slot as Slot, view.budget.level, view.carFree, 180 - view.minutesLeft, view.weekday);
   const submit = (action: Parameters<typeof act>[0]) => void act(action).then(() => {
-    if (action.type === 'text' && !useGame.getState().error) setDraft('');
+    if (action.type === 'text' && !useGame.getState().error) { setDraft(''); setAlso([]); }
     if (['plan', 'respondPlan', 'post', 'like'].includes(action.type) && useGame.getState().screen === 'house') setScreen('phone');
   });
   const retry = async () => {
@@ -53,7 +54,7 @@ export function Phone() {
             {[['group', `house (${view.groupChat.members.length})`], ['calendar', 'plans'], ['feed', 'feed'], ...housemates.map((c) => [c.id, name(c.id)])].map(([id, label]) => {
               const thread = id === 'group' ? view.groupChat.messages : view.chats.find((t) => t.with === id)?.messages ?? [];
               const unread = id === 'calendar' ? view.invitations.filter(p => p.to === view.playerId && p.status === 'pending' && !read[`plan:${p.id}`]).length : unreadMessages(thread, view.playerId, read[id]);
-              return <button key={id} role="tab" aria-selected={tab === id} className={`shrink-0 rounded px-2 py-1 text-xs ${tab === id ? 'bg-[#9fe0b0]' : 'bg-white/80'}`} onClick={() => { setTab(id); setDraft(''); }}>{label}{unread > 0 && ` (${unread})`}</button>;
+              return <button key={id} role="tab" aria-selected={tab === id} className={`shrink-0 rounded px-2 py-1 text-xs ${tab === id ? 'bg-[#9fe0b0]' : 'bg-white/80'}`} onClick={() => { setTab(id); setDraft(''); setAlso([]); }}>{label}{unread > 0 && ` (${unread})`}</button>;
             })}
           </div>
           <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-[12px] bg-[#f4f6f8] p-3 scroll-thin" role="tabpanel" aria-live="polite">
@@ -91,12 +92,16 @@ export function Phone() {
             </>}
             {tab === 'feed' && <>
               <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); submit({ type: 'post', text: draft.trim(), kind: postKind }); setDraft(''); }}><select aria-label="post format" value={postKind} onChange={(e) => setPostKind(e.target.value as 'photo' | 'story')}><option value="photo">photo</option><option value="story">story</option></select><input aria-label="new social post" maxLength={200} className="px-panel-soft min-w-0 flex-1 px-2 text-sm" placeholder="share a moment…" value={draft} onChange={(e) => setDraft(e.target.value)} /><Btn disabled={busy || !draft.trim()}>post</Btn></form>
-              {[...view.feed].reverse().map((p) => <article key={p.id} className={`rounded bg-white p-2 text-sm ${p.kind === 'story' ? 'border-l-4 border-[#9fe0b0]' : ''}`}><div className="caption text-xs">{name(p.from)}{p.with ? ` with ${name(p.with)}` : ''} · {p.kind} · ep {p.episode}</div>{p.people.length > 0 && <PhonePhoto request={() => api.feedPhoto(p.id)} deps={[p.id]} alt={`${p.kind} by ${name(p.from)} at ${content().city.nodes.find((n) => n.id === p.location)?.name ?? p.location}`} placeholder={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(pixelsToSvg(freezePixels(p.location, p.slot === 'lateNight' || p.slot === 'evening' ? 'night' : p.slot === 'slot3' ? 'evening' : 'day', p.people), 4))}`} />}<p>{p.text}</p><button className="mt-1 text-xs underline" disabled={busy || p.likes.includes(view.playerId)} onClick={() => submit({ type: 'like', id: p.id })}>{p.likes.includes(view.playerId) ? '♥ liked' : '♡ like'} · {p.likes.length}</button>{p.likes.length > 0 && <span className="caption ml-2 text-xs">{p.likes.map(name).join(', ')}</span>}</article>)}
+              {[...view.feed].reverse().map((p) => <article key={p.id} className={`rounded bg-white p-2 text-sm ${p.kind === 'story' ? 'border-l-4 border-[#9fe0b0]' : ''}`}><div className="caption text-xs">{name(p.from)}{p.with ? ` with ${name(p.with)}` : ''} · {p.kind} · ep {p.episode}</div>{p.people.length > 0 && <FeedPhoto post={p} mine={[p.from, p.with].includes(view.playerId)} alt={`${p.kind} by ${name(p.from)} at ${content().city.nodes.find((n) => n.id === p.location)?.name ?? p.location}`} />}<p>{p.text}</p><button className="mt-1 text-xs underline" disabled={busy || p.likes.includes(view.playerId)} onClick={() => submit({ type: 'like', id: p.id })}>{p.likes.includes(view.playerId) ? '♥ liked' : '♡ like'} · {p.likes.length}</button>{p.likes.length > 0 && <span className="caption ml-2 text-xs">{p.likes.map(name).join(', ')}</span>}</article>)}
             </>}
           </div>
           {contact && <>
             {messages.at(-1)?.from === tab && messages.at(-2)?.from === view.playerId && <Btn className="mt-2 self-start text-xs" disabled={busy} onClick={() => void retry()}>retry reply</Btn>}
-            <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (!busy && draft.trim()) submit({ type: 'text', target: tab, text: draft.trim() }); }}><input aria-label={`message to ${name(tab)}`} placeholder="type a message…" className="min-w-0 flex-1 rounded bg-white px-2 py-1 text-sm" value={draft} onChange={(e) => setDraft(e.target.value)} /><Btn disabled={busy || !draft.trim()}>send</Btn></form>
+            <div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-paper" role="group" aria-label="also send to">
+              <span>also send to:</span>
+              {housemates.filter((c) => c.id !== tab).map((c) => <button type="button" key={c.id} aria-pressed={also.includes(c.id)} className={`rounded px-2 py-0.5 ${also.includes(c.id) ? 'bg-[#9fe0b0] text-black' : 'bg-white/80 text-black'}`} onClick={() => setAlso(also.includes(c.id) ? also.filter((x) => x !== c.id) : [...also, c.id].slice(0, 4))}>{name(c.id)}</button>)}
+            </div>
+            <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (!busy && draft.trim()) submit({ type: 'text', target: tab, ...(also.length ? { guests: also.filter((id) => id !== tab) } : {}), text: draft.trim() }); }}><input aria-label={`message to ${name(tab)}`} placeholder="type a message…" className="min-w-0 flex-1 rounded bg-white px-2 py-1 text-sm" value={draft} onChange={(e) => setDraft(e.target.value)} /><Btn disabled={busy || !draft.trim()}>send</Btn></form>
             {pending && <Btn className="mt-2 text-xs" onClick={() => { if (live && !live.done) setScreen('scene'); else void useGame.getState().nextScene(); }}>return to conversation</Btn>}
             <p className="mt-1 text-xs text-paper">Quick messages and hangout requests don’t advance time. Some housemates put their phone away for Shabbat.</p>
             <div className="mt-2 flex flex-wrap gap-2"><Btn disabled={blocked} onClick={() => submit({ type: 'favor', target: tab, kind: 'coffee' })}>make coffee</Btn><Btn disabled={blocked} onClick={() => submit({ type: 'favor', target: tab, kind: 'note' })}>leave a note</Btn>
@@ -110,6 +115,13 @@ export function Phone() {
 }
 
 /** A phone photo: the procedural snapshot at once, the generated picture (everyone's real face) once it is drawn. */
+/** Feed posts get drawn artwork only when the player is in the moment; everyone else's posts keep the pixel sketch. */
+function FeedPhoto({ post: p, mine, alt }: { post: PlayerView['feed'][number]; mine: boolean; alt: string }) {
+  const sketch = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(pixelsToSvg(freezePixels(p.location, p.slot === 'lateNight' || p.slot === 'evening' ? 'night' : p.slot === 'slot3' ? 'evening' : 'day', p.people), 4))}`;
+  if (!mine) return <img className="pixelated my-2 w-full rounded" style={{ maxHeight: 220, objectFit: 'contain' }} alt={alt} src={sketch} />;
+  return <PhonePhoto request={() => api.feedPhoto(p.id)} deps={[p.id]} alt={alt} placeholder={sketch} />;
+}
+
 function PhonePhoto({ request, deps, alt, placeholder }: { request: () => Promise<ImageStatus>; deps: unknown[]; alt: string; placeholder?: string }) {
   const st = useImage(request, deps);
   const real = st?.status === 'ready' && !st.placeholder && st.url ? st.url : null;

@@ -4,6 +4,7 @@ import { isOpen, node, reachability, shiftToday, shortestTimes, ACTIVITY_MINUTES
 import { afford, playerBudget } from './budget';
 import { SLOT_MINUTES } from './core';
 import { createGame, finishSlot, planSlot } from './loop';
+import { debugEdit } from './debugedit';
 
 describe('city exploration', () => {
   it('graph is connected on foot except car-only spots, which the car unlocks', () => {
@@ -59,7 +60,38 @@ describe('city exploration', () => {
     s0.world.slot = 'slot1';
     const { state, plan } = planSlot(s0, { type: 'goOut', node: 'beach', activity: 'invite', invite: 'ren', guests: ['kaito'] });
     expect(['ren', 'kaito'].map((id) => state.characters[id].location)).toEqual(['beach', 'beach']);
-    expect(plan.scenes.find((p) => p.event.isPlayerScene)!.event.participants).toEqual(expect.arrayContaining(['player', 'ren', 'kaito']));
+    const ev = plan.scenes.find((p) => p.event.isPlayerScene)!.event;
+    expect(ev.participants).toEqual(expect.arrayContaining(['player', 'ren', 'kaito']));
+    expect(`${ev.title} ${ev.premise}`).not.toMatch(/chance encounter|Neither of them planned/); // an invited outing is planned
+  });
+  it('a guest who can afford the place covers a player who is out of budget', () => {
+    const s0 = createGame({ seed: 7 });
+    s0.characters[s0.playerId].occupation = 'student';
+    s0.characters.ren.occupation = 'founder';
+    let place: ReturnType<typeof reachability>[number] | undefined;
+    for (const slot of ['slot1', 'slot2', 'slot3', 'evening'] as const) {
+      s0.world.slot = slot;
+      place = reachability('house', slot, playerBudget(s0), true, 0, s0.world.weekday).find((r) => r.reachable && r.afford === 'out' && content().city.nodes.find((n) => n.id === r.node)!.activities.includes('date'));
+      if (place) break;
+    }
+    if (!place) throw new Error('fixture: no reachable out-of-budget date spot');
+    const go = (invite?: string) => () => planSlot(s0, { type: 'goOut', node: place!.node, activity: 'date', invite, useCar: place!.needsCar });
+    expect(go()).toThrow(/budget/);
+    expect(go('ren')).not.toThrow();
+    // neither can afford it: only a plan they already keep there lets you join
+    s0.characters.ren.occupation = 'student';
+    expect(go('ren')).toThrow(/budget/);
+    s0.invitations.push({ id: 'plan-join', from: 'ren', to: s0.playerId, episode: s0.world.episode, slot: s0.world.slot, node: place.node, status: 'accepted' });
+    expect(go('ren')).not.toThrow();
+  });
+  it('debug-moving a housemate gives them an activity for the new place, not a hold for the whole block', () => {
+    const s0 = createGame({ seed: 7 });
+    s0.world.minutes = 0;
+    const town = debugEdit(s0, { id: 'ren', location: 'beach' }).characters.ren;
+    expect(town).toMatchObject({ location: 'beach', lastAction: 'goOut', actionNode: 'beach' });
+    expect(town.activityUntil).toBeLessThan(SLOT_MINUTES);
+    expect(debugEdit(s0, { id: 'ren', location: 'kitchen' }).characters.ren).toMatchObject({ location: 'kitchen', lastAction: 'snack' });
+    expect(() => debugEdit(s0, { id: 'ren', location: 'nowhere' })).toThrow(/unknown location/);
   });
   it('part-time contract: fixed weekly shifts lift the budget a level; two missed shifts and you are let go', () => {
     const s0 = createGame({ seed: 7 });

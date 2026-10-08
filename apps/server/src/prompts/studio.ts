@@ -1,12 +1,16 @@
 // Studio panel commentary + chat-app + premise flavor prompts.
-import { attracted, content, firstName, intermissionTopics, isCouple, pendingCallbacks, placeName, rel, SLOTS, type EventInstance, type GameState, type PredictionCond } from '@shared-roof/shared';
+import { attracted, content, firstName, intermissionTopics, isCouple, pendingCallbacks, placeName, rel, SLOTS, type EventInstance, type Footage, type GameState, type PredictionCond } from '@shared-roof/shared';
 import { TOKEN_BUDGET, aboutPlayer, assemble, dayLine, housematesBlock, memoriesBlock, nowLine, personaCard, plansBlock, relationshipLine, RULES } from './common';
 
 const PANEL_RULES = [
-  'You write the studio panel of a reality show: five commentators watching the housemates on a monitor.',
-  'They react like real people: jokes, gasps, cutting analysis, romance. They NEVER give gameplay advice or hints, and never speak to the housemates.',
-  'Each line ≤ 2 sentences. Only the panel may break the fourth wall. PG-13.',
+  'You write the studio panel of a Terrace House-style reality show: five commentators on a sofa, rewatching the housemates\' footage together.',
+  'They talk to EACH OTHER, not to the camera: like friends gossiping over a rewatch. They tease, interrupt, pile on a joke, and openly disagree about what someone meant.',
+  'Everything they say is about the footage they were shown: they quote or closely paraphrase what a housemate actually said ("when she said \'...\'"), read the motive behind it, and judge it. No generic remark that could fit any scene, and never invent a line or event that is not in the footage.',
+  'They NEVER give gameplay advice or hints, and never speak to the housemates. Each line ≤ 2 sentences. Only the panel may break the fourth wall. PG-13.',
 ].join('\n');
+
+/** Panel talk is a conversation: who answers whom. */
+const PANEL_FLOW = 'After the first line, each panelist answers what the previous one just said (agree, tease, push back, often by name: "Saeki, come on"), then adds their own read. Include at least one real disagreement about a housemate\'s motive, played to the panelists\' personalities.';
 
 /** Nicknames the panel already coined: reused all season, never a second one for the same person. */
 const nicknames = (s: GameState) => {
@@ -31,12 +35,12 @@ export function commentaryPrompt(
       { text: PANEL_RULES, priority: 100, required: true },
       { text: `Panelists:\n${panel}`, priority: 95, required: true },
       { text: `The scene they just watched: "${ev.title}" at the ${placeName(ev.location)}. ${ev.premise}${outcome ? ` Outcome: confession ${outcome}.` : ''}`, priority: 95, required: true },
-      { text: `Transcript:\n${transcript.slice(-10).map((l) => `${s.characters[l.speaker] ? firstName(s, l.speaker) : l.speaker}: ${l.text}`).join('\n')}`, priority: 80 },
+      { text: `Transcript (what they actually said):\n${transcript.slice(-12).map((l) => `${s.characters[l.speaker] ? firstName(s, l.speaker) : l.speaker}: ${l.text}`).join('\n')}`, priority: 80 },
       { text: callbacks.join('\n'), priority: 70 },
       { text: nicknames(s), priority: 75 },
       {
         text: [
-          '2–4 panelists speak. reaction is one of laugh, gasp, cringe, aww, silence, groan.',
+          `3–5 lines from 2–4 panelists about THIS scene; at least one line quotes a specific line from the transcript. ${PANEL_FLOW} reaction is one of laugh, gasp, cringe, aww, silence, groan.`,
           ev.freeze ? 'Also give a freezeFrame caption (≤ 6 words, lowercase).' : '',
           pred,
           'Output JSON only: {"lines":[{"speaker":"<panelist id>","text":"...","reaction":"laugh"}],"freezeFrame":{"caption":"..."},"prediction":{"text":"..."}}',
@@ -50,25 +54,35 @@ export function commentaryPrompt(
 }
 
 /** Intermission: the show cuts to the studio mid-episode / at the end, and the panel talks over recent footage. */
-export function intermissionPrompt(s: GameState, at: 'mid' | 'end', since: number): string {
-  const panel = content().panel.map((p) => `- ${p.id} (${p.name}, ${p.role}): ${p.persona}`).join('\n');
-  const topics = intermissionTopics(s, since).map((l) => `- ${l.text}`).join('\n') || '- a quiet stretch; nothing big happened';
+export function intermissionPrompt(s: GameState, at: 'mid' | 'end', since: number, footage: Footage[] = []): string {
+  const panel = content().panel.map((p) => `- ${p.id} (${p.name}, ${p.role}): ${p.persona} Favorites: ${p.favorites.join(', ') || 'none'}.`).join('\n');
+  const topics = intermissionTopics(s, since, 5).map((l) => `- ${l.text}`).join('\n');
+  // later clips are dropped first when the budget is tight, so the strongest footage comes first
+  const clips = footage.slice(0, 4).map((f, i) => ({
+    text: `Clip ${i + 1}: "${f.title}" at the ${f.place}\n${f.lines.slice(-8).map((l) => `${l.name}: ${l.text}`).join('\n')}`,
+    priority: 90 - i,
+    required: i === 0,
+  }));
   return assemble(
     [
       { text: PANEL_RULES, priority: 100, required: true },
       { text: `Panelists:\n${panel}`, priority: 95, required: true },
-      { text: `${at === 'mid' ? 'The host pauses the tape halfway through the episode.' : 'The episode just ended; the host wraps up.'} What the panel just watched:\n${topics}`, priority: 95, required: true },
+      { text: `${at === 'mid' ? 'The host pauses the tape halfway through the episode.' : 'The episode just ended; the host wraps up.'} Here is the footage the panel just watched.`, priority: 100, required: true },
+      ...clips,
+      { text: topics ? `Other things that happened in the house:\n${topics}` : clips.length ? '' : 'A quiet stretch; nothing big happened. The panel talks about the quiet itself and who is avoiding whom.', priority: 85, required: !clips.length },
       { text: nicknames(s), priority: 80 },
       {
         text: [
-          `nagumo speaks first${at === 'end' ? ' and last (a one-line sign-off)' : ''}. 3–6 lines total; panelists riff on each other, use nicknames for housemates. reaction is one of laugh, gasp, cringe, aww, silence, groan.`,
+          `nagumo speaks first, naming the moment to discuss${at === 'end' ? ', and last (a one-line sign-off)' : ''}. 5–8 lines total, covering the clips${topics ? ' and events' : ''} above in order of how juicy they are.`,
+          `${PANEL_FLOW} At least two lines quote or closely paraphrase something a housemate said in a clip. Use the nicknames for housemates.`,
+          'reaction is one of laugh, gasp, cringe, aww, silence, groan.',
           'Output JSON only: {"lines":[{"speaker":"<panelist id>","text":"...","reaction":"laugh"}]}',
         ].join('\n'),
         priority: 100,
         required: true,
       },
     ],
-    TOKEN_BUDGET.commentary,
+    TOKEN_BUDGET.intermission,
   );
 }
 

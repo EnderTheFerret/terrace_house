@@ -165,6 +165,8 @@ interface State {
   /** a hang-out the player accepted: illustrate its scene when it ends */
   hangoutCg: boolean;
   studioAfter: Screen;
+  /** work queued behind the studio intermission (a hang-out's trip), run when the player leaves it */
+  afterStudio: (() => Promise<void>) | null;
   phoneTab: string;
   phoneRead: Record<string, number>;
   setScreen(s: Screen): void;
@@ -213,6 +215,7 @@ export const useGame = create<State>((set, get) => ({
   practiceRecipe: null,
   hangoutCg: false,
   studioAfter: 'house',
+  afterStudio: null,
   phoneTab: 'group',
   phoneRead: {},
 
@@ -449,18 +452,23 @@ export const useGame = create<State>((set, get) => ({
       if (!get().live?.done || get().live?.error) return;
       await get().finishSlot(false);
       if (get().error) return;
-      set({ hangoutCg: inv.activity !== 'talk' });
-      const go: PlayerAction = inv.activity === 'talk'
-        ? { type: 'talk', room: inv.node as Room, target: inv.from, guests: inv.guests }
-        : { type: 'goOut', node: inv.node, activity: inv.activity, invite: inv.from, guests: inv.guests.length ? inv.guests : undefined };
-      await get().act(go);
-      // not enough of this block is left for the trip: let it pass, then go at the start of the next one
-      if (/too far for this slot|closed now/.test(get().error ?? '')) {
-        set({ error: null });
-        await get().act({ type: 'skip' });
-        if (!get().error) await get().act(go);
-      }
-      if (get().error) set({ hangoutCg: false });
+      const trip = async () => {
+        set({ hangoutCg: inv.activity !== 'talk' });
+        const go: PlayerAction = inv.activity === 'talk'
+          ? { type: 'talk', room: inv.node as Room, target: inv.from, guests: inv.guests }
+          : { type: 'goOut', node: inv.node, activity: inv.activity, invite: inv.from, guests: inv.guests.length ? inv.guests : undefined };
+        await get().act(go);
+        // not enough of this block is left for the trip: let it pass, then go at the start of the next one
+        if (/too far for this slot|closed now/.test(get().error ?? '')) {
+          set({ error: null });
+          await get().act({ type: 'skip' });
+          if (!get().error) await get().act(go);
+        }
+        if (get().error) set({ hangoutCg: false });
+      };
+      // the studio intermission comes first; the trip starts when the player leaves it
+      if (get().screen === 'studio') set({ afterStudio: trip });
+      else await trip();
     } catch (e) {
       set({ error: (e as Error).message, hangoutCg: false });
       await get().playLive(live.id);
@@ -493,7 +501,7 @@ export const useGame = create<State>((set, get) => ({
       const after: Screen = r.seasonOver ? 'summary' : r.view.awaitingPlayer ? 'creator' : r.newEpisode ? 'episode' : r.view.slot === 'morning' || r.view.slot === 'evening' ? 'house' : get().back === 'map' ? 'map' : 'house';
       if (r.newEpisode && !r.seasonOver) set({ episodeCard: 'end' });
       // the show cuts to the studio panel mid-episode and at the end; the studio screen then continues to `after`
-      set(r.intermission && (showRecap || r.newEpisode) ? { screen: 'studio', studioAfter: after } : { screen: after });
+      set(r.intermission ? { screen: 'studio', studioAfter: after } : { screen: after });
     } catch (e) {
       set({ error: (e as Error).message, busy: false });
     }

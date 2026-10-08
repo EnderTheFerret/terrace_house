@@ -1,8 +1,8 @@
 // Deterministic replay of an events_log: re-applies engine steps in the same order the session used.
 import {
   applyReread, autoChoices, createGame, finishSlot, panelPrediction, planSlot, proposeOutcome, recordCommentary, resolveScene, applyCooking,
-  editPlayer, joinNewPlayer, recordChat, recordConversation, recordPlayerWords, passTime, recordDiary, planMoveInArrival, planHouseMeal, queueNpcPlans,
-  type EventInstance, type GameState, beginBroadcast, respondToPlan, addTalkPlan,
+  applyDrinks, debugEdit, editPlayer, joinNewPlayer, recordChat, recordConversation, recordPlayerWords, passTime, recordDiary, planMoveInArrival, planHouseMeal, queueNpcPlans,
+  type EventInstance, type GameState, beginBroadcast, respondToPlan, addTalkPlan, applyPlanRead,
 } from '@shared-roof/shared';
 import { applyCharacterSnapshot } from './personas';
 
@@ -51,7 +51,10 @@ export function replayEvents(events: LoggedEvent[]): GameState {
         break;
       }
       case 'reread':
-        applyReread(s!, p.id, p.change, p.participants, true, p.boardChange ?? { ...p.change, affinityDeltas: [], romanceDeltas: [] });
+        applyReread(s!, p.id, p.change, p.participants, true, p.boardChange ?? { ...p.change, affinityDeltas: [], romanceDeltas: [] }, p.episode);
+        break;
+      case 'plan-read':
+        s = applyPlanRead(s!, p.a, p.b, p.read);
         break;
       case 'reading':
         if (p.change) applyReread(s!, p.id, p.change, p.participants, false, p.boardChange ?? { ...p.change, affinityDeltas: [], romanceDeltas: [] });
@@ -111,6 +114,12 @@ export function replayEvents(events: LoggedEvent[]): GameState {
         break;
       case 'edit-player':
         s = editPlayer(s!, p.edit);
+        break;
+      case 'drinks':
+        s = applyDrinks(s!, p.changes);
+        break;
+      case 'debug-edit':
+        s = debugEdit(s!, p.edit);
         break;
       case 'generated-character':
         applyCharacterSnapshot(s!, p.character);

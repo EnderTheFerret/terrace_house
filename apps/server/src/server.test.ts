@@ -558,12 +558,13 @@ describe('game session (mock + failing adapters)', () => {
     expect(session.state.world.minutes).toBe(105);
     expect(session.state.chats[[session.state.playerId, target.id].sort().join('|')]).toHaveLength(2);
     expect(dialogueCalls).toBe(0);
-    expect(generatedKinds).toEqual(['chat']);
+    // "tonight" may settle a plan, so the thread is also read for one (no game time either way)
+    expect(generatedKinds).toEqual(['chat', 'summary']);
     expect(replayEvents(store.events(session.state.gameId))).toEqual(session.state);
     session.state = passTime(session.state, 15 / 3, [], 3);
     session.logSeq = store.appendEvent(session.state.gameId, 'time', { lines: 15 / 3 });
     await expect(session.act({ type: 'text', target: target.id, text: 'Still there?' })).rejects.toThrow(/Shabbat/);
-    expect(generatedKinds).toEqual(['chat']);
+    expect(generatedKinds).toEqual(['chat', 'summary']);
     expect(replayEvents(store.events(session.state.gameId))).toEqual(session.state);
   });
 
@@ -584,6 +585,9 @@ describe('game session (mock + failing adapters)', () => {
     expect(im.lines.length).toBeGreaterThanOrEqual(3);
     expect(im.lines[0].speaker).toBe('nagumo');
     expect(im.lines.at(-1)!.speaker).toBe('nagumo');
+    // the panel quotes what was actually said in the house, not only canned lines
+    const said = store.events(session.state!.gameId).filter(e => e.kind === 'scene').flatMap(e => (e.payload.transcript ?? []).map((l: { text: string }) => l.text.replace(/\s+/g, ' ').trim().split(/[.!?]/)[0].slice(0, 30)));
+    expect(im.lines.some(l => said.some((t: string) => t.length >= 8 && l.text.includes(t)))).toBe(true);
     expect({ ...session.state, panelRemarks: before.panelRemarks }).toEqual(before);
     expect(session.state!.panelRemarks.slice(before.panelRemarks.length).map(r => r.text)).toEqual(im.lines.map(l => l.text));
     expect(session.state!.panelRemarks.slice(before.panelRemarks.length).every(r => r.episode === 1)).toBe(true);

@@ -2,7 +2,7 @@
 import type { DeltaProposal, GameState } from '../model';
 import { DeltaProposal as DeltaProposalSchema } from '../model';
 import { clamp, uk } from '../util';
-import { FEELING_SCALE, MAX_SCENE_DELTA, addMemory, addRel, asym, belief, housemates, rel, romanceGap } from './core';
+import { FEELING_SCALE, MAX_SCENE_DELTA, addMemory, addRel, asym, attracted, belief, housemates, rel, romanceGap } from './core';
 import { affinityFit } from './castgen';
 
 export const hasFeelingDeltas = (p: DeltaProposal) =>
@@ -58,6 +58,11 @@ export function sanitizeProposal(raw: unknown, validIds: readonly string[], maxD
   };
 }
 
+/** Romance only grows where the feeling one is attracted to the other; a model reading can't make Ron fall for Adam. */
+export function dropUnattracted(s: GameState, p: DeltaProposal): DeltaProposal {
+  return { ...p, romanceDeltas: p.romanceDeltas.filter((d) => d.delta < 0 || (s.characters[d.from] && s.characters[d.to] && attracted(s.characters[d.from], s.characters[d.to]))) };
+}
+
 export function applyProposal(s: GameState, p: DeltaProposal, participants: string[]) {
   for (const d of p.affinityDeltas) addRel(s, d.from, d.to, 'affinity', d.delta * FEELING_SCALE);
   for (const d of p.romanceDeltas) addRel(s, d.from, d.to, 'romance', d.delta * FEELING_SCALE);
@@ -86,18 +91,20 @@ function minus(a: Directed, b: Directed, ka = 1, kb = 1): Directed {
  * to today's scale. The result is the exact change to apply; trust and tension are unscaled.
  */
 export function rereadChange(next: DeltaProposal, applied: DeltaProposal, appliedScale = 1): DeltaProposal {
+  // a pair the reading leaves out keeps what the scene gave it: silence about trust is not a verdict of "no trust gained"
+  const read = (a: Directed, b: Directed) => b.filter((d) => a.some((x) => x.from === d.from && x.to === d.to));
   return {
-    affinityDeltas: minus(next.affinityDeltas, applied.affinityDeltas, FEELING_SCALE, appliedScale),
-    romanceDeltas: minus(next.romanceDeltas, applied.romanceDeltas, FEELING_SCALE, appliedScale),
-    tensionDeltas: minus(next.tensionDeltas, applied.tensionDeltas),
-    trustDeltas: minus(next.trustDeltas, applied.trustDeltas),
+    affinityDeltas: minus(next.affinityDeltas, read(next.affinityDeltas, applied.affinityDeltas), FEELING_SCALE, appliedScale),
+    romanceDeltas: minus(next.romanceDeltas, read(next.romanceDeltas, applied.romanceDeltas), FEELING_SCALE, appliedScale),
+    tensionDeltas: minus(next.tensionDeltas, read(next.tensionDeltas, applied.tensionDeltas)),
+    trustDeltas: minus(next.trustDeltas, read(next.trustDeltas, applied.trustDeltas)),
     newMemories: next.newMemories,
     moodDeltas: [], // ponytail: mood is not re-derived; add if re-reads should move moods too
   };
 }
 
 /** Apply the net correction and fresh memories without a second dose of shared-time closeness. */
-export function applyReread(s: GameState, sceneId: string, change: DeltaProposal, participants: string[], markReread = true, boardChange = change) {
+export function applyReread(s: GameState, sceneId: string, change: DeltaProposal, participants: string[], markReread = true, boardChange = change, episode?: number) {
   for (const field of ['affinity', 'romance'] as const) for (const d of field === 'affinity' ? change.affinityDeltas : change.romanceDeltas) {
     addRel(s, d.from, d.to, field, d.delta);
   }
@@ -112,7 +119,11 @@ export function applyReread(s: GameState, sceneId: string, change: DeltaProposal
   }
   for (const d of change.tensionDeltas) addRel(s, d.from, d.to, 'tension', d.delta);
   for (const d of change.trustDeltas) addRel(s, d.from, d.to, 'trust', d.delta);
-  for (const m of change.newMemories) addMemory(s, m.charId, m.text, participants, m.salience);
+  for (const m of change.newMemories) {
+    addMemory(s, m.charId, m.text, participants, m.salience);
+    // a scene from an earlier day is remembered as that day's, not today's
+    if (episode !== undefined) s.memory[m.charId].at(-1)!.episode = episode;
+  }
   if (markReread) s.world.flags[`reread:${sceneId}`] = true;
 }
 

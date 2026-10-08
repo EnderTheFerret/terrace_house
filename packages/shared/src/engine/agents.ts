@@ -273,6 +273,11 @@ export function utility(s: GameState, c: Character, a: AgentAction): number {
   if (a.kind === 'tidy') u += (t.C - 0.5) * 0.4 + (s.house.dishes > 60 ? 0.25 : 0);
   if (a.kind === 'cook') u += c.persona.goals.short.kind === 'career' && c.occupation.includes('cook') ? 0.3 : 0;
   if (s.world.cityEvent === 'heatwave' && a.kind === 'seek') u += 0.25;
+  // the night's drinks: loose and sociable now, paid for in the morning
+  const drunk = c.drunk ?? 0, hung = c.hangover ?? 0;
+  if (drunk && ['seek', 'confess', 'gossip'].includes(a.kind)) u += 0.35 * drunk;
+  if (drunk >= 3 && a.kind === 'sleep') u += 1;
+  if (hung) u += ['goOut', 'exercise'].includes(a.kind) ? -0.7 * hung : ['sleep', 'nap', 'snack', 'retreat'].includes(a.kind) ? 0.5 * hung : 0;
   return u;
 }
 

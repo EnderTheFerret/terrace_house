@@ -6,6 +6,7 @@ import { carPlanNode } from './city';
 import { ROOMS, TRAIT_NAMES } from '../model';
 import { content } from '../content';
 import { clockLabel, coupleOf, flag, housemates, isRoom, knowsPlan, placeName, rel, SLOT_MINUTES } from './core';
+import { conditionOf } from './drink';
 import { dateLabel } from './calendar';
 import { jobOf, SOCIAL_ACTIONS } from './agents';
 import { pairSummaryText, topMemories } from './memory';
@@ -55,6 +56,8 @@ export interface CharView {
   talkingTo?: string;
   companion?: string;
   cityLocation?: string;
+  /** tipsy / drunk / very drunk / hungover, when you can see it */
+  condition?: string;
   /** Observable threshold only; private room contents and activity remain hidden. */
   doorway?: { x: number; y: number; floor: number };
 }
@@ -223,6 +226,7 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
       companion: c.actionCompanion && s.characters[c.actionCompanion]?.location === c.location &&
         (visible || !isRoom(c.location)) ? c.actionCompanion : undefined,
       cityLocation: c.status === 'inHouse' && !isRoom(c.location) && content().city.nodes.some(n => n.id === c.location) ? c.location : undefined,
+      condition: c.status === 'inHouse' ? conditionOf(c) : undefined,
       doorway: playerHome && !visible && c.status === 'inHouse' && threshold ? threshold : undefined,
     };
   });

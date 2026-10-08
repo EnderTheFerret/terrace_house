@@ -41,6 +41,7 @@ import { airEpisode, airingTonight } from './broadcast';
 import { outsiderMoment, returningResident } from './outsiders';
 import { performanceScene } from './performances';
 import { leaveOnTrip, maybeNpcTrip, maybeOfferTrip, returningFromTrip, tripProblem, TRIPS } from './trips';
+import { getDrunk, maybeDrink, servesDrinks, soberUp } from './drink';
 import { advanceLiving, canVisit, GIFT_ITEMS, knock, observeRoutines, recordActivity, relationshipUpkeep, scheduleActivity, settlePlans, socialAction, startPlans, validPlanPlace } from './living';
 
 export interface NewGameOptions {
@@ -370,11 +371,12 @@ function validateAction(s: GameState, a: PlayerAction) {
     }
   }
   if (a.type === 'talk' && a.guests?.length && !a.room) throw new Error('choose a shared room for your guests');
-  if (a.type === 'text' && (isShabbat(s, P) || isShabbat(s, s.characters[a.target]))) throw new Error('phone is put away for Shabbat');
+  if (a.type === 'text') for (const id of a.guests ?? []) if (id === P.id || id === a.target || s.characters[id]?.status !== 'inHouse') throw new Error('that housemate is not available');
+  if (a.type === 'text' && [a.target, ...(a.guests ?? [])].some((id) => isShabbat(s, P) || isShabbat(s, s.characters[id]))) throw new Error('phone is put away for Shabbat');
   if (isShabbat(s, P) && (a.type === 'goOut' && (a.useCar || a.activity === 'work') || a.type === 'house' && a.activity === 'cook' || ['post', 'like'].includes(a.type))) throw new Error('this activity waits until after Shabbat');
   const later = { ...s, world: { ...s.world, minutes: Math.min(SLOT_MINUTES, s.world.minutes + actionMinutes(a)) } };
   if (!isShabbat(s, P) && isShabbat(later, P) && (a.type === 'goOut' && a.activity === 'work' || a.type === 'house' && a.activity === 'cook' || a.type === 'text')) throw new Error('this activity would run past Shabbat sundown');
-  if (a.type === 'text' && isShabbat(later, s.characters[a.target])) throw new Error('the recipient puts their phone away before this conversation ends');
+  if (a.type === 'text' && [a.target, ...(a.guests ?? [])].some((id) => isShabbat(later, s.characters[id]))) throw new Error('the recipient puts their phone away before this conversation ends');
   if (a.type === 'trip') { const why = tripProblem(s, a.node, a.with); if (why) throw new Error(why); }
   if (a.type === 'visit' && !a.knock && !canVisit(s, a.room, a.invite)) throw new Error('this private room needs an invitation, or the bathroom is occupied');
   if (a.type === 'plan') {
@@ -399,9 +401,13 @@ function validateAction(s: GameState, a: PlayerAction) {
     if (!r?.reachable) throw new Error(r?.reason ?? 'no route');
     if (a.activity === 'gift' && (!a.item || !GIFT_ITEMS[a.item])) throw new Error('choose a gift');
     const fit = spendFit(s, a, r.price);
-    if (fit === 'out') throw new Error(a.activity === 'gift' ? 'that gift is out of your budget' : 'that is out of your budget');
-    if (fit === 'stretch' && !canStretch(s)) throw new Error('you stretched your budget recently; pick something cheaper for now');
-    if (a.invite && fit !== 'ok' && afford(budgetFor(s, a.invite), r.price) === 'out') throw new Error(`neither of you can afford ${placeName(a.node)} right now`);
+    // someone already out with you who can afford it covers your share: don't strand them
+    // joining a plan someone already keeps here never leaves them hanging over money
+    const joining = !!a.invite && a.activity !== 'gift' && s.invitations.some((p) => p.status === 'accepted' && !p.performance && p.node === a.node && p.episode === s.world.episode && p.slot === s.world.slot && [p.from, p.to].includes(P.id) && [p.from, p.to].includes(a.invite!));
+    const covered = fit === 'out' && !!a.invite && a.activity !== 'gift' && (joining || afford(budgetFor(s, a.invite), r.price) !== 'out');
+    if (fit === 'out' && !covered) throw new Error(a.activity === 'gift' ? 'that gift is out of your budget' : 'that is out of your budget');
+    if (fit === 'stretch' && !joining && !canStretch(s)) throw new Error('you stretched your budget recently; pick something cheaper for now');
+    if (a.invite && fit !== 'ok' && !joining && afford(budgetFor(s, a.invite), r.price) === 'out') throw new Error(`neither of you can afford ${placeName(a.node)} right now`);
     if (r.needsCar && isShabbat(s, P)) throw new Error('the shared car waits until after Shabbat');
     const returned = { ...s, world: { ...s.world, minutes: s.world.minutes + r.minutes * 2 + ACTIVITY_MINUTES } };
     if (r.needsCar && isShabbat(returned, P)) throw new Error('the car trip would run past Shabbat sundown');
@@ -445,14 +451,18 @@ function applyPlayerAction(s: GameState, a: PlayerAction): { invite?: string; ta
       const r = reachability('house', s.world.slot, playerBudget(s), canUseCar(s, a.node), s.world.minutes, s.world.weekday, a.useCar, a.activity === 'class').find((x) => x.node === a.node)!;
       P.location = a.node;
       s.world.playerNode = a.node;
-      if (spendFit(s, a, r.price) === 'stretch') {
+      const fit = spendFit(s, a, r.price);
+      if (fit === 'out' && a.invite) {
+        s.rel[a.invite][P.id].affinity = clamp(s.rel[a.invite][P.id].affinity + 2, -100, 100);
+        addLog(s, { kind: 'system', text: `${firstName(s, a.invite)} covered your share at ${placeName(a.node)}: it is beyond your budget.`, participants: [P.id, a.invite], salience: 0.3 });
+      } else if (fit === 'stretch') {
         // a splurge: allowed now and then, it strains you, and a date notices (it reads as serious)
         s.world.flags.stretchEp = s.world.episode;
         P.mood = clamp(P.mood - 0.04, -1, 1);
         if (a.invite && a.activity === 'date') s.rel[a.invite][P.id].romance = clamp(s.rel[a.invite][P.id].romance + 3, 0, 100);
         addLog(s, { kind: 'system', text: `You splurged on ${a.activity === 'gift' ? 'a gift' : placeName(a.node)}${a.invite ? ` with ${firstName(s, a.invite)}` : ''}: a stretch for your budget.`, participants: a.invite ? [P.id, a.invite] : [P.id], salience: 0.35 });
       }
-      if (a.invite && a.activity !== 'work' && afford(budgetFor(s, a.invite), r.price) !== 'ok') {
+      if (a.invite && fit !== 'out' && a.activity !== 'work' && afford(budgetFor(s, a.invite), r.price) !== 'ok') {
         s.rel[a.invite][P.id].affinity = clamp(s.rel[a.invite][P.id].affinity + 2, -100, 100);
         addLog(s, { kind: 'system', text: `You treated ${firstName(s, a.invite)}: ${placeName(a.node)} is beyond their budget.`, participants: [P.id, a.invite], salience: 0.3 });
       }
@@ -476,6 +486,9 @@ function applyPlayerAction(s: GameState, a: PlayerAction): { invite?: string; ta
         s.characters[g].location = a.node;
         s.characters[g].activityUntil = SLOT_MINUTES;
       }
+      // a night out: the player drinks by choice, and the company may follow their lead
+      if (a.drink && servesDrinks(a.node) && !['work', 'class'].includes(a.activity)) getDrunk(s, P, 2, a.node);
+      for (const g of [a.invite, ...(a.guests ?? [])]) if (g) maybeDrink(s, s.characters[g], a.node, a.drink ? 0.4 : 0);
       return { invite: a.invite && s.characters[a.invite]?.status === 'inHouse' ? a.invite : undefined };
     }
     case 'text':
@@ -551,11 +564,21 @@ function planPlayerScene(s: GameState, rng: Rng, a: PlayerAction, acts: Record<s
     if (invite) cs = cs.filter((c) => Object.values(c.binding).includes(invite));
     const pick = sample(rng, cs);
     let out: EventInstance;
+    // an arranged outing is not a chance meeting
+    const together = [invite, ...guests].filter((id): id is string => !!id);
+    const planned = together.length ? {
+      title: a.activity === 'date' ? 'a date in town' : 'out together in town',
+      premise: `${firstName(s, P.id)} and ${together.map((id) => firstName(s, id)).join(' and ')} arranged to come to ${placeName(node)} together. This outing was planned, not a chance meeting.`,
+    } : {};
     if (!pick) {
       const others = here.filter((c) => c.id !== P.id);
       const t = content().eventById.get(others.length ? 'chance-encounter' : 'solo-wander')!;
-      out = makeEvent(s, t, others.length ? { a: P.id, b: invite ?? others[0].id } : { a: P.id }, node);
-    } else out = ev(pick)!;
+      out = makeEvent(s, t, others.length ? { a: P.id, b: invite ?? others[0].id } : { a: P.id }, node, planned);
+    } else {
+      out = ev(pick)!;
+      // a picked template may still be the "ran into each other" one; the invitation decides how they got here
+      if (planned.premise) out = { ...out, ...(out.templateId === 'chance-encounter' ? planned : { premise: `${planned.premise} ${out.premise}` }) };
+    }
     // everyone who came along is in the scene, not just the one who was asked first
     const company = guests.filter((id) => !out.participants.includes(id));
     if (company.length) {
@@ -1111,9 +1134,11 @@ export function finishSlot(s0: GameState): GameState {
     if (slot === 'slot3') processArrivals(s, rng);
     if (flag(s, 'playerGraduated')) graduatePlayer(s); // the season goes on; the player's next housemate moves in
     if (slot !== 'lateNight') {
+      soberUp(s, false);
       s.world.slot = SLOTS[SLOTS.indexOf(slot) + 1] as Slot;
       return;
     }
+    soberUp(s, true);
     // ---- end of episode
     for (const c of Object.values(s.characters)) if (c.status === 'arriving') c.status = 'inHouse'; // nobody is left on the doorstep
     evaluateLeaves(s, rng);

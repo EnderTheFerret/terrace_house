@@ -170,6 +170,12 @@ export const Character = z.object({
   lastAction: z.string().optional(),
   activityUntil: z.number().default(0),
   swimming: z.boolean().default(false),
+  /** 0 sober, 1 tipsy, 2 drunk, 3 very drunk; wears off a level per block */
+  drunk: z.number().int().min(0).max(3).default(0),
+  /** the worst level reached since the day began: decides tomorrow's hangover */
+  drunkPeak: z.number().int().min(0).max(3).default(0),
+  /** 0 none, 1 hungover, 2 badly hungover; felt until the afternoon */
+  hangover: z.number().int().min(0).max(2).default(0),
   actionTarget: z.string().optional(),
   actionNode: z.string().optional(),
   actionCompanion: z.string().optional(),
@@ -317,7 +323,7 @@ export const BEAT_TYPES = [
 ] as const;
 export const BeatType = z.enum(BEAT_TYPES);
 export type BeatType = z.infer<typeof BeatType>;
-export const EMOTIONS = ['neutral', 'happy', 'shy', 'awkward', 'annoyed', 'sad', 'excited', 'nervous', 'tender', 'angry'] as const;
+export const EMOTIONS = ['neutral', 'happy', 'shy', 'awkward', 'annoyed', 'sad', 'excited', 'nervous', 'tender', 'angry', 'drunk'] as const;
 export const Emotion = z.enum(EMOTIONS);
 export type Emotion = z.infer<typeof Emotion>;
 export const ArtworkEdit = z.object({
@@ -528,10 +534,13 @@ export const PlayerAction = z.discriminatedUnion('type', [
     /** more housemates who come along on the outing (up to three besides `invite`) */
     guests: z.array(z.string()).max(3).optional(),
     useCar: z.boolean().optional(),
+    /** have a few drinks (only where drinks are served); the others may follow, and tomorrow may hurt */
+    drink: z.boolean().optional(),
     /** with activity 'work': sign a contract for this slot on fixed weekdays */
     contract: z.boolean().optional(),
   }),
-  z.object({ type: z.literal('text'), target: z.string(), text: z.string().max(TYPED_MAX).optional() }),
+  /** `guests`: the same message goes to more housemates, each answering (and agreeing to plans) for themselves */
+  z.object({ type: z.literal('text'), target: z.string(), guests: z.array(z.string()).max(4).optional(), text: z.string().max(TYPED_MAX).optional() }),
   z.object({ type: z.literal('idle') }),
   z.object({ type: z.literal('graduate'), with: z.string().optional() }),
   z.object({ type: z.literal('endSeason') }),

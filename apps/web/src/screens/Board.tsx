@@ -7,6 +7,8 @@ import { TopBar } from '../components/layout';
 import { Btn, Panel, Tag } from '../components/ui';
 
 type Metric = 'affinity' | 'romance' | 'trust';
+const likeWord = (a: number) => a <= -30 ? 'dislikes' : a <= -8 ? 'cool toward' : a < 8 ? 'neutral' : a < 25 ? 'friendly' : a < 50 ? 'likes' : 'close to';
+const romanceWord = (r: number) => r < 15 ? 'a spark' : r < 35 ? 'interested' : 'smitten';
 const DASH: Record<string, string | undefined> = { self: undefined, witnessed: undefined, told: '6 3', rumor: '2 4', unknown: '1 6' };
 
 export function Board() {
@@ -48,7 +50,7 @@ export function Board() {
                 const b = pos[e.to];
                 if (!a || !b) return null;
                 const v = val(e);
-                if (Math.abs(v) < 8) return null;
+                if (Math.abs(v) < 2) return null;
                 const back = find(e.to, e.from);
                 const asym = back && back.reliability !== 'unknown' ? Math.abs(e.affinity - back.affinity) : 0;
                 const dx = b.x - a.x;
@@ -112,9 +114,27 @@ export function Board() {
               </tbody>
             </table>
           )}
-          <p className="caption mt-3 text-xs">line style = how you know: solid witnessed/your own feelings · dashed told · dotted rumor. “!” marks a lopsided relationship.</p>
+          <p className="caption mt-3 text-xs">each arrow points from the person who feels it to the person they feel it about; thicker = stronger, blue = negative. line style = how you know: solid witnessed/your own feelings · dashed told · dotted rumor. “!” marks a lopsided relationship. hover an arrow for its number, or use table view.</p>
         </Panel>
-        <Panel title="couples you know of" className="w-64 self-start">
+        <div className="flex w-72 flex-col gap-4 self-start">
+        <Panel title="how they feel about you">
+          <p className="caption mb-2 text-xs">your best guess from what you've seen and heard. liking runs −100 to 100, romance 0 to 100; one good talk moves it a few points.</p>
+          <ul className="text-sm">
+            {people.filter((c) => !c.isPlayer).map((c) => {
+              const e = find(c.id, view.playerId);
+              const mine = find(view.playerId, c.id);
+              const known = e && e.reliability !== 'unknown';
+              return (
+                <li key={c.id} className="mb-2">
+                  <strong>{name(c.id)}</strong>{' '}
+                  {known ? <>{likeWord(e.affinity)} <span className="caption text-xs">({e.affinity})</span>{e.romance >= 5 && <> · {romanceWord(e.romance)} <span className="caption text-xs">(♥ {e.romance})</span></>}<Tag kind={e.reliability} /></> : <span className="caption text-xs">no read on them yet</span>}
+                  {mine && <div className="caption text-xs">you: {likeWord(mine.affinity)} ({mine.affinity}){mine.romance >= 5 ? ` · ♥ ${mine.romance}` : ''} · trust {mine.trust}</div>}
+                </li>
+              );
+            })}
+          </ul>
+        </Panel>
+        <Panel title="couples you know of">
           {view.couples.length ? (
             <ul className="text-sm">
               {view.couples.map((c, i) => (
@@ -127,6 +147,7 @@ export function Board() {
             <p className="caption text-xs">none yet.</p>
           )}
         </Panel>
+        </div>
       </main>
     </div>
   );

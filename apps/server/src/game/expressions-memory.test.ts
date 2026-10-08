@@ -51,7 +51,7 @@ it('validates expressions, references the approved face, caches each emotion and
       expect((await post('ren', emotion)).json().key).toBe(key);
       expect(requests).toHaveLength(count);
     }
-    expect(keys.size).toBe(9);
+    expect(keys.size).toBe(EMOTIONS.length - 1);
     expect((await post('ren', 'neutral')).json().url).toBe(settledBase.url);
     expect(session.state).toEqual(before);
   } finally {

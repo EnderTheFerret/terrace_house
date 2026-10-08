@@ -4,10 +4,10 @@ import type { Recall } from '../llm/recall';
 import {
   PlayerAction, SceneResponse, Intent as IntentSchema, autoChoices, captionFor, confessionPreview, createGame, finishSlot, firstName, guestCharacter,
   FEELING_SCALE, knows, applyReread, rereadChange, sanitizeProposal, hasFeelingDeltas, panelPrediction, planSlot, planMoveInArrival, planHouseMeal, welcomeDinnerDue, predictionText, projectForPlayer, proposeOutcome, recordCommentary, resolveScene, content, placeName,
-   type Commentary, type DeltaProposal, type SceneChoices, type EventInstance, type GameState, type Intent, type LineContext, type NewGameOptions, type PlannedScene, airedBroadcast, broadcastDays, broadcastHighlights, broadcastPanel, beginBroadcast,
-   type PlayerEdit, type PlayerSetup, type PredictionCond, type Emotion, type Beat, type ArtworkEdit, classifyIntent, editPlayer, inviteDecision, joinNewPlayer, recordChat, recordPlayerWords, replyBeatType,
+   type Commentary, type DeltaProposal, type Footage, type SceneChoices, type EventInstance, type GameState, type Intent, type LineContext, type NewGameOptions, type PlannedScene, airedBroadcast, broadcastDays, broadcastHighlights, broadcastPanel, beginBroadcast,
+   type PlayerEdit, type PlayerSetup, type PredictionCond, type Emotion, type Beat, type ArtworkEdit, classifyIntent, debugEdit, type DebugEdit, lineEmotion, orderDrinks, venueDrinks, editPlayer, inviteDecision, joinNewPlayer, recordChat, recordPlayerWords, replyBeatType,
    passTime, recordDiary, reactionTo, feltEmotion, blockOver, isShabbat, SLOT_START, MINUTES_PER_LINE, occasionFor, occasionForCharacter, outfitFor, typedResponders, queueNpcPlans, SLOT_MINUTES, recordConversation, makeEvent, respondToPlan,
-   addTalkPlan, planDecision, planWhen, proposedPlan, TYPED_MAX,
+   addTalkPlan, planDecision, planWhen, proposedPlan, TYPED_MAX, applyPlanRead, planConflict, dropUnattracted, welcomedFlirts,
 } from '@shared-roof/shared';
 import { z } from 'zod';
 import type { Store } from '../db';
@@ -28,6 +28,8 @@ const REPLY_EMOTION: Partial<Record<Intent, Emotion>> = { flirt: 'shy', confront
 const ChoiceSchema = z.object({ intent: IntentSchema.optional(), text: z.string().trim().min(1).max(TYPED_MAX).optional(), recipient: z.string().min(1).max(80).optional(), retry: z.boolean().optional(), done: z.boolean().optional(), listen: z.boolean().optional(), hangout: z.boolean().optional(), via: z.enum(['button', 'key', 'typed', 'invite']).optional(), invite: z.object({ node: z.string(), date: z.boolean().optional(), with: z.string().optional() }).optional() });
 /** How many times the player can stay quiet and let a group keep talking in one scene. */
 const MAX_LISTENS = 3;
+/** Words that might settle, move or call off a plan; only then is the model asked to read the calendar off the talk. */
+const PLAN_TALK = /\d|\b(?:tonight|tomorrow|today|later|morning|afternoon|evening|weekend|\w+day|see you|meet|come|coming|join|plans?|cancel|can'?t make it|rain ?check|another time|works)\b/i;
 
 type Phase = 'new' | 'awaiting-response' | 'awaiting-choice' | 'reply' | 'retry' | 'listen' | 'post' | 'done';
 
@@ -95,6 +97,8 @@ export class GameSession {
   logSeq = 0;
   busy = false;
   intermissionSince = 0;
+  /** event-log seq the panel last talked over; scenes and overheard talk after it are fresh footage */
+  private footageSeq = 0;
   pendingIntermission: 'mid' | 'end' | null = null;
   budgetBlock = '';
   private interruptedTalk?: { participants: string[]; transcript: Line[] };
@@ -111,6 +115,24 @@ export class GameSession {
     }
   }
 
+  /**
+   * Let the model read what two people settled in words ("9:30 works, see you then") and bring the calendar in line:
+   * add, move, accept or call off their plan. `force` skips the cheap keyword gate (an explicit re-read).
+   */
+  private async readPlans(a: string, b: string, lines: { speaker: string; text: string }[], force = false) {
+    const talk = lines.filter((l) => l.speaker !== 'narrator' && l.text);
+    if (!force && !talk.slice(-2).some((l) => PLAN_TALK.test(l.text))) return false;
+    const s = this.requireState();
+    const read = await this.gen.planRead(s, a, b, talk);
+    const other = a === s.playerId ? b : a;
+    if (!read || (read.plan && planConflict(this.requireState(), other, read.plan, s.playerId))) return false;
+    const next = applyPlanRead(this.requireState(), a, b, read);
+    if (next === this.state) return false;
+    this.state = next;
+    this.log('plan-read', { a, b, read });
+    return true;
+  }
+
   /** Close the talk first; only its net relationship correction lands on the current state. */
   private async readPlayerTalk(snapshot: GameState, run: SceneRun, choices: SceneChoices, applied: DeltaProposal) {
     const epoch = this.readingEpoch;
@@ -121,7 +143,7 @@ export class GameSession {
     try {
       const raw = await this.gen.deltas(snapshot, run.ev, run.transcript, choices, new Budget(2));
       if (raw) {
-        const read = sanitizeProposal(raw, run.ev.participants);
+        const read = welcomedFlirts(snapshot, run.transcript, dropUnattracted(snapshot, sanitizeProposal(raw, run.ev.participants)));
         if (hasFeelingDeltas(read)) proposal = read;
       }
     } catch (e) {
@@ -233,6 +255,7 @@ export class GameSession {
     await this.enrichNewCharacters([]);
     this.digestSince = 0;
     this.intermissionSince = 0;
+    this.footageSeq = this.logSeq;
     this.pendingIntermission = null;
     this.intermissionResult = undefined;
     this.lastEpisodeShown = 0;
@@ -270,6 +293,7 @@ export class GameSession {
     this.restoreScenes(r.resume);
     this.digestSince = r.state.world.tick;
     this.intermissionSince = r.state.world.tick;
+    this.footageSeq = this.logSeq;
     this.pendingIntermission = null;
     this.intermissionResult = undefined;
     this.budgetBlock = '';
@@ -290,6 +314,7 @@ export class GameSession {
     this.restoreScenes(r.resume);
     this.digestSince = r.state.world.tick;
     this.intermissionSince = r.state.world.tick;
+    this.footageSeq = this.logSeq;
     if (this.state.world.flags.communalMeals !== true && !this.state.seasonOver) {
       this.store.truncateEvents(r.state.gameId, r.row.log_seq);
       this.enableSavedMeals(r.resume);
@@ -368,6 +393,15 @@ export class GameSession {
     return this.view();
   }
 
+  /** Author debug: move a character or tweak their state; not mid-conversation. */
+  debugEdit(edit: DebugEdit) {
+    if (this.busy || this.order.some(id => this.runs.get(id)!.phase !== 'done')) throw new Error('Finish the current conversation first.');
+    this.state = debugEdit(this.requireState(), edit);
+    this.log('debug-edit', { edit });
+    this.autosave();
+    return this.view();
+  }
+
   // ------------------------------------------------------------ slots
   setArtwork(id: string, edit: ArtworkEdit) {
     if (this.busy || this.order.some(id => this.runs.get(id)!.phase !== 'done')) throw new Error('Finish the current conversation before editing sprites.');
@@ -427,26 +461,40 @@ export class GameSession {
     if (action.type === 'text') {
       const state = planSlot(s, action).state;
       const text = action.text?.trim() || 'hey, are you free?';
-      const a = state.playerId, b = action.target;
-      const lines = [{ speaker: a, text }];
-      const later = proposedPlan(state, text);
-      const verdict = later ? planDecision(state, b, later, [], `${state.world.tick}:${text}`) : undefined;
-      const note = later && verdict ? `The text proposes meeting at ${placeName(later.node)} ${planWhen(state, later)}. ${verdict.accept ? 'Agree to that time and place.' : `Decline kindly: ${firstName(state, b)} ${verdict.reason}.`}` : undefined;
+      const a = state.playerId;
+      const recipients = [action.target, ...(action.guests ?? [])];
+      const later = proposedPlan(state, text, recipients);
+      // a group plan: every invitee decides for themselves, and each one who agrees gets a calendar entry with the player
+      const answers = new Map<string, { lines: { speaker: string; text: string }[]; verdict?: ReturnType<typeof planDecision> }>();
       const release = this.images.hold();
       try {
-        const answer = await this.gen.chat(recordChat(state, a, b, lines), b, a, new Budget(1), note);
-        if (answer) lines.push({ speaker: b, text: answer });
+        await Promise.all(recipients.map(async (b) => {
+          const lines = [{ speaker: a, text }];
+          const verdict = later ? planDecision(state, b, later, [], `${state.world.tick}:${text}`) : undefined;
+          const others = recipients.filter(id => id !== b).map(id => firstName(state, id));
+          const note = later && verdict ? `The text proposes meeting at ${placeName(later.node)} ${planWhen(state, later)}${others.length ? `, also sent to ${others.join(', ')}` : ''}. ${verdict.accept ? 'Agree to that time and place.' : `Decline kindly: ${firstName(state, b)} ${verdict.reason}.`}` : undefined;
+          const answer = await this.gen.chat(recordChat(state, a, b, lines), b, a, new Budget(1), note);
+          if (answer) lines.push({ speaker: b, text: answer });
+          answers.set(b, { lines, verdict });
+        }));
       } finally { release(); }
       this.state = state;
       this.log('action', { action, textVersion: 1 });
-      const photoFrom = /\b(pic|pics|picture|photo|selfie)\b/i.test(text) ? b : undefined;
-      this.state = recordChat(state, a, b, lines, photoFrom);
-      this.log('chat', { a, b, lines, photoFrom });
-      this.state = recordPlayerWords(this.state, [a, b], [text]);
-      this.log('words', { listeners: [a, b], words: [text] });
-      if (later && verdict?.accept && lines.length > 1) {
-        this.state = addTalkPlan(this.state, a, b, later);
-        this.log('talk-plan', { from: a, to: b, plan: later });
+      for (const b of recipients) {
+        const { lines, verdict } = answers.get(b)!;
+        const photoFrom = /\b(pic|pics|picture|photo|selfie)\b/i.test(text) ? b : undefined;
+        this.state = recordChat(this.state!, a, b, lines, photoFrom);
+        this.log('chat', { a, b, lines, photoFrom });
+        this.state = recordPlayerWords(this.state, [a, b], [text]);
+        this.log('words', { listeners: [a, b], words: [text] });
+        if (later && verdict?.accept && lines.length > 1) {
+          this.state = addTalkPlan(this.state, a, b, later);
+          this.log('talk-plan', { from: a, to: b, plan: later });
+        } else if (lines.length > 1) {
+          // a plan agreed across several texts ("so a yes or no?" … "9:30 works, see you then")
+          const thread = (this.state.chats[[a, b].sort().join('|')] ?? []).map((m) => ({ speaker: m.from, text: m.text }));
+          await this.readPlans(a, b, thread);
+        }
       }
       this.autosave();
       return { view: this.view(), scenes: this.summaries() };
@@ -719,16 +767,20 @@ export class GameSession {
     return { episode: ep, days, highlights: broadcastHighlights(s, ep).map(m => ({ day: m.day, text: m.text })), scenes, panel };
   }
 
-  private todaysScenes() {
+  private loggedScenes(episode?: number) {
     const s = this.requireState();
-    return this.store.events(s.gameId).filter((e) => e.kind === 'scene' && e.payload.episode === s.world.episode && e.payload.transcript?.length);
+    return this.store.events(s.gameId).filter((e) => e.kind === 'scene' && (episode === undefined || e.payload.episode === episode) && e.payload.transcript?.length);
   }
 
-  /** Every finished scene of the current day with its transcript (read-only), and whether the model has already re-read it. */
-  dayLog() {
+  /**
+   * Every finished scene of a day (today by default) with its transcript (read-only), and whether the model has already
+   * re-read it. Today's view also lists the player's text threads, which a re-read checks for agreed plans.
+   */
+  dayLog(day?: number) {
     const s = this.requireState();
+    const episode = day && day >= 1 && day <= s.world.episode ? day : s.world.episode;
     const readings = new Map(this.store.events(s.gameId).filter((e) => e.kind === 'reading').map((e) => [e.payload.id, e.payload.status as 'applied' | 'fallback']));
-    const scenes = this.todaysScenes().map((e) => ({
+    const scenes = this.loggedScenes(episode).map((e) => ({
       id: e.payload.eventId as string,
       title: e.payload.title as string,
       location: placeName(e.payload.location),
@@ -739,17 +791,31 @@ export class GameSession {
     }));
     const label: Record<string, string> = { bicker: 'argued', flirt: 'flirted', confess: 'confession', deep: 'heart-to-heart', apology: 'apologised', help: 'checked in', household: 'talked while helping out', cold: 'kept their distance', jealousy: 'talked about jealousy', joke: 'joked', gossip: 'had a quiet word' };
     const overheard = this.store.events(s.gameId)
-      .filter((e) => e.kind === 'overheard' && (e.payload.episode === s.world.episode || e.payload.episode === s.world.episode - 1 && e.payload.slot === 'lateNight') && e.payload.seen)
+      .filter((e) => e.kind === 'overheard' && (e.payload.episode === episode || e.payload.episode === episode - 1 && e.payload.slot === 'lateNight') && e.payload.seen)
       .map((e) => ({
         id: `overheard:${e.seq}`,
-        title: `${e.payload.episode < s.world.episode ? 'last night · ' : ''}${speakerName(s, e.payload.a)} & ${speakerName(s, e.payload.b)} ${label[e.payload.type] ?? 'talked'}`,
+        title: `${e.payload.episode < episode ? 'last night · ' : ''}${speakerName(s, e.payload.a)} & ${speakerName(s, e.payload.b)} ${label[e.payload.type] ?? 'talked'}`,
         location: placeName(e.payload.location),
         reread: true,
         overheard: true,
         reading: undefined,
         lines: (e.payload.lines as Line[]).map((l) => ({ name: speakerName(s, l.speaker), text: l.text })),
       }));
-    return { episode: s.world.episode, scenes: [...scenes, ...overheard] };
+    // ponytail: chat messages carry no day, so threads show (last 12 messages) on today's page only
+    const texts = episode !== s.world.episode ? [] : Object.entries(s.chats).filter(([key, msgs]) => key.split('|').includes(s.playerId) && msgs.length).map(([key, msgs]) => {
+      const other = key.split('|').find((id) => id !== s.playerId)!;
+      return {
+        id: `phone:${other}`,
+        title: `texts with ${speakerName(s, other)}`,
+        location: 'phone',
+        reread: false,
+        overheard: false,
+        phone: true,
+        reading: undefined,
+        lines: msgs.slice(-12).map((m) => ({ name: speakerName(s, m.from), text: m.text })),
+      };
+    });
+    return { episode, today: s.world.episode, scenes: [...scenes, ...overheard, ...texts] };
   }
 
   /**
@@ -760,15 +826,17 @@ export class GameSession {
     if (this.busy) throw new Error('generation is running');
     if (this.readings.has(id)) throw new Error('this conversation is still being read');
     const s = this.requireState();
-    const p = this.todaysScenes().find((e) => e.payload.eventId === id)?.payload;
-    if (!p?.event) throw new Error("this scene isn't in today's log");
+    if (id.startsWith('phone:')) return this.rereadTexts(id.slice('phone:'.length));
+    const p = this.loggedScenes().find((e) => e.payload.eventId === id)?.payload;
+    if (!p?.event) throw new Error("this scene isn't in the log");
+    const day = p.episode as number;
     this.busy = true;
     const release = this.images.hold();
     try {
       const next = await this.gen.deltas(s, p.event as EventInstance, p.transcript as Line[], p.choices ?? {}, new Budget(2));
       if (!next) throw new Error('the dialogue model did not answer; nothing changed');
       const participants = (p.participants as string[]).filter((x) => s.characters[x]);
-      const read = sanitizeProposal(next, participants);
+      const read = welcomedFlirts(s, p.transcript as Line[], dropUnattracted(s, sanitizeProposal(next, participants)));
       // an empty read would subtract everything the scene did; treat it as no answer so it can be retried
       if (!hasFeelingDeltas(read)) throw new Error('the model found no feelings to change in this scene; try re-reading again');
       const change = rereadChange(read, sanitizeProposal(p.proposal, participants), typeof p.feelingScale === 'number' ? p.feelingScale : 1);
@@ -786,11 +854,41 @@ export class GameSession {
           }
         }
       }
-      applyReread(s, id, change, participants, true, boardChange);
-      this.log('reread', { id, change, boardChange, participants });
+      applyReread(s, id, change, participants, true, boardChange, day);
+      this.log('reread', { id, change, boardChange, participants, episode: day });
       this.autosave();
-      return { view: this.view(), log: this.dayLog() };
+      return { view: this.view(), log: this.dayLog(day) };
     } finally { release(); this.busy = false; this.flushReadings(); }
+  }
+
+  /** Re-read a text thread for the plan it settled (or moved, or called off) and put the calendar right. */
+  private async rereadTexts(other: string) {
+    const s = this.requireState();
+    const thread = s.chats[[s.playerId, other].sort().join('|')];
+    if (!thread?.length) throw new Error('no texts with that person');
+    this.busy = true;
+    try {
+      const changed = await this.readPlans(s.playerId, other, thread.map((m) => ({ speaker: m.from, text: m.text })), true);
+      if (changed) this.autosave();
+      return { view: this.view(), log: this.dayLog(), note: changed ? 'plans updated from the texts' : 'no new or changed plan in these texts' };
+    } finally { this.busy = false; }
+  }
+
+  /** What the panel rewatches: the scenes and overheard exchanges since it last spoke, juiciest first, with their actual lines. */
+  private footage(upTo: number): Footage[] {
+    const s = this.requireState();
+    return this.store.events(s.gameId, upTo)
+      .filter((e) => e.seq > this.footageSeq && (e.kind === 'scene' && e.payload.transcript?.length || e.kind === 'overheard' && e.payload.lines?.length))
+      .map((e) => {
+        const p = e.payload;
+        const lines = ((p.transcript ?? p.lines) as Line[]).filter((l) => l.speaker !== 'narrator' && l.text).map((l) => ({ name: speakerName(s, l.speaker), text: l.text }));
+        const title = e.kind === 'scene' ? p.title as string : `${speakerName(s, p.a)} and ${speakerName(s, p.b)}, off to the side`;
+        return { title, place: e.kind === 'scene' ? placeName(p.location) : p.location ? placeName(p.location) : 'house', lines, salience: e.kind === 'scene' ? p.event?.salience ?? 0.5 : 0.5 };
+      })
+      .filter((f) => f.lines.length)
+      .sort((a, b) => b.salience - a.salience)
+      .slice(0, 4)
+      .map(({ salience: _, ...f }) => f);
   }
 
   /** Studio intermission stays visible now and is recorded for the house's delayed TV watch. */
@@ -802,7 +900,9 @@ export class GameSession {
     this.intermissionResult = (async () => {
       const release = this.images.hold();
       try {
-        const r = await this.gen.intermission(s, at, this.intermissionSince, new Budget(2));
+        const upTo = this.logSeq;
+        const r = await this.gen.intermission(s, at, this.intermissionSince, new Budget(2), this.footage(upTo));
+        this.footageSeq = upTo;
         const remarks = { episode: at === 'end' && !s.seasonOver ? Math.max(1, s.world.episode - 1) : s.world.episode, participants: Object.values(s.characters).filter(c => c.status === 'inHouse').map(c => c.id), lines: r.commentary.lines };
         this.state = recordCommentary(this.requireState(), { calledBack: [], remarks });
         this.pendingIntermission = null;
@@ -845,6 +945,11 @@ export class GameSession {
     // every scene gets its own call budget: a block-wide one ran dry on the first scene and templated the rest
     if (run.phase === 'new') this.budget = new Budget(config.llmCallsPerScene);
     try {
+      // a conversation already running at a bar (older save, or planned before drinking existed) catches up too
+      if (run.ev.participants.includes(this.requireState().playerId)) {
+        const vd = venueDrinks(this.requireState(), run.ev);
+        if (Object.keys(vd.changes).length) { this.state = vd.state; this.log('drinks', { changes: vd.changes }); }
+      }
       if (run.phase === 'awaiting-response') {
         emit('respond', { id, options: ['join', 'eavesdrop', 'ignore'], premise: run.ev.premise });
         return;
@@ -1063,18 +1168,25 @@ export class GameSession {
     if (!chosenIntent) {
       emit('line-start', { index: idx, speaker: P, name: speakerName(s, P), caption: null, emotion: 'neutral', beatType: 'smalltalk', subtext: null });
       emit('token', { index: idx, token: text });
-      run.transcript.push({ speaker: P, text, source: 'player', recipient, emotion: feltEmotion(text) ?? undefined });
-      emit('line-end', { index: idx, speaker: P, text, caption: null, source: 'player' });
+      run.transcript.push({ speaker: P, text, source: 'player', recipient, emotion: feltEmotion(text) ?? undefined });      emit('line-end', { index: idx, speaker: P, text, caption: null, source: 'player' });
     }
     // a meet-up proposed for later ("cafe tomorrow morning?") gets a real answer and, if agreed, a calendar entry
     const others = run.ev.participants.filter(id => id !== P && s.characters[id]);
     const planWith = recipient && recipient !== 'everyone' ? recipient : others.length === 1 ? others[0] : undefined;
-    const later = !invite && !chosenIntent && planWith && s.characters[planWith] ? proposedPlan(s, text) : null;
+    const later = !invite && !chosenIntent && planWith && s.characters[planWith] ? proposedPlan(s, text, [planWith]) : null;
     const laterVerdict = later ? planDecision(s, planWith!, later, run.transcript, `${s.world.tick}:${text}`) : undefined;
     const responders = invite ? [invite.target] : later ? [planWith!] : run.ev.location === 'phone' ? run.ev.participants.filter(id => id !== P) : recipient ? recipient === 'everyone' ? this.listeners(run) : [recipient] : chosenIntent ? this.listeners(run) : typedResponders(s, run.ev.participants, run.transcript, text);
     if (!responders.length && run.ev.location !== 'phone') responders.push(...this.listeners(run));
     // an invitation is answered from how they feel about the player and what was just said; the line is written to match
     const verdict = invite ? inviteDecision(s, invite.target, run.transcript, { date: invite.date, seed: `${s.world.tick}:${text}` }) : undefined;
+    // "let's do shots" / "I'll have a beer": the player drinks and the others may join, before they answer
+    const order = !chosenIntent && !invite && !later ? orderDrinks(this.requireState(), text, run.ev.location === 'phone' ? [] : others) : null;
+    if (order) {
+      this.state = order.state;
+      this.log('drinks', { changes: order.changes });
+      emit('view', this.view());
+    }
+    const drinkNote = (speaker: string) => (order ? `; the player just asked for ${order.what}, ${order.changes[speaker] ? 'you join in and it shows a little' : 'you pass on drinking this round'}` : '');
     if (responders.length) {
       this.budget.cap++; // typed talk is the player's call: each answer gets its own LLM call
       const topic = run.beats?.[0]?.topic ?? 'small talk';
@@ -1084,7 +1196,7 @@ export class GameSession {
           const what = `the player's ${later.date ? 'invitation on a date' : 'plan to meet'} at ${placeName(later.node)} ${planWhen(s, later)}`;
           return { ...beat(speaker, laterVerdict.accept ? `agree to ${what}; confirm that time and place, without leaving now` : `turn down ${what} kindly because you ${laterVerdict.reason}; do not agree`), emotion: laterVerdict.accept ? 'happy' : 'awkward', beatType: laterVerdict.accept ? 'smalltalk' : 'deflect' };
         }
-        if (!invite || !verdict) return beat(speaker, recipient && recipient !== 'everyone' ? `answer the player, who is addressing ${speakerName(s, speaker)} directly` : 'answer the player');
+        if (!invite || !verdict) return beat(speaker, `${recipient && recipient !== 'everyone' ? `answer the player, who is addressing ${speakerName(s, speaker)} directly` : 'answer the player'}${drinkNote(speaker)}`);
         const where = placeName(invite.node);
         return { ...beat(speaker, verdict.accept ? `answer the player's invitation to ${where}: say yes warmly and agree to go together right now` : `answer the player's invitation to ${where}: turn it down kindly because you ${verdict.reason}; do not agree to go`), emotion: verdict.accept ? 'happy' : 'awkward', beatType: verdict.accept ? 'smalltalk' : 'deflect' };
       };
@@ -1093,7 +1205,7 @@ export class GameSession {
     if (later && laterVerdict?.accept) {
       this.state = addTalkPlan(this.requireState(), P, planWith!, later);
       this.log('talk-plan', { from: P, to: planWith, plan: later });
-    }
+    } else if (!invite && planWith && await this.readPlans(P, planWith, run.transcript)) emit('view', this.view());
     if (invite && verdict) emit('invite', { from: invite.target, name: speakerName(s, invite.target), node: invite.node, date: invite.date, accepted: verdict.accept, reason: verdict.reason });
     if (run.phoneClosed || this.phoneCapacity(run) === 0) {
       run.phoneClosed = true;
@@ -1140,7 +1252,7 @@ export class GameSession {
         if (started.has(i)) return;
         started.add(i);
         const beat = beats[beatIndex];
-        emit('line-start', { index: base + i, speaker, name: speakerName(s, speaker), caption: speaker === 'narrator' ? null : captionFor(beat), emotion: beat.emotion, beatType: beat.beatType, subtext: null });
+        emit('line-start', { index: base + i, speaker, name: speakerName(s, speaker), caption: speaker === 'narrator' ? null : captionFor(beat), emotion: lineEmotion(s.characters[speaker], beat.emotion), beatType: beat.beatType, subtext: null });
       },
       (i, token) => emit('token', { index: base + i, token }),
     );
@@ -1148,7 +1260,7 @@ export class GameSession {
       const beatIndex = l.beatIndex ?? i;
       const caption = l.speaker === 'narrator' ? null : captionFor(beats[beatIndex]);
       logTrace('line', { scene: run.id, index: base + i, speaker: l.speaker, source: l.source, intent: intents[beatIndex], text: l.text.slice(0, 120) });
-      run.transcript.push({ ...l, caption, emotion: beats[beatIndex].emotion });
+      run.transcript.push({ ...l, caption, emotion: lineEmotion(this.requireState().characters[l.speaker], beats[beatIndex].emotion) });
       emit('line-end', { index: base + i, speaker: l.speaker, text: l.text, caption, source: l.source });
     });
   }
@@ -1194,7 +1306,7 @@ export class GameSession {
     const readingSnapshot = run.endedByPlayer && run.said.length ? structuredClone(s) : undefined;
     // a proposal that moves no feeling (a model shrug) falls back to the engine's
     const rawProposal = run.endedByPlayer ? null : await this.gen.deltas(s, ev, run.transcript, ac.choices, closingBudget);
-    const llmProposal = rawProposal ? sanitizeProposal(rawProposal, ev.participants) : null;
+    const llmProposal = rawProposal ? welcomedFlirts(s, run.transcript, dropUnattracted(s, sanitizeProposal(rawProposal, ev.participants))) : null;
     const po = proposeOutcome(s, ev, ac.choices);
     s = po.state;
     const moves = llmProposal && hasFeelingDeltas(llmProposal);
@@ -1268,7 +1380,7 @@ export class GameSession {
     this.state = recordCommentary(this.state, { prediction, calledBack: callbacks, remarks });
     this.log('commentary', { eventId: ev.id, prediction, calledBack: callbacks, remarks, commentary: cm.commentary, source: cm.source });
     run.commentary = { ...cm.commentary, prediction: prediction ? { text: prediction.text } : undefined };
-    if (ev.freeze) {
+    if (ev.freeze && ev.participants.includes(this.state.playerId)) { // no CG for scenes the player isn't in
       // Keep dialogue-based actions inside each participant's description.
       const shot = await this.gen.shot(this.state, ev, run.transcript);
       const img = this.images.request(freezeRequest(this.state, ev, (r) => this.images.localFile(r), '', run.transcript, shot), PRIORITY.freeze);
@@ -1301,6 +1413,7 @@ export class GameSession {
       log: s.log.slice(-150),
       voice: this.gen.voice,
       relationships: s.rel,
+      characters: Object.values(s.characters).filter((c) => c.status === 'inHouse').map((c) => ({ id: c.id, name: c.name, isPlayer: c.isPlayer, location: c.location, mood: c.mood, energy: c.energy, doing: c.lastAction ?? null, swimming: c.swimming, drunk: c.drunk, hangover: c.hangover })),
       arcs: s.arcs,
       predictions: s.predictions,
       images: this.images.pending(),

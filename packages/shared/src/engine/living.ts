@@ -6,6 +6,7 @@ import { addFact, addLog, addMemory, addRel, attracted, clockLabel, firstName, h
 import { bedroomOf, chooseAction, coordinateOutings, durationFor, hasJobNow, isShabbat, resolveLocations, satisfy, type AgentAction } from './agents';
 import { dayForEpisode, weekdayOf, WEEKDAY_NAMES } from './calendar';
 import { inviteDecision } from './talk';
+import { maybeDrink } from './drink';
 import { logInteraction, resolveColocation, resolveRemote } from './interactions';
 import { applyProposal, sanitizeProposal, sharedTimeAffinity } from './relationships';
 import { apologize } from './social';
@@ -104,6 +105,10 @@ const PLAN_ROOMS: [string, RegExp][] = [['backyard', /\b(?:backyard|pool)\b/i], 
 /** City places by id or by a name word no other place shares ("coffee", "port", "yarkon"). */
 function planPlace(text: string): string | undefined {
   const nodes = content().city.nodes.filter((n) => !['home', 'workplace'].includes(n.type));
+  // a full name settles it: "Dizengoff Square" shares each word with another place
+  const lower = text.toLowerCase();
+  const named = nodes.filter((n) => lower.includes(n.name.toLowerCase())).sort((a, b) => b.name.length - a.name.length)[0];
+  if (named) return named.id;
   const keys = nodes.map((n) => [n.id, ...n.type.split('-'), ...(n.name.toLowerCase().match(/\p{L}{4,}/gu) ?? [])]);
   const count = new Map<string, number>();
   for (const k of keys) for (const w of new Set(k)) count.set(w, (count.get(w) ?? 0) + 1);
@@ -115,6 +120,9 @@ function planPlace(text: string): string | undefined {
 }
 
 const INVITING = /\?\s*$|\b(?:want to|wanna|let'?s|shall we|should we|how about|would you|come with|join me|are you free|you free|up for|with me|together|meet (?:me|up))\b/i;
+const COMPANY = /\bwith (?:the |some |a few |my |our |all the )?(?:others?|people|friends|everyone|everybody|guys|girls|housemates|roommates|group|crew|them)\b/i;
+/** words that turn a plan with other people into an invitation to the listener */
+const ASKS_YOU = /\b(?:(?:want|wanna|would|will|can|could|should|shall|do) you|you (?:want|wanna|should|can|could|free|coming|in)|join|come|let'?s|how about you|with me|meet (?:me|up))\b|(?<!\bI )\b(?:want to|wanna)\b/i;
 /** asking someone out rather than hanging out: the plan becomes a private date */
 const DATE_WORDS = /\b(?:a date|on a date|date night|just (?:the two of )?us|romantic)\b/i;
 export type TalkPlan = { node: string; episode: number; slot: Slot; date?: boolean };
@@ -125,9 +133,14 @@ const TIME_WORDS: [RegExp, Slot][] = [[/\b(?:late night|midnight)\b/i, 'lateNigh
  * time that is still ahead. Going somewhere right now stays the invite button's job.
  * ponytail: English keyword reading; an LLM extraction pass only if typed plans routinely slip through.
  */
-export function proposedPlan(s: GameState, text: string): TalkPlan | null {
-  if (!INVITING.test(text)) return null;
-  const node = planPlace(text);
+export function proposedPlan(s: GameState, text: string, to: string[] = []): TalkPlan | null {
+  // the place has to be in an inviting sentence: "Drinking at the bar later. Want some gossip?" invites nobody to the bar
+  const asks = (text.match(/[^.!?]+[.!?]*/g) ?? [text]).filter((t) => INVITING.test(t)).join(' ');
+  if (!asks) return null;
+  // "I'm going out with the others tomorrow" tells them about a plan; it doesn't invite them
+  const withOthers = COMPANY.test(text) || Object.values(s.characters).some((c) => !c.isPlayer && !to.includes(c.id) && new RegExp(`\\bwith ${firstName(s, c.id)}\\b`, 'i').test(text));
+  if (withOthers && !ASKS_YOU.test(text)) return null;
+  const node = planPlace(asks);
   if (!node) return null;
   const weekday = WEEKDAY_NAMES.findIndex((d) => new RegExp(`\\b${d}[a-z]*day\\b`, 'i').test(text));
   let ahead = /\btomorrow\b/i.test(text) ? 1 : /\b(?:today|tonight|later|this (?:morning|afternoon|evening))\b/i.test(text) ? 0
@@ -152,13 +165,60 @@ export function proposedPlan(s: GameState, text: string): TalkPlan | null {
 
 /** Would housemate `id` agree to meet then? The same feelings read as a spot invitation, checked against that block's work, Shabbat and plans. */
 export function planDecision(s: GameState, id: string, plan: TalkPlan, transcript: { speaker: string; text: string }[], seed: string): { accept: boolean; reason: string } {
-  const c = s.characters[id];
-  if (!c) return { accept: false, reason: 'is not around' };
-  const then: GameState = { ...s, world: { ...s.world, episode: plan.episode, slot: plan.slot, minutes: 0, weekday: weekdayOf(dayForEpisode(plan.episode)) }, characters: { ...s.characters, [id]: { ...c, lastAction: undefined } } };
-  if (hasJobNow(then, c)) return { accept: false, reason: 'has work then' };
-  if (!validPlanPlace(s, plan.node, s.playerId, id)) return { accept: false, reason: 'would rather not meet there' };
-  if (s.invitations.some((p) => [p.from, p.to].includes(id) && p.episode === plan.episode && p.slot === plan.slot && ['pending', 'accepted'].includes(p.status))) return { accept: false, reason: 'already has plans then' };
+  const reason = planConflict(s, id, plan);
+  if (reason) return { accept: false, reason };
+  const then: GameState = { ...s, world: { ...s.world, episode: plan.episode, slot: plan.slot, minutes: 0, weekday: weekdayOf(dayForEpisode(plan.episode)) }, characters: { ...s.characters, [id]: { ...s.characters[id], lastAction: undefined } } };
   return inviteDecision(then, id, transcript, { date: !!plan.date, seed });
+}
+
+/**
+ * Why housemate `id` can't meet then (work, place, another plan elsewhere), or '' when nothing stands in the way.
+ * Plans with `moving` (the person they are rearranging with) don't count against it.
+ */
+export function planConflict(s: GameState, id: string, plan: TalkPlan, moving?: string): string {
+  const c = s.characters[id];
+  if (!c) return 'is not around';
+  const then: GameState = { ...s, world: { ...s.world, episode: plan.episode, slot: plan.slot, minutes: 0, weekday: weekdayOf(dayForEpisode(plan.episode)) }, characters: { ...s.characters, [id]: { ...c, lastAction: undefined } } };
+  if (hasJobNow(then, c)) return 'has work then';
+  if (!validPlanPlace(s, plan.node, s.playerId, id)) return 'would rather not meet there';
+  // already going there then (their own DJ set, say): the player is welcome to come along
+  if (s.invitations.some((p) => [p.from, p.to].includes(id) && !(moving && [p.from, p.to].includes(moving)) && p.episode === plan.episode && p.slot === plan.slot && p.node !== plan.node && ['pending', 'accepted'].includes(p.status))) return 'already has plans then';
+  return '';
+}
+
+/** A place (id or name) and a "when" in words ("tomorrow at 10:00", "tonight at 21:30") as a calendar block still ahead. */
+export function planFromWords(s: GameState, place: string, when: string, date = false): TalkPlan | null {
+  const node = planPlace(place);
+  const p = node ? proposedPlan(s, `Want to meet at ${placeName(node)} ${when}?`) : null;
+  return p && { node: node!, episode: p.episode, slot: p.slot, ...(date ? { date: true } : {}) };
+}
+
+/** What the model read off a conversation: a meet-up both agreed to, or a call-off of their plans. */
+export type PlanRead = { plan?: TalkPlan; cancel?: boolean };
+
+/**
+ * Bring the calendar in line with what two people settled in words: a new plan is added, an open plan they moved
+ * (new time or place) is updated, a pending one they said yes to is accepted, and a called-off one is declined.
+ */
+export function applyPlanRead(s0: GameState, a: string, b: string, read: PlanRead): GameState {
+  const s = structuredClone(s0);
+  const now = SLOTS.indexOf(s.world.slot);
+  const open = s.invitations.filter((p) => [p.from, p.to].includes(a) && [p.from, p.to].includes(b) && !p.performance && ['pending', 'accepted'].includes(p.status)
+    && (p.episode > s.world.episode || (p.episode === s.world.episode && SLOTS.indexOf(p.slot) >= now)));
+  if (read.cancel) {
+    for (const p of open) p.status = 'declined';
+    if (open.length) addLog(s, { kind: 'calendar', text: `${firstName(s, a)} and ${firstName(s, b)} called off their plan.`, participants: [a, b], salience: 0.3 });
+    return s;
+  }
+  const plan = read.plan;
+  if (!plan) return s0;
+  const moved = open.find((p) => p.node === plan.node && p.episode === plan.episode && p.slot === plan.slot)
+    ?? open.find((p) => p.node === plan.node || (p.episode === plan.episode && p.slot === plan.slot)) ?? (open.length === 1 ? open[0] : undefined);
+  if (!moved) return addTalkPlan(s, a, b, plan);
+  if (moved.node === plan.node && moved.episode === plan.episode && moved.slot === plan.slot && moved.status === 'accepted') return s0;
+  Object.assign(moved, { node: plan.node, episode: plan.episode, slot: plan.slot, status: 'accepted' });
+  addLog(s, { kind: 'calendar', text: `${firstName(s, a)} and ${firstName(s, b)} settled on ${placeName(plan.node)} ${planWhen(s, plan)}.`, participants: [a, b], salience: 0.3 });
+  return s;
 }
 
 /** An agreed talk or text plan goes on the shared calendar; startPlans and settlePlans then run it like any other. */
@@ -205,6 +265,7 @@ export function startPlans(s: GameState) {
       c.lastAction = 'goOut';
       c.activityUntil = SLOT_MINUTES;
       c.actionNode = p.node;
+      maybeDrink(s, c, p.node, 0.1);
       if (route?.needsCar && s.world.carUsedBy === null) s.world.carUsedBy = c.id;
     }
   }
@@ -268,7 +329,11 @@ export function advanceLiving(s: GameState, rng: Rng, to: number, protectedIds: 
     }
     startNpcHouseholds(s, rng, actions);
     resolveLocations(s, actions, fixed);
-    for (const c of due) { scheduleActivity(s, c, actions[c.id]); satisfy(c, actions[c.id].kind, durationFor(actions[c.id]) / SLOT_MINUTES); }
+    for (const c of due) {
+      scheduleActivity(s, c, actions[c.id]);
+      satisfy(c, actions[c.id].kind, durationFor(actions[c.id]) / SLOT_MINUTES);
+      if (actions[c.id].kind === 'goOut' && actions[c.id].node) maybeDrink(s, c, actions[c.id].node!);
+    }
     startPlans(s);
   };
   completeHouseholds(s);

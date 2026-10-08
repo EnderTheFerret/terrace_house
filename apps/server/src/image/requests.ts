@@ -106,6 +106,7 @@ const expressionTags: Record<Emotion, string> = {
   shy: 'shy expression, blushing, bashful smile', awkward: 'awkward expression, hesitant uneven smile',
   annoyed: 'annoyed expression, narrowed eyes, pursed lips', excited: 'excited expression, wide joyful eyes, big smile',
   nervous: 'nervous expression, worried brows, tense small smile',
+  drunk: 'drunk expression, flushed cheeks, heavy-lidded unfocused eyes, loose lopsided grin',
 };
 
 export function expressionRequest(c: Character, emotion: Emotion, reference?: string | null, faceGuide?: string | null, customExpression?: string): ImageRequest {
@@ -175,6 +176,7 @@ const POSE: Record<Emotion, string> = {
   nervous: 'fidgeting and biting their lip',
   tender: 'soft smile, leaning toward the person they are talking to',
   angry: 'scowling, tense, pointing',
+  drunk: 'swaying slightly with a goofy flushed grin, leaning on someone or something, a drink in hand',
 };
 
 /**

@@ -1,7 +1,7 @@
 // Generation service: wires prompts + LLM client + mock fallback + budget + voice checks.
 import {
-  BeatSheet, Commentary, DeltaProposal, BANNED_META, content, firstName, guestCharacter, hashSeed, mockBeatSheet, mulberry32, voiceCheck, placeName, isShabbat, sanitizeProposal, hasFeelingDeltas, typedAffinityFallback,
-  type Beat, type Emotion, type EventInstance, type GameState, type Intent, type LineContext, type LlmClient, type PredictionCond, type SceneChoices,
+  BeatSheet, Commentary, DeltaProposal, BANNED_META, content, firstName, guestCharacter, hashSeed, mockBeatSheet, mulberry32, voiceCheck, placeName, isShabbat, sanitizeProposal, hasFeelingDeltas, typedAffinityFallback, planFromWords,
+  type Beat, type PlanRead, type Emotion, type EventInstance, type Footage, type GameState, type Intent, type LineContext, type LlmClient, type PredictionCond, type SceneChoices,
 } from '@shared-roof/shared';
 import { config } from '../config';
 import { MockLlm } from '../llm/mock';
@@ -9,10 +9,11 @@ import { structured, logFailure, extractJson, type Budget } from '../llm/structu
 import { beatSheetPrompt, deltaPrompt, linesPrompt, parseLines } from '../prompts/scene';
 import { chatPrompt, commentaryPrompt, flavorPrompt, intermissionPrompt, overheardPrompt, shotIds, shotPrompt } from '../prompts/studio';
 import { contentCheck } from './personas';
-import { diaryPrompt } from '../prompts/common';
+import { diaryPrompt, planReadPrompt } from '../prompts/common';
 import { dialogueCheck, splitReply } from '../prompts/dialogue';
 
-const DIARY_SCHEMA = { type: 'object', properties: { diary: { type: 'string' }, pairs: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, summary: { type: 'string' } }, required: ['name', 'summary'] } } }, required: ['diary', 'pairs'] };
+const PLAN_READ_SCHEMA = { type: 'object', properties: { agreed: { type: 'boolean' }, place: { type: 'string' }, when: { type: 'string' }, date: { type: 'boolean' }, cancel: { type: 'boolean' } }, required: ['agreed', 'place', 'when', 'date', 'cancel'] };
+const DIARY_SCHEMA ={ type: 'object', properties: { diary: { type: 'string' }, pairs: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, summary: { type: 'string' } }, required: ['name', 'summary'] } } }, required: ['diary', 'pairs'] };
 
 export interface Line {
   speaker: string;
@@ -168,8 +169,8 @@ export class Generator {
     return { commentary, source: r.source };
   }
 
-  async intermission(s: GameState, at: 'mid' | 'end', since: number, budget: Budget): Promise<{ commentary: Commentary; source: 'llm' | 'mock' }> {
-    const r = await structured(this.llm, this.mock, { kind: 'commentary', prompt: intermissionPrompt(s, at, since), temperature: config.temps.commentary, maxTokens: 500, context: { kind: 'intermission', state: s, at, since } }, Commentary, budget);
+  async intermission(s: GameState, at: 'mid' | 'end', since: number, budget: Budget, footage: Footage[] = []): Promise<{ commentary: Commentary; source: 'llm' | 'mock' }> {
+    const r = await structured(this.llm, this.mock, { kind: 'commentary', prompt: intermissionPrompt(s, at, since, footage), temperature: config.temps.commentary, maxTokens: 900, context: { kind: 'intermission', state: s, at, since, footage } }, Commentary, budget);
     const ids = new Set(content().panel.map((p) => p.id));
     const lines = r.value.lines.filter((l) => ids.has(l.speaker));
     return { commentary: { lines: lines.length ? lines : r.value.lines.slice(0, 1).map((l) => ({ ...l, speaker: 'nagumo' })) }, source: r.source };
@@ -211,6 +212,26 @@ export class Generator {
       }
       return contentCheck(j.diary) ? { diary: j.diary, pairs } : null;
     } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Did these two settle, move or call off a meet-up? Read by the model from the actual words, so "9:30 works, see you
+   * then" after three messages lands on the calendar. Null when the model is off, unsure or answers badly.
+   */
+  async planRead(s: GameState, a: string, b: string, lines: { speaker: string; text: string }[]): Promise<PlanRead | null> {
+    if (!this.real || !lines.length) return null;
+    try {
+      const raw = await this.llm.complete({ kind: 'summary', prompt: planReadPrompt(s, a, b, lines.slice(-12)), temperature: 0.1, maxTokens: 160, schema: PLAN_READ_SCHEMA });
+      const j = extractJson(raw) as { agreed?: unknown; place?: unknown; when?: unknown; date?: unknown; cancel?: unknown } | null;
+      if (!j || typeof j !== 'object') return null;
+      if (j.cancel === true) return { cancel: true };
+      if (j.agreed !== true || typeof j.place !== 'string' || typeof j.when !== 'string') return null;
+      const plan = planFromWords(s, j.place, j.when, j.date === true);
+      return plan ? { plan } : null;
+    } catch (e) {
+      logFailure(planReadPrompt(s, a, b, lines.slice(-12)), (e as Error).message, 'plan-read');
       return null;
     }
   }

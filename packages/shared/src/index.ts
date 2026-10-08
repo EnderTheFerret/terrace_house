@@ -18,6 +18,8 @@ export * from './engine/agents';
 export * from './engine/interactions';
 export * from './engine/director';
 export * from './engine/castgen';
+export * from './engine/debugedit';
+export * from './engine/drink';
 export * from './engine/memory';
 export * from './engine/predictions';
 export * from './engine/arcs';

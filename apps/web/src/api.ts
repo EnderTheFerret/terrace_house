@@ -60,7 +60,7 @@ function track(label: string, estimatedMs = 5000) {
   return () => { pendingRequests.delete(key); window.dispatchEvent(new Event('game-activity')); };
 }
 
-export interface DayLog { episode: number; scenes: { id: string; title: string; location: string; reread: boolean; overheard?: boolean; reading?: 'pending' | 'applied' | 'fallback'; lines: { name: string; text: string }[] }[] }
+export interface DayLog { episode: number; today: number; scenes: { id: string; title: string; location: string; reread: boolean; overheard?: boolean; phone?: boolean; reading?: 'pending' | 'applied' | 'fallback'; lines: { name: string; text: string }[] }[] }
 
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
   const label = method === 'POST' ?
@@ -108,8 +108,8 @@ export const api = {
   mapAppearance: (text: string, appearance: unknown) => req<{ appearance: PlayerSetup['appearance']; appearanceText: string }>('POST', '/api/appearance/describe', { text, appearance }),
   savePalette: (id: string, portraitSeed: number, palette: NonNullable<PlayerSetup['appearance']['palette']>) => req<{ updated: boolean }>('POST', '/api/game/appearance-palette', { id, portraitSeed, palette }),
   charPortrait: (id: string) => req<ImageStatus>('GET', `/api/image/character/${id}`),
-  dayLog: () => req<DayLog>('GET', '/api/game/log'),
-  reread: (id: string) => req<{ view: PlayerView; log: DayLog }>('POST', `/api/game/reread/${encodeURIComponent(id)}`),
+  dayLog: (day?: number) => req<DayLog>('GET', `/api/game/log${day ? `?day=${day}` : ''}`),
+  reread: (id: string) => req<{ view: PlayerView; log: DayLog; note?: string }>('POST', `/api/game/reread/${encodeURIComponent(id)}`),
   broadcast: () => req<Broadcast>('GET', '/api/broadcast'),
   feedPhoto: (id: string) => req<ImageStatus>('GET', `/api/image/feed/${encodeURIComponent(id)}`),
   selfie: (from: string, tick: number) => req<ImageStatus>('GET', `/api/image/selfie/${encodeURIComponent(from)}/${tick}`),
@@ -126,6 +126,7 @@ export const api = {
   panel: () => req<Record<string, ImageStatus>>('GET', '/api/image/panel'),
   imageStatus: (key: string) => req<ImageStatus>('GET', `/api/image/status/${key}`),
   debug: () => req<any>('GET', '/api/debug'),
+  debugCharacter: (edit: { id: string; location?: string; mood?: number; energy?: number; swimming?: boolean; drunk?: number; hangover?: number; idle?: boolean }) => req<{ view: PlayerView }>('POST', '/api/debug/character', edit),
 };
 
 /** Stream one scene segment. Returns when the server sends `end`. */

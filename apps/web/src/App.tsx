@@ -52,7 +52,7 @@ export function App() {
   const { screen, guideBack, settings, boot, view, live } = useGame();
   const guideOpen = screen === 'guide';
   const activeScreen = guideOpen ? guideBack : screen;
-  const spritePending = useCharacterSprites(NEEDS_GAME.includes(activeScreen) ? view?.characters.filter(c => c.status === 'inHouse' && (c.isPlayer || c.location === view.playerLocation || live?.header?.participants.some(p => p.id === c.id))).sort((a, b) => Number(b.isPlayer) - Number(a.isPlayer)) ?? [] : []);
+  const spritePending = useCharacterSprites(NEEDS_GAME.includes(activeScreen) ? view?.characters.filter(c => c.status === 'inHouse' && (c.isPlayer || c.location === view.playerLocation || activeScreen === 'map' && c.cityLocation || live?.header?.participants.some(p => p.id === c.id))).sort((a, b) => Number(b.isPlayer) - Number(a.isPlayer)) ?? [] : []);
   useEffect(() => {
     void boot();
     const t = setInterval(() => void useGame.getState().refreshHealth(), 30000);

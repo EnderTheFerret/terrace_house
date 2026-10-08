@@ -126,12 +126,16 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     const b = PlayerSetupSchema.pick({ name: true, age: true, hometown: true, occupation: true, interestedIn: true, hobbies: true, appearance: true, appearanceText: true }).partial().parse(req.body ?? {});
     return { view: session.editPlayer(b) };
   });
+  app.post('/api/debug/character', async (req) => {
+    const b = z.object({ id: z.string(), location: z.string().optional(), mood: z.number().optional(), energy: z.number().optional(), swimming: z.boolean().optional(), drunk: z.number().optional(), hangover: z.number().optional(), idle: z.boolean().optional() }).parse(req.body ?? {});
+    return { view: session.debugEdit(b) };
+  });
   app.get('/api/game', async (_req, reply) => {
     if (!session.state) return reply.status(404).send({ error: 'no game' });
     return { view: session.view(), scenes: session.summaries() };
   });
   app.post('/api/game/action', async (req) => session.act((req.body as { action?: unknown })?.action));
-  app.get('/api/game/log', async () => session.dayLog());
+  app.get('/api/game/log', async (req) => session.dayLog(Number((req.query as { day?: string }).day) || undefined));
   app.post('/api/game/reread/:id', async (req) => session.reread((req.params as { id: string }).id));
   app.post('/api/game/world-pulse', async () => session.worldPulse());
   app.post('/api/game/end-slot', async () => session.endSlot());
@@ -313,6 +317,8 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     const s = session.state;
     const post = s?.feed.find((p) => p.id === (req.params as { id: string }).id);
     if (!s || !post) return reply.status(404).send({ error: 'unknown post' });
+    // artwork is drawn only for moments the player was part of; other posts keep their pixel sketch
+    if (![post.from, post.with].includes(s.playerId)) return reply.status(404).send({ error: 'no photo for posts without you' });
     const people = [post.from, post.with].filter((id): id is string => !!id && !!s.characters[id]).map((id) => s.characters[id]);
     return queue.request(photoRequest(s, people, post.location, post.slot, post.text, `feed:${s.gameId}:${post.id}`, portraitOf), PRIORITY.location);
   });

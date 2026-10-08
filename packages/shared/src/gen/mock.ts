@@ -7,6 +7,7 @@ import { content } from '../content';
 import { attracted, firstName, placeName, rel } from '../engine/core';
 import { referencesFor } from '../engine/social';
 import { pendingCallbacks } from '../engine/predictions';
+import { drunkSpeech } from '../engine/drink';
 
 // ---------------------------------------------------------------- beat sheets
 
@@ -230,6 +231,12 @@ export function voiceTransform(base: string, sp: Speech, rng: Rng, opts: { allow
 
 /** Stage 2: realize one beat as 1–3 short sentences in the speaker's voice. */
 export function mockLine(s: GameState, rng: Rng, beat: Beat, ctx: LineContext, intent?: Intent): string {
+  const text = plainMockLine(s, rng, beat, ctx, intent);
+  const speaker = s.characters[beat.speaker];
+  return speaker && !speaker.isPlayer ? drunkSpeech(text, speaker.drunk ?? 0) : text;
+}
+
+function plainMockLine(s: GameState, rng: Rng, beat: Beat, ctx: LineContext, intent?: Intent): string {
   const c = s.characters[beat.speaker];
   const npc = content().npcs.find((n) => n.id === beat.speaker);
   if (!c && npc) {
@@ -405,17 +412,43 @@ const LOG_KEY: Partial<Record<LogEntry['kind'], string>> = {
   couple: 'confess_yes', confession: 'confess_no', departure: 'departure', arrival: 'arrival', gossip: 'gossip', domestic: 'domestic',
 };
 
+/** A recorded conversation the panel watched: a scene or an overheard exchange, with what was actually said. */
+export interface Footage { title: string; place: string; lines: { name: string; text: string }[] }
+
+/** A short, quotable piece of a spoken line (first sentence, cut at a word). */
+function quotable(text: string): string {
+  const first = text.replace(/\s+/g, ' ').trim().split(/(?<=[.!?])\s/)[0].replace(/(?<!\.)\.$/, '');
+  return first.length <= 90 ? first : `${first.slice(0, 90).replace(/\s+\S*$/, '')}…`;
+}
+
+const QUOTE_FRAMES = [
+  '"{q}" Did {n} really say that out loud?',
+  'When {n} said "{q}", I put my drink down.',
+  '"{q}" That is {n} in one sentence.',
+  "I can't stop thinking about {n} saying \"{q}\"",
+];
+const ANSWER_FRAMES = ['{p}, come on.', 'I see it differently, {p}.', 'Exactly, {p}.', '{p}, you are too soft on them.'];
+
 /**
  * Studio intermission (mid-episode and end of episode): the show cuts to the panel, who talk over the last stretch
- * of footage. Pure text, never mutates state, never hints.
+ * of footage, quoting what the housemates said and answering each other. Pure text, never mutates state, never hints.
  */
-export function mockIntermission(s: GameState, rng: Rng, kind: 'mid' | 'end', sinceTick: number): Commentary {
+export function mockIntermission(s: GameState, rng: Rng, kind: 'mid' | 'end', sinceTick: number, footage: Footage[] = []): Commentary {
   const panel = content().panel;
   const host = panel[0];
   const lines: Commentary['lines'] = [{ speaker: host.id, text: rng.pick(host.lines[kind] ?? host.lines.generic), reaction: 'silence' }];
   const topics = intermissionTopics(s, sinceTick);
   const others = rng.shuffle(panel.slice(1));
-  topics.forEach((l, i) => {
+  // the conversations themselves first: one panelist quotes a line, the next answers them by name
+  const clips = footage.filter((f) => f.lines.length).slice(0, 2);
+  clips.forEach((f, i) => {
+    const said = rng.pick(f.lines);
+    const [p, q] = [others[(i * 2) % others.length], others[(i * 2 + 1) % others.length]];
+    lines.push({ speaker: p.id, text: truncate(fill(rng.pick(QUOTE_FRAMES), { q: quotable(said.text), n: said.name }), 240), reaction: 'gasp' });
+    const answer = fill(rng.pick(q.lines.generic), {});
+    lines.push({ speaker: q.id, text: truncate(`${fill(rng.pick(ANSWER_FRAMES), { p: p.name.split(' ')[1] })} ${answer}`, 240), reaction: 'laugh' });
+  });
+  topics.slice(0, clips.length ? 1 : 3).forEach((l, i) => {
     const t = l.templateId ? content().eventById.get(l.templateId) : undefined;
     const key = LOG_KEY[l.kind] ?? (t ? situationKey({ tags: t.tags, isPlayerScene: l.participants.includes(s.playerId) }) : 'generic');
     const nm = (id: string) => (s.characters[id] ? firstName(s, id) : 'them');
@@ -424,7 +457,7 @@ export function mockIntermission(s: GameState, rng: Rng, kind: 'mid' | 'end', si
       lines.push({ speaker: p.id, text: truncate(fill(rng.pick(p.lines[key] ?? p.lines.generic), vars), 240), reaction: REACTION_FOR[key] ?? 'laugh' });
     }
   });
-  if (!topics.length) lines.push({ speaker: others[0].id, text: rng.pick(others[0].lines.generic), reaction: 'laugh' });
+  if (!topics.length && !clips.length) lines.push({ speaker: others[0].id, text: rng.pick(others[0].lines.generic), reaction: 'laugh' });
   if (kind === 'end') lines.push({ speaker: host.id, text: teaserLine(s), reaction: 'silence' });
   return { lines: lines.slice(0, 8) };
 }

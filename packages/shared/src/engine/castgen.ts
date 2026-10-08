@@ -179,6 +179,9 @@ export function baseCharacter(
     lowMoodStreak: 0,
     activityUntil: 0,
     swimming: false,
+    drunk: 0,
+    drunkPeak: 0,
+    hangover: 0,
   };
   c.appearanceTags = compileAppearanceTags(c);
   return c;

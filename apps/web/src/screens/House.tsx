@@ -545,7 +545,7 @@ export function House() {
                 <div key={a.id} ref={el => { if (el) labels.current.set(a.id, el); else labels.current.delete(a.id); }} data-housemate={a.id} className="pointer-events-none absolute -translate-x-1/2 text-center text-[0.65rem] leading-none" style={{ left: (a.x * TILE + TILE / 2) * scale, top: (a.y * TILE + TILE - 48) * scale - 4 }}>
                   <span className="bg-paper/85 px-1" style={{ boxShadow: '0 0 0 1px var(--color-ink)' }}>
                     {m && <span style={{ color: m.color }} aria-hidden>{m.glyph} </span>}
-                    {c.name.split(' ')[0]}
+                    {c.name.split(' ')[0]}{c.condition ? (c.condition.includes('hung') ? ' 🤕' : ' 🍺') : ''}
                   </span>
                   {a.talkingTo && <span data-conversation className="mt-1 block bg-paper/85 px-1">going to talk with {byId[a.talkingTo]?.name.split(' ')[0]}</span>}
                   {a.departing && <span className="mt-1 block bg-paper/85 px-1">{a.goingPrivate ? 'taking some private time' : 'heading out'}{a.companion ? ` with ${byId[a.companion]?.name.split(' ')[0]}` : ''}</span>}
@@ -786,6 +786,7 @@ function WhoRow({ c, onTalk, disabled }: { c: CharView; onTalk: () => void; disa
               <span style={{ color: m?.color }} aria-hidden>{m?.glyph}</span> {c.mood}
             </>
           )}
+          {c.condition ? ` · ${c.condition}` : ''}
         </div>
       </div>
       <button className="px-btn text-xs" onClick={onTalk} disabled={disabled} aria-label={`talk to ${c.name.split(' ')[0]}`}>

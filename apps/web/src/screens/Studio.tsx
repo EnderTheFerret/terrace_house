@@ -13,7 +13,11 @@ export function Studio() {
   const [data, setData] = useState<{ at: 'mid' | 'end'; lines: Line[] } | null>(null);
   const [shown, setShown] = useState(0);
   const [error, setError] = useState('');
-  const leave = () => useGame.setState({ screen: studioAfter });
+  const leave = () => {
+    const next = useGame.getState().afterStudio;
+    useGame.setState({ screen: studioAfter, afterStudio: null });
+    void next?.();
+  };
 
   useEffect(() => {
     let active = true;

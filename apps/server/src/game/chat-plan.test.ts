@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -7,7 +7,7 @@ import { openDb, Store } from '../db';
 import { MockLlm } from '../llm/mock';
 import { MockImageBackend } from '../image/mock';
 import { replayEvents } from './replay';
-import { createGame, proposedPlan, rel, ROOMS } from '@shared-roof/shared';
+import { createGame, dropUnattracted, FEELING_SCALE, planConflict, planFromWords, proposedPlan, rel, rereadChange, ROOMS, welcomedFlirts } from '@shared-roof/shared';
 import { plansBlock } from '../prompts/common';
 
 it('reads a later meet-up from typed words and leaves right-now or plan-free talk alone', () => {
@@ -20,6 +20,8 @@ it('reads a later meet-up from typed words and leaves right-now or plan-free tal
   expect(proposedPlan(s, 'Go on a date with me, cafe tomorrow evening?')).toEqual({ node: 'cafe', episode: 3, slot: 'evening', date: true });
   expect(proposedPlan(s, 'Would you like some coffee?')).toBeNull(); // no time: not a plan
   expect(proposedPlan(s, 'I went to the beach this morning.')).toBeNull(); // past, and not an invitation
+  expect(proposedPlan(s, "I'm going to the beach tomorrow morning with the others, isn't that funny?")).toBeNull(); // news about other people, not an invitation
+  expect(proposedPlan(s, "we're going to the beach tomorrow morning with the others, wanna come?")).toEqual({ node: 'beach', episode: 3, slot: 'slot1' });
   expect(proposedPlan(s, 'beach this morning?')).toBeNull(); // the current block is "now", the invite button's job
 });
 
@@ -63,6 +65,79 @@ it('turns an agreed typed plan into a calendar entry the housemate knows about, 
     expect(session.state!.invitations.find(p => p.node === 'beach')).toMatchObject({ to: 'ren', slot: 'evening', status: 'accepted' });
     expect(replayEvents(store.events(s.gameId)).invitations).toEqual(session.state!.invitations);
   } finally { await close(); }
+});
+
+it('one group text plans with several housemates: each answers in their own thread and agrees for themselves', async () => {
+  const { session, store, close } = await setup();
+  try {
+    await session.newGame({ seed: 21, moveInDay: false });
+    const s0 = session.state!;
+    const ids = Object.values(s0.characters).filter(c => !c.isPlayer && c.status === 'inHouse').map(c => c.id).slice(0, 3);
+    for (const id of ids) for (const k of ['affinity', 'trust'] as const) rel(s0, id, s0.playerId)[k] = 90;
+    await session.act({ type: 'text', target: ids[0], guests: ids.slice(1), text: 'Living room movie tomorrow at 9pm?' });
+    const s = session.state!;
+    for (const id of ids) expect(s.chats[[id, s.playerId].sort().join('|')]?.some(m => m.from === id)).toBe(true);
+    const plans = s.invitations.filter(p => p.from === s.playerId && p.node === 'living');
+    expect(plans.length).toBeGreaterThan(0);
+    expect(plans.every(p => ids.includes(p.to) && p.slot === 'evening' && p.status === 'accepted')).toBe(true);
+    expect(replayEvents(store.events(s.gameId)).invitations).toEqual(s.invitations);
+    await expect(session.act({ type: 'text', target: ids[0], guests: [ids[0]], text: 'hi' })).rejects.toThrow(/not available/);
+  } finally { await close(); }
+});
+
+it('reads full place names, scopes the invitation to its sentence, and lets you join someone already going there', () => {
+  const s = createGame({ seed: 3 });
+  s.world.episode = 2; s.world.slot = 'slot1'; s.world.weekday = 0;
+  // "Dizengoff" and "Square" are each shared with another place; the whole name is not
+  expect(proposedPlan(s, 'free to come to Dizengoff Square tomorrow 10 am?')).toEqual({ node: 'station', episode: 3, slot: 'slot1' });
+  // telling them about a bar night, then asking something else, invites nobody to the bar
+  expect(proposedPlan(s, 'Drinking at the bar later. Why, you want to hear some juicy gossip?')).toBeNull();
+  const other = Object.values(s.characters).find((c) => !c.isPlayer && c.status === 'inHouse')!;
+  const third = Object.values(s.characters).find((c) => !c.isPlayer && c.status === 'inHouse' && c.id !== other.id)!;
+  s.invitations.push({ id: 'plan-x', from: other.id, to: third.id, episode: 2, slot: 'evening', node: 'livehouse', status: 'accepted' });
+  expect(planConflict(s, other.id, { node: 'livehouse', episode: 2, slot: 'evening' })).toBe('');
+  expect(planConflict(s, other.id, { node: 'bar', episode: 2, slot: 'evening' })).toBe('already has plans then');
+});
+
+it('adds, moves and calls off a plan the model read from texts, and replays it', async () => {
+  const { session, store, close } = await setup();
+  try {
+    await session.newGame({ seed: 21, moveInDay: false });
+    const P = session.state!.playerId;
+    const read = vi.spyOn(session.gen, 'planRead');
+    read.mockImplementation(async (s) => ({ plan: planFromWords(s, 'livehouse', 'tomorrow at 21:30')! }));
+    await session.act({ type: 'text', target: 'ren', text: 'so a yes or no, am I coming tomorrow?' });
+    const plan = session.state!.invitations.find((p) => [p.from, p.to].includes('ren') && [p.from, p.to].includes(P))!;
+    expect(plan).toMatchObject({ node: 'livehouse', episode: session.state!.world.episode + 1, slot: 'evening', status: 'accepted' });
+    read.mockImplementation(async (s) => ({ plan: planFromWords(s, 'bar', 'tomorrow at 20:30')! }));
+    await session.act({ type: 'text', target: 'ren', text: 'actually the bar tomorrow works better' });
+    expect(session.state!.invitations.filter((p) => p.id === plan.id)[0]).toMatchObject({ node: 'bar', status: 'accepted' });
+    read.mockResolvedValue({ cancel: true });
+    await session.act({ type: 'text', target: 'ren', text: "sorry, can't make it tomorrow" });
+    expect(session.state!.invitations.find((p) => p.id === plan.id)!.status).toBe('declined');
+    expect(replayEvents(store.events(session.state!.gameId)).invitations).toEqual(session.state!.invitations);
+  } finally { await close(); }
+});
+
+it('keeps what a scene gave pairs the reading leaves out, and drops romance without attraction', () => {
+  const empty = { affinityDeltas: [], romanceDeltas: [], tensionDeltas: [], trustDeltas: [], newMemories: [], moodDeltas: [] };
+  const applied = { ...empty, trustDeltas: [{ from: 'hana', to: 'player', delta: 4.8 }], affinityDeltas: [{ from: 'hana', to: 'player', delta: 3 }] };
+  const next = { ...empty, affinityDeltas: [{ from: 'hana', to: 'player', delta: 4 }] };
+  const change = rereadChange(next, applied, FEELING_SCALE);
+  expect(change.trustDeltas).toEqual([]); // trust the reading didn't mention stays as the scene left it
+  expect(change.affinityDeltas).toEqual([{ from: 'hana', to: 'player', delta: 4 * FEELING_SCALE - 3 * FEELING_SCALE }]);
+  const s = createGame({ seed: 3 });
+  const [a, b] = Object.values(s.characters).filter((c) => !c.isPlayer && c.gender === 'man');
+  const romance = dropUnattracted(s, { ...empty, romanceDeltas: [{ from: a.id, to: b.id, delta: 3 }] });
+  expect(romance.romanceDeltas).toEqual(a.interestedIn.includes('man') ? [{ from: a.id, to: b.id, delta: 3 }] : []);
+  // a flirt the listener liked earns romance from someone attracted to the player; from anyone else it doesn't
+  const P = s.characters[s.playerId];
+  const fan = Object.values(s.characters).find((c) => !c.isPlayer && c.interestedIn.includes(P.gender))!;
+  const other = Object.values(s.characters).find((c) => !c.isPlayer && !c.interestedIn.includes(P.gender))!;
+  const liked = { ...empty, affinityDeltas: [{ from: fan.id, to: P.id, delta: 2 }, { from: other.id, to: P.id, delta: 3 }] };
+  const flirted = welcomedFlirts(s, [{ speaker: P.id, text: '"Yeah, missed me?" I say in a flirty tone.' }], liked);
+  expect(flirted.romanceDeltas).toEqual([{ from: fan.id, to: P.id, delta: 2 }]);
+  expect(welcomedFlirts(s, [{ speaker: P.id, text: 'Dinner at eight?' }], liked).romanceDeltas).toEqual([]);
 });
 
 async function setup() {
