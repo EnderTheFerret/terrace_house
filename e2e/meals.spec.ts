@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { answerer } from './answer';
 
 async function settle(page: Page, stopAt?: string) {
   for (let i = 0; i < 240; i++) {
@@ -15,7 +16,7 @@ async function settle(page: Page, stopAt?: string) {
       if (!await digest.isVisible() && await ready.isVisible() && await ready.isEnabled()) return false;
     }
     const end = page.getByRole('button', { name: "that's all", exact: true });
-    const choice = page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first();
+    const choice = answerer(page);
     const next = page.getByRole('button', { name: /^(begin|continue|ok|leave them be|to the studio|back to the house|next episode|roll credits)$/ }).first();
     if (await end.isVisible()) await end.click();
     else if (await choice.isVisible()) {
@@ -94,7 +95,7 @@ test('welcome dinner gathers six, followed by small breakfasts and scheduled eve
   expect(dinner.participants.length).toBeGreaterThanOrEqual(2);
   expect(dinner.participants.length).toBeLessThanOrEqual(6);
   await shot('meal-dinner');
-  await page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first().click();
+  await answerer(page).click();
   await settle(page);
   await expect(page.getByRole('button', { name: 'skip to next block', exact: true })).toBeEnabled();
 });

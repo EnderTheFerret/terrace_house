@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { answerer } from './answer';
 
 test('visual novel shows the group, answers every mention, and preserves typed words', async ({ page, request }, info) => {
   await page.addInitScript(() => localStorage.setItem('shared-roof-settings', JSON.stringify({ typewriter: false, reducedMotion: true, sound: false })));
@@ -15,7 +16,7 @@ test('visual novel shows the group, answers every mention, and preserves typed w
     if (await hangout.and(page.locator('button:enabled')).isVisible()) break;
     const done = page.getByRole('button', { name: "that's all", exact: true }); // talks are open-ended
     if (await done.isVisible()) { await done.click(); continue; }
-    const choice = page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first();
+    const choice = answerer(page);
     if (await choice.isVisible()) { await choice.click(); continue; }
     const next = page.getByRole('button', { name: /^(begin|continue|ok|leave them be|to the studio|back to the house|next episode)$/ }).first();
     if (await next.and(page.locator('button:enabled')).isVisible()) await next.click();
@@ -31,7 +32,7 @@ test('visual novel shows the group, answers every mention, and preserves typed w
   const say = page.getByLabel('say something in your own words');
   await expect(say).toBeVisible({ timeout: 30_000 }); // everyone walks to the room first
   await page.route('**/api/scene/*/choose', route => route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'temporary conflict' }) }), { times: 1 });
-  await page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first().click();
+  await answerer(page).click();
   await expect(say).toBeVisible();
   const recipient = page.getByRole('combobox', { name: 'reply to', exact: true });
   await expect(recipient).toBeVisible();
@@ -41,7 +42,7 @@ test('visual novel shows the group, answers every mention, and preserves typed w
   const target = (await recipient.locator('option').nth(2).getAttribute('value'))!;
   await recipient.selectOption(target);
   const intentStream = page.waitForResponse(r => /\/api\/scene\/[^/]+\/stream$/.test(r.url()));
-  await page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first().click();
+  await answerer(page).click();
   await expect(say).toBeVisible();
   const intentRaw = await (await intentStream).text();
   const intentReplies = [...intentRaw.matchAll(/event: line-end\r?\ndata: ([^\r\n]+)/g)].map(m => JSON.parse(m[1]));

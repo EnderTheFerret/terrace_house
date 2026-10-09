@@ -40,10 +40,11 @@ export function SceneArtwork({ people, day, disabled, onReady }: { people: Scene
       if (!ac.signal.aborted) { setError((e as Error).message); setMessage(''); }
     } finally { if (!ac.signal.aborted) setBusy(false); }
   };
-  const close = () => { controller.current?.abort(); setBusy(false); dialog.current?.close(); };
+  // closing the dialog keeps drawing: the figure appears in the scene when it is ready (minutes, on a real image model)
+  const close = () => dialog.current?.close();
   return <>
     <Btn disabled={!people.length} onClick={() => { if (person) select(person.id); dialog.current?.showModal(); }}>character artwork</Btn>
-    <dialog ref={dialog} aria-label="generate character artwork" onClick={e => e.stopPropagation()} onClose={close} className="px-panel m-auto max-h-[90vh] w-[min(28rem,95vw)] overflow-auto bg-paper p-4 backdrop:bg-black/70">
+    <dialog ref={dialog} aria-label="generate character artwork" onClick={e => e.stopPropagation()} className="px-panel m-auto max-h-[90vh] w-[min(28rem,95vw)] overflow-auto bg-paper p-4 backdrop:bg-black/70">
       <div className="mb-4 flex items-center justify-between gap-3"><h2>character artwork</h2><Btn onClick={close}>close</Btn></div>
       <label className="mb-3 block text-sm">character<select className="px-panel-soft block w-full px-2 py-1" value={person?.id ?? ''} disabled={busy} onChange={e => select(e.target.value)}>{people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
       <label className="mb-3 block text-sm">expression<select className="px-panel-soft block w-full px-2 py-1" value={emotion} disabled={busy} onChange={e => setEmotion(e.target.value as Emotion)}>{EMOTIONS.map(e => <option key={e} value={e}>{e === 'tender' ? 'in love' : e}</option>)}</select></label>

@@ -86,6 +86,17 @@ export function intermissionPrompt(s: GameState, at: 'mid' | 'end', since: numbe
   );
 }
 
+/** The TV edit: which moment of one recorded day the house watches tonight, picked from that day's actual scenes and what the panel said. */
+export function broadcastClipPrompt(day: number, scenes: { title: string; place: string; lines: { name: string; text: string }[] }[], panel: string[]): string {
+  return [
+    `You edit a Terrace House-style reality show. Choose the ONE moment from day ${day} that the housemates will watch together on the living-room TV tonight.`,
+    ...scenes.map((sc, i) => `Scene ${i}: "${sc.title}" at the ${sc.place}\n${sc.lines.map((l, j) => `${j}. ${l.name}: ${l.text}`).join('\n')}`),
+    panel.length ? `What the panel said about that day:\n${panel.map((t) => `- ${t}`).join('\n')}` : '',
+    'Pick the exchange the housemates would blush at, argue about or laugh over; prefer a moment the panel also picked up on. Use only scene and line numbers listed above.',
+    'Output JSON only: {"scene":<scene number>,"from":<first line number>,"count":<1 to 4 lines>}',
+  ].filter(Boolean).join('\n\n');
+}
+
 /** "[today]" / "[yesterday]" for a message tick: the world tick advances once per time block, six blocks a day. */
 function sent(s: GameState, tick?: number): string {
   if (tick === undefined) return '';
@@ -107,7 +118,7 @@ export function chatPrompt(s: GameState, from: string, to: string, thread: { fro
       { text: to === s.playerId ? aboutPlayer(s) : '', priority: 88, required: true },
       { text: memoriesBlock(s, from, [from, to], 3, thread.slice(-2).map((m) => m.text).join(' ')), priority: 75 },
       { text: `Recent messages:\n${thread.slice(-6).map((m) => `${sent(s, m.tick)} ${firstName(s, m.from)}: ${m.text}`).join('\n')}`, priority: 90, required: true },
-      { text: `Write ${c.name}'s reply to ${firstName(s, to)}'s latest text: ${thread.at(-1)?.text ?? 'hello'}. One brief message for a casual chat or simple request, such as hanging out. Reply directly; do not narrate a scene, write a whole conversation, or speak for the sender. Lowercase is fine. Output the message text only.${note ? ` ${note}` : ''}`, priority: 100, required: true },
+      { text: `Write ${c.name}'s reply to ${firstName(s, to)}'s latest text: ${thread.at(-1)?.text ?? 'hello'}. One brief message for a casual chat or simple request, such as hanging out. Reply directly; do not narrate a scene, write a whole conversation, or speak for the sender. Lowercase is fine. Never repeat or reword a message already in the recent messages. Output the message text only.${note ? ` ${note}` : ''}`, priority: 100, required: true },
     ],
     TOKEN_BUDGET.chat,
   );
@@ -174,6 +185,18 @@ export function shotPrompt(s: GameState, ev: EventInstance, transcript: { speake
     `Last lines:\n${transcript.slice(-4).map((l) => `${s.characters[l.speaker] ? firstName(s, l.speaker) : l.speaker}: ${l.text}`).join('\n')}`,
     `Output JSON only: {${ids.map((id) => `"${id}":"short action"`).join(',')}}. For each listed person describe their expression, posture and action from the last lines, max 100 characters. Match the scene activity: seated around the table and eating at meals, dancing at a club, talking and sipping coffee at a cafe, seated for sofa conversations, cooking at a counter, or moving during physical activities. Preserve the scene's positions and clothes. Do not add swimming or new clothing. Use props established by the scene activity or dialogue; do not invent unrelated props${ids.length > 1 ? `; ${firstName(s, s.playerId)}'s own typed action (such as lighting a cigarette or waving) must be shown as written` : ''}. Omit names, other people, dialogue and camera talk. Nothing explicit.`,
   ].join('\n\n');
+}
+
+const BEAT_KIND: Record<string, string> = {
+  news: 'some news from their work or life',
+  gossip: 'harmless gossip about coworkers or people they know outside the house (never about housemates)',
+  secret: 'a small personal secret nobody in the house knows yet',
+};
+
+/** A fresh career beat (news, gossip or secret) in the same everyday style as the hand-written example. */
+export function freshBeatPrompt(s: GameState, ev: EventInstance, kind: string): string {
+  const self = s.characters[ev.roles.self];
+  return `${RULES}\n\nInvent a new everyday Terrace House moment: ${firstName(s, self.id)} (${self.age}, ${self.occupation}) shares ${BEAT_KIND[kind]} with ${firstName(s, ev.roles.b)} at ${placeName(ev.location)}.\nIt must fit ${firstName(s, self.id)}'s background: ${self.persona.backstory.slice(0, 240)}\nKeep it small, concrete and believable; no melodrama, no life-changing decisions.\nStyle example (do not reuse its content): ${ev.premise}\nWrite one or two present-tense sentences using the names exactly. Output the premise only.`;
 }
 
 export function flavorPrompt(premise: string): string {

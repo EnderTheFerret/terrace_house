@@ -9,7 +9,7 @@ import { clockLabel, coupleOf, flag, housemates, isRoom, knowsPlan, placeName, r
 import { conditionOf } from './drink';
 import { returnable } from './leave';
 import { dateLabel } from './calendar';
-import { jobOf, SOCIAL_ACTIONS } from './agents';
+import { jobOf, outingProblem, SOCIAL_ACTIONS } from './agents';
 import { pairSummaryText, topMemories } from './memory';
 import { moodWord, teaserLine } from '../gen/mock';
 import { uk } from '../util';
@@ -36,8 +36,10 @@ export interface CharView {
   expressionEdits?: Character['expressionEdits'];
   isPlayer: boolean;
   status: 'inHouse' | 'left';
-  /** keeps Shabbat (the house knows: phones away Friday night, no driving) */
+  /** keeps Shabbat (the house knows: no work, cooking or driving Friday night) */
   keepsShabbat: boolean;
+  /** why they can't come out with you right now ("busy: at work", "keeping Shabbat"); null when free */
+  outingProblem: string | null;
   leftReason?: string;
   arrivedEp: number;
   mood: string | null;
@@ -207,7 +209,7 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
     const partnerKnown = partner && (c.isPlayer || partner === P.id || Object.keys(kn).some((fid) => s.facts[fid]?.kind === 'couple' && [s.facts[fid].subject, s.facts[fid].about].includes(c.id)));
     return {
       id: c.id, name: c.name, age: c.age, gender: c.gender, occupation: c.occupation, hometown: c.hometown, interestedIn: c.interestedIn, appearance: c.appearance,
-      appearanceTags: c.appearanceTags, appearanceText: c.appearanceText, portraitSeed: c.portraitSeed, isPlayer: c.isPlayer, status: c.status as CharView['status'], keepsShabbat: !!c.persona.keepsShabbat, leftReason: c.leftReason, arrivedEp: c.arrivedEp,
+      appearanceTags: c.appearanceTags, appearanceText: c.appearanceText, portraitSeed: c.portraitSeed, isPlayer: c.isPlayer, status: c.status as CharView['status'], keepsShabbat: !!c.persona.keepsShabbat, outingProblem: c.isPlayer ? null : outingProblem(s, c), leftReason: c.leftReason, arrivedEp: c.arrivedEp,
       ...(c.spriteSeed !== undefined ? { spriteSeed: c.spriteSeed } : {}),
       ...(c.spriteInstructions ? { spriteInstructions: c.spriteInstructions } : {}),
       ...(c.expressionEdits ? { expressionEdits: c.expressionEdits } : {}),
@@ -298,7 +300,8 @@ export function projectForPlayer(s: GameState, digestSince = s.world.tick): Play
     .filter((l) => l.participants.includes(P.id) || (l.factId && kn[l.factId]) || l.kind === 'system' || l.kind === 'calendar' || l.kind === 'arrival' || l.kind === 'departure')
     .slice(-40)
     .map((l) => ({ tick: l.tick, episode: l.episode, slot: l.slot, text: l.text, kind: l.kind }));
-  const ce = s.world.cityEvent ? content().calendar.events.find((e) => e.id === s.world.cityEvent) : null;
+  // Friday dinner is a weekly routine (it only gates a possible scene), not a city event worth a banner
+  const ce = s.world.cityEvent && s.world.cityEvent !== 'friday-dinner' ? content().calendar.events.find((e) => e.id === s.world.cityEvent) : null;
   return {
     gameId: s.gameId,
     householdOptions: HOUSEHOLD_ACTIVITIES.map(id => ({ id, reason: householdProblem(s, P, id) })),

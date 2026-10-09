@@ -10,7 +10,7 @@ import { content } from '../content';
 import { attracted, belief, coupleOf, flag, housemates, isCouple, isDaySlot, rel, traitsOf, SLOT_MINUTES, SLOT_START } from './core';
 import { fridgeTotal } from './conditions';
 import { gossipCandidate } from './knowledge';
-import { ACTIVITY_MINUTES, isOpen, reachability } from './city';
+import { ACTIVITY_MINUTES, reachability } from './city';
 import { reputationOf } from './social';
 import { HOUSEHOLD, householdCompanyProblem, householdProblem, householdUtility } from './household';
 import { HOUSEHOLD_ACTIVITIES } from '../model';
@@ -31,6 +31,15 @@ export function isShabbat(s: GameState, c?: Character): boolean {
   if (c && !c.persona.keepsShabbat) return false;
   const hour = SLOT_START[s.world.slot] + s.world.minutes / 60;
   return (s.world.weekday === 5 && hour >= 18) || (s.world.weekday === 6 && hour < 18);
+}
+
+/** Why housemate `c` can't come out with the player right now ("busy: at work", "keeping Shabbat"), or null when free. One rule for the engine and the map. */
+export function outingProblem(s: GameState, c: Character): string | null {
+  if (c.status !== 'inHouse') return 'not in the house';
+  const busy: Record<string, string> = { work: 'at work', sleep: 'asleep', nap: 'napping', shower: 'in the shower' };
+  const why = busy[c.lastAction ?? ''];
+  if (why) return `busy: ${why}`;
+  return isShabbat(s, c) ? 'keeping Shabbat' : null;
 }
 
 /** s_k(a): how much each action satisfies each need (positive = reduces deficit). */
@@ -230,7 +239,7 @@ export function candidateActions(s: GameState, c: Character): AgentAction[] {
     const reach = reachability('house', slot, budgetOf(c), !shabbat && s.world.carUsedBy === null, s.world.minutes, s.world.weekday).filter((r) => r.reachable && r.afford !== 'out');
     const liked = reach.filter((r) => {
       const n = content().city.nodes.find((x) => x.id === r.node)!;
-      return (!shabbat || (r.minutes <= 20 && !r.needsCar && ['park','riverside','beach','shrine'].includes(r.node))) && n.activities.some((a) => ['wander', 'date', 'eat', 'shop', 'karaoke'].includes(a)) && isOpen(n, slot, s.world.minutes, s.world.weekday);
+      return (!shabbat || (r.minutes <= 20 && !r.needsCar && ['park','riverside','beach','shrine'].includes(r.node))) && n.activities.some((a) => ['wander', 'date', 'eat', 'shop', 'karaoke'].includes(a));
     });
     for (const r of liked.slice(0, 18)) {
       const duration = r.minutes * 2 + ACTIVITY_MINUTES;
@@ -240,7 +249,7 @@ export function candidateActions(s: GameState, c: Character): AgentAction[] {
   }
   for (const o of others) {
     acts.push({ kind: 'seek', target: o.id }, { kind: 'avoid', target: o.id });
-    if (!shabbat && !isShabbat(s, o)) acts.push({ kind: 'text', target: o.id });
+    acts.push({ kind: 'text', target: o.id });
     if (rel(s, o.id, c.id).tension >= 30 || s.grudges[`${o.id}>${c.id}`]) acts.push({ kind: 'apologize', target: o.id });
     const be = belief(s, c.id, o.id, c.id);
     if (

@@ -1,6 +1,7 @@
 // Vacations end to end: sleep to Friday, take a weekend trip from the house panel, live the drive and the night,
 // come home Saturday morning to the return scene.
 import { expect, test, type Page } from '@playwright/test';
+import { answerer } from './answer';
 
 const seen: string[] = [];
 async function reachHouse(page: Page) {
@@ -9,7 +10,7 @@ async function reachHouse(page: Page) {
     if (await sleep.isVisible() && await sleep.isEnabled()) { await page.waitForTimeout(400); if (await sleep.isVisible() && await sleep.isEnabled()) return; }
     const title = page.locator('main >> text=/^(road trip|late night, far from the house|back from the trip)$/').first();
     if (await title.isVisible()) seen.push((await title.textContent())!.trim());
-    const choice = page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first();
+    const choice = answerer(page);
     if (await choice.isVisible()) { await choice.click(); continue; }
     const next = page.getByRole('button', { name: /^(begin|continue|ok|leave them be|to the studio|back to the house|next episode|roll credits|that's all)$/ }).first();
     if (await next.isVisible()) await next.click();
@@ -24,7 +25,8 @@ test.beforeEach(async ({ page }) => {
 
 test('a weekend trip: Friday panel, drive and night scenes, back Saturday morning', async ({ page, request }) => {
   test.setTimeout(240_000);
-  await request.post('/api/game/new', { data: { seed: 12, seasonLength: 0, moveInDay: false } });
+  // seed 7: on seed 12 a housemate had taken the shared car by Friday ("the shared car is taken")
+  await request.post('/api/game/new', { data: { seed: 7, seasonLength: 0, moveInDay: false } });
   await page.goto('/');
   await page.getByRole('button', { name: /continue · episode 1/ }).click();
   await reachHouse(page);
@@ -42,7 +44,9 @@ test('a weekend trip: Friday panel, drive and night scenes, back Saturday mornin
   await reachHouse(page);
   const g = await (await request.get('/api/game')).json();
   expect(g.view.weekday).toBe(6); // Saturday
-  expect(seen).toEqual(expect.arrayContaining(['road trip', 'late night, far from the house']));
+  expect(seen).toContain('road trip');
+  // the night scene plays through on its own, faster than the title can be polled for: read it off the log
+  expect(g.view.log.some((l: { text: string }) => /^Night at /.test(l.text))).toBe(true);
   // the trip is common knowledge and the return happened at the door (scene seen, or logged)
   expect(seen.includes('back from the trip') || g.view.log.some((l: { text: string }) => /left for/.test(l.text))).toBe(true);
 });

@@ -7,12 +7,12 @@ import { config } from '../config';
 import { MockLlm } from '../llm/mock';
 import { structured, logFailure, extractJson, type Budget } from '../llm/structured';
 import { beatSheetPrompt, deltaPrompt, linesPrompt, parseLines } from '../prompts/scene';
-import { chatPrompt, commentaryPrompt, flavorPrompt, intermissionPrompt, overheardPrompt, shotIds, shotPrompt } from '../prompts/studio';
+import { broadcastClipPrompt, chatPrompt, commentaryPrompt, flavorPrompt, freshBeatPrompt, intermissionPrompt, overheardPrompt, shotIds, shotPrompt } from '../prompts/studio';
 import { contentCheck } from './personas';
 import { diaryPrompt, planReadPrompt } from '../prompts/common';
 import { dialogueCheck, splitReply } from '../prompts/dialogue';
 
-const PLAN_READ_SCHEMA = { type: 'object', properties: { agreed: { type: 'boolean' }, place: { type: 'string' }, when: { type: 'string' }, date: { type: 'boolean' }, cancel: { type: 'boolean' } }, required: ['agreed', 'place', 'when', 'date', 'cancel'] };
+const PLAN_READ_SCHEMA = { type: 'object', properties: { agreed: { type: 'boolean' }, place: { type: 'string' }, when: { type: 'string' }, date: { type: 'boolean' }, cancel: { type: 'boolean' }, meeting: { type: 'boolean' }, topic: { type: 'string' } }, required: ['agreed', 'place', 'when', 'date', 'cancel', 'meeting', 'topic'] };
 const DIARY_SCHEMA ={ type: 'object', properties: { diary: { type: 'string' }, pairs: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, summary: { type: 'string' } }, required: ['name', 'summary'] } } }, required: ['diary', 'pairs'] };
 
 export interface Line {
@@ -79,18 +79,20 @@ export class Generator {
     onLineStart: (i: number, speaker: string, beatIndex?: number) => void,
     onToken: (i: number, token: string) => void,
   ): Promise<Line[]> {
-    if (ev.location === 'phone' && ev.participants.some(id => isShabbat(s, s.characters[id]))) return [];
     const mockReq = (bs: Beat[], ins: (Intent | undefined)[]) => ({
       kind: 'lines' as const,
-      prompt: `${ev.id}|${transcript.length}|${bs.map((b) => b.beatType).join(',')}|${ctx.replyTo?.text ?? ''}`,
+      prompt: `${ev.id}|${transcript.length + out.length}|${bs.map((b) => b.beatType).join(',')}|${ctx.replyTo?.text ?? ''}`,
       temperature: 0,
       context: { kind: 'lines', state: s, beats: bs, ctx: { ...ctx, event: ev }, intents: ins },
     });
     const out: Line[] = [];
+    const norm = (t: string) => t.toLowerCase().replace(/[^a-z' ]/g, '').trim();
     const finish = (i: number, text: string, source: 'llm' | 'mock') => {
       const b = beats[i];
       const parts = ev.location === 'phone' ? [{ text, narration: false }] : splitReply(text, ev.participants.map(id => speakerName(s, id)));
       for (const part of parts) {
+        // a model (or a stand-in for a failed model line) looping: drop a longer line or stage direction this scene already has
+        if ((source === 'llm' || this.linesLlm.name !== 'mock') && norm(part.text).length >= 12 && [...transcript, ...out].some((l) => norm(l.text) === norm(part.text))) continue;
         const index = out.length;
         const speaker = part.narration ? 'narrator' : b.speaker;
         onLineStart(index, speaker, i);
@@ -118,6 +120,7 @@ export class Generator {
       let text = texts[i];
       let source: 'llm' | 'mock' = 'llm';
       if (text && !contentCheck(text)) text = null;
+      if (text && [...transcript, ...out].some((l) => norm(l.text) === norm(text!)) && norm(text).length >= 12) text = null; // looped on an earlier line: use the stand-in
       if (text && ev.location === 'phone' && !dialogueCheck(text, ev.participants.map(id => speakerName(s, id))).ok) text = null;
       if (text) {
         // ponytail: cadence counts actions as speech; keep the meta guard for scenes and cadence checks for phone messages.
@@ -178,7 +181,6 @@ export class Generator {
 
   /** `note`: what the engine already decided the reply must do (e.g. agree to a proposed plan). */
   async chat(s: GameState, from: string, to: string, budget: Budget, note?: string): Promise<string> {
-    if (isShabbat(s, s.characters[from]) || isShabbat(s, s.characters[to])) return '';
     const thread = (s.chats[[from, to].sort().join('|')] ?? []).map((m) => ({ from: m.from, text: m.text, tick: m.tick }));
     const req = { kind: 'chat' as const, prompt: chatPrompt(s, from, to, thread, note), temperature: config.temps.chat, maxTokens: 160, context: { kind: 'chat', state: s, from, to } };
     if (this.linesLlm.name !== 'mock' && budget.take()) {
@@ -187,7 +189,8 @@ export class Generator {
         const c = s.characters[from];
         // a text is what they type, not a stage direction ("Shira's phone buzzes… she types back quickly")
         const narration = new RegExp(`^\\s*${firstName(s, from)}\\b|\\*|\\b(?:types|texts|writes) back\\b|\\bphone (?:buzzes|vibrates|lights up)\\b`, 'i');
-        if (t && t.length < 200 && !narration.test(t) && contentCheck(t) && dialogueCheck(t, [firstName(s, from), firstName(s, to)]).ok && (!c || voiceCheck(t, c.persona.speech).ok)) return t;
+        const said = thread.slice(-12).some((m) => m.text.toLowerCase() === t.toLowerCase());
+        if (t && !said && t.length < 200 && !narration.test(t) && contentCheck(t) && dialogueCheck(t, [firstName(s, from), firstName(s, to)]).ok && (!c || voiceCheck(t, c.persona.speech).ok)) return t;
       } catch (e) {
         logFailure(req.prompt, (e as Error).message, 'chat');
       }
@@ -226,14 +229,28 @@ export class Generator {
     if (!this.real || !lines.length) return null;
     try {
       const raw = await this.llm.complete({ kind: 'summary', prompt: planReadPrompt(s, a, b, lines.slice(-12)), temperature: 0.1, maxTokens: 160, schema: PLAN_READ_SCHEMA });
-      const j = extractJson(raw) as { agreed?: unknown; place?: unknown; when?: unknown; date?: unknown; cancel?: unknown } | null;
+      const j = extractJson(raw) as { agreed?: unknown; place?: unknown; when?: unknown; date?: unknown; cancel?: unknown; meeting?: unknown; topic?: unknown } | null;
       if (!j || typeof j !== 'object') return null;
       if (j.cancel === true) return { cancel: true };
       if (j.agreed !== true || typeof j.place !== 'string' || typeof j.when !== 'string') return null;
-      const plan = planFromWords(s, j.place, j.when, j.date === true);
+      // a house meeting for everyone has no place of its own: it is held at home, and `topic` is what it is about
+      const plan = planFromWords(s, j.place, j.when, j.date === true, j.meeting === true ? (typeof j.topic === 'string' ? j.topic.trim() : '') : undefined);
       return plan ? { plan } : null;
     } catch (e) {
       logFailure(planReadPrompt(s, a, b, lines.slice(-12)), (e as Error).message, 'plan-read');
+      return null;
+    }
+  }
+
+  /** Which lines of which recorded scene the house sees for one aired day. Null when the model is off or its pick is unusable: the caller falls back. */
+  async broadcastClip(day: number, scenes: Parameters<typeof broadcastClipPrompt>[1], panel: string[], budget: Budget): Promise<{ scene: number; from: number; count: number } | null> {
+    if (!this.real || !scenes.length || !budget.take()) return null;
+    try {
+      const schema = { type: 'object', properties: { scene: { type: 'integer' }, from: { type: 'integer' }, count: { type: 'integer' } }, required: ['scene', 'from', 'count'] };
+      const j = extractJson(await this.llm.complete({ kind: 'flavor', prompt: broadcastClipPrompt(day, scenes, panel), temperature: 0.4, maxTokens: 60, schema })) as { scene?: unknown; from?: unknown; count?: unknown } | null;
+      const [scene, from, count] = [Number(j?.scene), Number(j?.from), Number(j?.count)];
+      return Number.isInteger(scene) && Number.isInteger(from) && Number.isInteger(count) && scenes[scene] && from >= 0 && from < scenes[scene].lines.length && count >= 1 ? { scene, from, count: Math.min(count, 4) } : null;
+    } catch {
       return null;
     }
   }
@@ -270,6 +287,20 @@ export class Generator {
       return lines.length >= 2 ? lines : null;
     } catch {
       return null;
+    }
+  }
+
+  /** Career news/gossip/secret beats get a newly invented premise; the hand-written one is the style example and fallback. */
+  async freshBeat(s: GameState, ev: EventInstance, budget: Budget): Promise<Pick<EventInstance, 'title' | 'premise'>> {
+    const same = { title: ev.title, premise: ev.premise };
+    const kind = ev.tags.includes('career') ? (['news', 'gossip', 'secret'] as const).find((k) => ev.tags.includes(k)) : undefined;
+    if (!kind || !this.real || !ev.roles.self || !ev.roles.b || budget.remaining < 6 || !budget.take()) return same;
+    try {
+      const t = (await this.llm.complete({ kind: 'flavor', prompt: freshBeatPrompt(s, ev, kind), temperature: 0.9, maxTokens: 120 })).trim();
+      const title = { news: 'some news', gossip: 'a bit of gossip', secret: 'a secret' }[kind];
+      return t && t.length < 400 && t.includes(firstName(s, ev.roles.self)) && contentCheck(t) ? { title, premise: t } : same;
+    } catch {
+      return same;
     }
   }
 

@@ -27,8 +27,8 @@ export function Board() {
   return (
     <div className="flex h-full flex-col">
       <TopBar /><Tip id="board" />
-      <main className="flex min-h-0 flex-1 gap-4 overflow-auto p-4 scroll-thin">
-        <Panel title="relationship board · only what you know" className="flex-1">
+      <main className="flex min-h-0 flex-1 gap-4 overflow-auto p-4 scroll-thin max-md:flex-col max-md:p-2">
+        <Panel title="relationship board · only what you know" className="flex-1 max-md:flex-none max-md:overflow-x-auto">
           <div className="mb-3 flex flex-wrap gap-2" role="radiogroup" aria-label="metric">
             {(['affinity', 'romance', 'trust'] as Metric[]).map((m) => (
               <button key={m} role="radio" aria-checked={metric === m} className={`px-btn text-xs ${metric === m ? 'px-btn-primary' : ''}`} onClick={() => setMetric(m)}>
@@ -116,7 +116,7 @@ export function Board() {
           )}
           <p className="caption mt-3 text-xs">each arrow points from the person who feels it to the person they feel it about; thicker = stronger, blue = negative. line style = how you know: solid witnessed/your own feelings · dashed told · dotted rumor. “!” marks a lopsided relationship. hover an arrow for its number, or use table view.</p>
         </Panel>
-        <div className="flex w-72 flex-col gap-4 self-start">
+        <div className="flex w-72 flex-col gap-4 self-start max-md:w-full">
         <Panel title="how they feel about you">
           <p className="caption mb-2 text-xs">your best guess from what you've seen and heard. liking runs −100 to 100, romance 0 to 100; one good talk moves it a few points.</p>
           <ul className="text-sm">

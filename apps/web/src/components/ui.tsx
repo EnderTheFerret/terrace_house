@@ -52,8 +52,8 @@ export function Modal({ children, onClose, title }: { children: ReactNode; onClo
     return () => window.removeEventListener('keydown', k);
   }, [onClose]);
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-[rgb(58_46_63/0.35)] p-4" role="dialog" aria-modal aria-label={title}>
-      <div className="px-panel slide-up max-h-[90vh] w-full max-w-xl overflow-auto p-5 scroll-thin">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-[rgb(58_46_63/0.35)] p-4 max-md:p-2" role="dialog" aria-modal aria-label={title}>
+      <div className="px-panel slide-up max-h-[90dvh] w-full max-w-xl overflow-auto p-5 scroll-thin max-md:p-3">
         <h2 className="mb-3 text-lg lowercase">{title}</h2>
         {children}
       </div>
@@ -81,7 +81,7 @@ export function ErrorToast() {
   const { error, clearError } = useGame();
   if (!error) return null;
   return (
-    <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 px-panel px-4 py-2 text-sm" role="alert">
+    <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 px-panel px-4 py-2 text-sm max-md:w-[calc(100vw-1.5rem)]" role="alert">
       {error}{' '}
       <button className="ml-3 underline" onClick={clearError}>
         ok

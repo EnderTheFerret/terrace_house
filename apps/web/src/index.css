@@ -34,6 +34,41 @@ body {
 
 #root {
   height: 100vh;
+  height: 100dvh;
+  /* notch + home indicator when added to the iPhone home screen */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  box-sizing: border-box;
+}
+
+button,
+[role='tab'],
+summary {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation; /* no double-tap zoom delay */
+}
+
+/* phone portrait */
+@media (max-width: 767px) {
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+  /* iOS zooms the page into any field under 16px */
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em) !important;
+  }
+  /* desktop screens pad their main area generously; a phone needs the room */
+  main.p-4,
+  main.p-6 {
+    padding: 0.5rem;
+  }
+  .px-btn {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
 }
 
 .pixelated {

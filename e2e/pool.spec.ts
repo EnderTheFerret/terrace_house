@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { answerer } from './answer';
 
 test('enter, invite multiple swimmers, and leave from the house controls', async ({ page, request }) => {
   await page.addInitScript(() => localStorage.setItem('shared-roof-settings', JSON.stringify({ typewriter: false, reducedMotion: true, sound: false, images: false })));
@@ -6,7 +7,7 @@ test('enter, invite multiple swimmers, and leave from the house controls', async
   await page.goto('/');
   await page.getByRole('button', { name: /continue · episode 1/ }).click();
   for (let i = 0; i < 90 && !(await page.getByRole('button', { name: 'swim & invite housemates', exact: true }).isVisible()); i++) {
-    const choice = page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first();
+    const choice = answerer(page);
     const next = page.getByRole('button', { name: /^(begin|continue|ok|leave them be|to the studio|back to the house|next episode)$/ }).first();
     if (await choice.isVisible()) await choice.click();
     else if (await next.isVisible()) await next.click();

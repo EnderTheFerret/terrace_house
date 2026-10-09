@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { expect, test, type Page, type Locator } from '@playwright/test';
+import { answerer } from './answer';
 
 async function reachHouse(page: Page) {
   for (let i = 0; i < 120; i++) {
@@ -11,7 +12,7 @@ async function reachHouse(page: Page) {
       await page.waitForTimeout(400);
       if (await isReady()) return;
     }
-    const choice = page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first();
+    const choice = answerer(page);
     const next = page.getByRole('button', { name: /^(begin|continue|ok|leave them be|to the studio|back to the house|next episode|roll credits|that's all)$/ }).first();
     const done = page.getByRole('button', { name: "that's all", exact: true }); // talks are open-ended: end yours after one answer
     if (await done.isVisible()) await done.click();

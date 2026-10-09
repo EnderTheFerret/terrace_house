@@ -2,7 +2,7 @@
 import { useGame } from '../store';
 
 export const TIPS = {
-  walk: 'Walk with the arrow keys or WASD. Stand next to someone or something and press E to interact.',
+  walk: 'Walk with the arrow keys or WASD (on a phone, the arrow pad). Stand next to someone or something and press E (or tap the prompt) to interact.',
   blocks: 'The day runs in blocks (morning, late morning, afternoon…). Talking takes as long as the conversation; going out, resting or letting time pass ends the block.',
   talk: 'Pick an intent, or type your own words: name someone to talk to them, say "guys" to talk to everyone.',
   phone: 'Your phone holds messages, the house group chat and shared plans. Invite people to meet at a set time.',

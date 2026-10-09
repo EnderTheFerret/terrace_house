@@ -26,6 +26,7 @@ it('binds a random classmate, renders their artwork and lets them answer typed w
     expect(guest.appearance).toEqual(guestCharacter(session.state!, 'classmate')!.appearance);
     expect(guestCharacter(session.state!, 'classmate')).toEqual(guestCharacter(session.state!, 'classmate'));
     expect(guestCharacter({ seed: 8 }, 'classmate')!.portraitSeed).not.toBe(guest.portraitSeed);
+    for (const seed of [1, 2, 3, 4, 5, 6]) expect(guestCharacter({ seed }, 'tsutomu')!.gender).toBe('man'); // Yossi's portrait matches his name
     expect(session.state!.characters.classmate).toBeUndefined();
     expect(emitted.some(e => e.kind === 'line-end' && e.data.speaker === 'classmate')).toBe(true);
     for (const choice of [{ text: 'What did you think of the lecture?' }, { intent: 'joke' }]) {

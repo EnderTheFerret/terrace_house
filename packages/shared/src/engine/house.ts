@@ -6,7 +6,7 @@ import { clamp } from '../util';
 import { addFact, addLog, addRel, firstName, housemates, learn, traitsOf } from './core';
 import { publicAct } from './social';
 import { isShabbat } from './agents';
-import { markLeaving } from './leave';
+import { markLeaving, occupationParts } from './leave';
 
 export function initHouse(memberIds: string[]): GameState['house'] {
   const hc = content().house;
@@ -52,6 +52,25 @@ export function addGroceries(s: GameState, items: Record<string, number>) {
   for (const id of Object.keys(items)) if (!/pork|bacon|shrimp|shellfish/.test(id) && !s.house.kitchen.kosherShelf.includes(id)) s.house.kitchen.kosherShelf.push(id);
 }
 
+/**
+ * What a shift-time job offer looks like. It comes from the paid job, never from an aspiration: someone whose
+ * occupation is "day job and dream" ("cafe worker and indie musician") only ever gets a bigger role at work. The big
+ * break (a label, a tour, a residency) is the dream's own arc finishing, in leave.ts.
+ * ponytail: keyword match on the job text; add a row when a new kind of job needs its own offer.
+ */
+const OFFERS: [RegExp, (n: string) => string, string][] = [
+  [/music|singer|songwriter|band|\bdj\b/, (n) => `After a set, a booker told ${n} a small label wants to put out a record and send them on tour. Taking it means leaving the house.`, 'left to record and tour with a small label'],
+  [/actor|actress|theat|perform|dancer|comed/, (n) => `A casting director who saw ${n} on stage offered a part in a touring production. Taking it means leaving the house.`, 'left to join a touring production'],
+  [/artist|illustrat|designer|ceramic|photograph|writer/, (n) => `A gallery that liked ${n}'s work offered a paid residency out of town. Taking it means leaving the house.`, 'left for an art residency out of town'],
+  [/chef|cook|baker|barista|cafe|restaurant/, (n) => `A well-known kitchen offered ${n} a position in another city. Taking it means leaving the house.`, 'left for a kitchen job in another city'],
+  [/architect|engineer|developer|programmer|analyst|lawyer|nurse|doctor|teacher/, (n) => `${n}'s field came calling: a firm in another city made a serious offer. Taking it means leaving the house.`, 'accepted a job offer outside Tel Aviv'],
+];
+const careerOffer = (c: Character, n: string): { text: string; reason?: string } => {
+  const { job, aspiration } = occupationParts(c.occupation);
+  if (aspiration) return { text: `${n}'s employer offered a bigger role with more hours. It would eat into the time ${n} has for ${aspiration}.` };
+  const o = OFFERS.find(([re]) => re.test(job.toLowerCase()));
+  return { text: o ? o[1](n) : `${n} received a job offer in another city. Staying means passing it up.`, reason: o?.[2] ?? 'accepted a job offer outside Tel Aviv' };
+};
 /** One check per worked shift, independent of how many short actions the player takes. */
 export function workCareerTick(s: GameState, rng: Rng, c: Character) {
   const key = `careerShift_${c.id}`;
@@ -70,8 +89,11 @@ export function workCareerTick(s: GameState, rng: Rng, c: Character) {
     text = `${firstName(s,c.id)} was let go at work. A new direction will take time.`;
   } else if (roll < .09) {
     s.world.flags[`careerOffer_${c.id}`] = s.world.episode;
-    text = `${firstName(s,c.id)} received a job offer in another city. Staying means passing it up.`;
-    if (!c.isPlayer && rng.chance(.25)) markLeaving(s,c.id,'accepted a job offer outside Tel Aviv');
+    const offer = careerOffer(c, firstName(s,c.id));
+    text = offer.text;
+    // a job offer only ends a stay once their own story has played out, never three days in
+    const takes = rng.chance(.25);
+    if (!c.isPlayer && takes && offer.reason && s.arcs[c.id]?.outcome === 'complete') markLeaving(s,c.id,offer.reason);
   } else if (roll < .14) {
     s.world.flags.coworkerVisitor = c.id;
     text = `${firstName(s,c.id)} invited a coworker to visit the house after their shift.`;
@@ -179,21 +201,31 @@ export function houseTick(s: GameState, rng: Rng, actions: Record<string, string
  * included, if they haven't been excluded from the chat.
  */
 export function postGroupChat(s: GameState, from: string, text: string, fact?: { subject: string; about?: string; kind: Fact['kind']; content: string; sensitivity: number }) {
-  if (!s.house.groupChat.members.includes(from) || (s.characters[from] && isShabbat(s,s.characters[from]))) return;
+  if (!s.house.groupChat.members.includes(from)) return;
   s.house.groupChat.messages.push({ from, text, tick: s.world.tick, readBy: [], ignoredBy: [] });
   if (s.house.groupChat.messages.length > 80) s.house.groupChat.messages.splice(0, s.house.groupChat.messages.length - 80);
   if (fact) {
     const f = addFact(s, { ...fact, truth: true });
     learn(s, from, f.id, 'witnessed');
-    for (const m of s.house.groupChat.members) if (m !== from && !isShabbat(s,s.characters[m])) learn(s, m, f.id, 'groupchat', from, 0.9);
+    for (const m of s.house.groupChat.members) if (m !== from) learn(s, m, f.id, 'groupchat', from, 0.9);
   }
+}
+
+const BASKET = { rice: 3, egg: 6, onion: 2, chicken: 2, carrot: 2, tomato: 3, chickpea: 2, lentils: 2, pita: 3, tahini: 1, eggplant: 2, cucumber: 2, lemon: 2, spice: 1 };
+const SMALL_BASKET = { egg: 6, pita: 3, tomato: 3, cucumber: 2, tahini: 1 };
+
+/** The player shopped for food (paid from their own pocket): stock the shared fridge. Returns false when the place sells none. */
+export function playerGroceries(s: GameState, nodeType: string): boolean {
+  const basket = nodeType === 'market' ? BASKET : nodeType === 'convenience-store' ? SMALL_BASKET : null;
+  if (!basket) return false;
+  addGroceries(s, basket);
+  return true;
 }
 
 /** Groceries cost; NPCs restock when the fridge is near empty. */
 export function autoGroceries(s: GameState, buyer: string) {
   if (isShabbat(s,s.characters[buyer])) return;
-  const basket = { rice: 3, egg: 6, onion: 2, chicken: 2, carrot: 2, tomato: 3, chickpea: 2, lentils: 2, pita: 3, tahini: 1, eggplant: 2, cucumber: 2, lemon: 2, spice: 1 };
-  addGroceries(s, basket);
+  addGroceries(s, BASKET);
   s.house.groceryBudget -= 100;
   s.house.choreLedger[buyer] ??= { done: 0, skipped: 0 };
   s.house.choreLedger[buyer].done += 1;

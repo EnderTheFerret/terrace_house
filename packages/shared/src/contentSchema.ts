@@ -213,6 +213,8 @@ export const RecurringNpc = z.object({
   id: z.string(),
   name: z.string(),
   role: z.string(),
+  /** fixes the portrait to the name; unset rolls one from the save seed */
+  gender: z.enum(['woman', 'man']).optional(),
   traits: z.array(z.string()).min(1).max(2),
   location: z.string(),
   schedule: z.object({ weekdays: z.array(z.number()), slots: z.array(Slot) }),

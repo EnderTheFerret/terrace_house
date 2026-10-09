@@ -130,6 +130,10 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     const b = z.object({ id: z.string(), location: z.string().optional(), mood: z.number().optional(), energy: z.number().optional(), swimming: z.boolean().optional(), drunk: z.number().optional(), hangover: z.number().optional(), idle: z.boolean().optional() }).parse(req.body ?? {});
     return { view: session.debugEdit(b) };
   });
+  app.post('/api/debug/plan', async (req) => {
+    const b = z.object({ id: z.string(), remove: z.boolean().optional(), episode: z.number().int().min(1).optional(), slot: Slot.optional() }).parse(req.body ?? {});
+    return { view: session.debugPlan(b) };
+  });
   app.get('/api/game', async (_req, reply) => {
     if (!session.state) return reply.status(404).send({ error: 'no game' });
     return { view: session.view(), scenes: session.summaries() };
@@ -145,7 +149,8 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     session.choose((req.params as { id: string }).id, req.body ?? {}); // { intent } | { text } | { done }
     return { ok: true };
   });
-  app.post('/api/scene/:id/image', async (req) => session.sceneImage((req.params as { id: string }).id));
+  app.post('/api/scene/:id/change-beat', async (req) => ({ scene: session.changeBeat((req.params as { id: string }).id) }));
+  app.post('/api/scene/:id/image',async (req) => session.sceneImage((req.params as { id: string }).id));
   app.get('/api/scene/:id/stream', async (req, reply) => {
     const id = (req.params as { id: string }).id;
     reply.hijack();
@@ -232,6 +237,7 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     const req = base ? outfitPortraitRequest(c, outfit, base) : null;
     return { c: { ...c, appearance: { ...c.appearance, outfit, accessory: outfit === c.appearance.outfit ? c.appearance.accessory : 'none' } }, req, file: req ? queue.localFile(req) : null };
   };
+  const rememberOutfit = (id: string, outfit?: string) => { if (outfit) session.outfitOverrides[id] = outfit; else delete session.outfitOverrides[id]; };
   app.get('/api/image/character/:id/outfit', async (req, reply) => {
     const s = session.state;
     const id = (req.params as { id: string }).id;
@@ -300,6 +306,7 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     const c = session.state?.characters[(req.params as { id: string }).id];
     if (!c) return reply.status(404).send({ error: 'unknown character' });
     const { kind, emotion, ...o } = OutfitQuery.extend({ kind: z.enum(['walk', 'expression']), emotion: Emotion.default('neutral') }).parse(req.body);
+    rememberOutfit(c.id, o.outfit);
     const base = portraitRequest(c);
     const d = dressed(c, o);
     const result = (request: ImageRequest, complete: boolean) => ({ image: queue.request(request, PRIORITY.portrait), complete });

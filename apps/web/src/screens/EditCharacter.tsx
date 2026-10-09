@@ -35,7 +35,7 @@ export function EditCharacter() {
       <TopBar />
       <main className="flex flex-1 justify-center overflow-y-auto p-6 scroll-thin">
         <Panel title="edit your character" className="w-full max-w-2xl">
-          <div className="grid grid-cols-[8rem_1fr] items-center gap-3 text-sm">
+          <div className="grid grid-cols-[8rem_minmax(0,1fr)] items-center gap-3 text-sm max-md:grid-cols-[5.5rem_minmax(0,1fr)] max-md:gap-2">
             <label htmlFor="e-name">name</label>
             <input id="e-name" className="px-panel-soft px-2 py-1" value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
             <label htmlFor="e-age">age (20–35)</label>
@@ -43,15 +43,15 @@ export function EditCharacter() {
             <label htmlFor="e-home">hometown</label>
             <input id="e-home" className="px-panel-soft px-2 py-1" value={hometown} maxLength={40} onChange={(e) => setHometown(e.target.value)} />
             <label htmlFor="e-job">occupation</label>
-            <div className="flex gap-2">
-              <select id="e-job" className="px-panel-soft px-2 py-1" value={OCCUPATIONS.includes(occupation) ? occupation : ''} onChange={(e) => e.target.value && setOccupation(e.target.value)}>
+            <div className="flex gap-2 max-md:flex-col">
+              <select id="e-job" className="px-panel-soft min-w-0 px-2 py-1" value={OCCUPATIONS.includes(occupation) ? occupation : ''} onChange={(e) => e.target.value && setOccupation(e.target.value)}>
                 <option value="">custom</option>
                 {OCCUPATIONS.map((o) => <option key={o}>{o}</option>)}
               </select>
               <input aria-label="custom occupation" className="px-panel-soft flex-1 px-2 py-1" value={occupation} maxLength={60} onChange={(e) => setOccupation(e.target.value)} />
             </div>
             <span>interested in</span>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
               {(['woman', 'man', 'nonbinary'] as const).map((g) => (
                 <label key={g} className="flex items-center gap-1"><input type="checkbox" checked={interestedIn.includes(g)} onChange={(e) => setInterestedIn(e.target.checked ? [...interestedIn, g] : interestedIn.filter((x) => x !== g))} />{g}</label>
               ))}

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { answerer } from './answer';
 
 test('ultrawide view and gradual move-in conversations', async ({ page, request }, info) => {
   await page.setViewportSize({ width: 3440, height: 1440 });
@@ -87,7 +88,7 @@ test('ultrawide view and gradual move-in conversations', async ({ page, request 
   await expect(page.getByRole('status').filter({ hasText: 'Your conversation pauses' })).toBeVisible();
   await page.getByRole('button', { name: /^meet / }).click();
   await expect(input).toBeVisible();
-  await page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first().click();
+  await answerer(page).click();
   await page.getByRole('button', { name: "that's all", exact: true }).click(); // the welcome ends, then you pick who to keep talking with
   await page.getByRole('button', { name: `keep talking with ${original}`, exact: true }).click();
   await expect(input).toBeVisible();

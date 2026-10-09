@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { answerer } from './answer';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('shared-roof-settings', JSON.stringify({ typewriter: false, sound: false, tutorial: false, reducedMotion: false })));
@@ -78,7 +79,8 @@ for (const cast of ['prebaked cast', 'random cast']) {
     await page.getByRole('button', { name: 'begin', exact: true }).click();
     const input = page.getByLabel('say something in your own words');
     await expect(input).toBeVisible();
-    await page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first().click();
+    await answerer(page).click();
+    await page.getByRole('button', { name: "that's all", exact: true }).click(); // a typed talk stays open until you end it
     await page.getByRole('button', { name: 'continue', exact: true }).click();
     await expect(page.getByLabel(/top-down view of the share house/)).toBeVisible();
   });

@@ -2,7 +2,7 @@
 import type { Fact, GameState } from '../model';
 import type { Rng } from '../rng';
 import { clamp } from '../util';
-import { addFact, addLog, addRel, belief, ch, firstName, knows, learn, rel, traitsOf } from './core';
+import { addFact, addLog, addRel, attracted, belief, ch, firstName, knows, learn, rel, traitsOf } from './core';
 
 /** Observer witnesses an interaction between a and b: update noisy belief of a→b and b→a. */
 export function observe(s: GameState, rng: Rng, observer: string, a: string, b: string) {
@@ -18,7 +18,9 @@ export function observe(s: GameState, rng: Rng, observer: string, a: string, b: 
     const expressive = clamp(0.3 + t.E * 0.5 - (actor.persona.attachment === 'avoidant' ? 0.25 : 0), 0.1, 1);
     const noise = (1 - expressive) * 30;
     const truth = rel(s, x, y);
-    let romSignal = truth.romance + rng.normal(0, noise);
+    // no feelings, no signals to misread: romance noise scales with what is really there (noise around zero,
+    // clipped at zero, used to read as a steady "spark" from people who felt nothing)
+    let romSignal = truth.romance + rng.normal(0, noise * Math.min(1, truth.romance / 20));
     let affSignal = truth.affinity + rng.normal(0, noise);
     // anxious observers over-read small signals aimed at themselves
     if (y === observer && obs.persona.attachment === 'anxious') {
@@ -29,6 +31,8 @@ export function observe(s: GameState, rng: Rng, observer: string, a: string, b: 
     if (y === observer && obs.persona.attachment === 'avoidant') romSignal -= 6;
     const be = belief(s, observer, x, y);
     const alpha = 0.3;
+    // everyone knows who is into whom on this show: no romance is read where there is no attraction
+    if (!attracted(actor, ch(s, y))) romSignal = 0;
     be.romance = clamp(be.romance + alpha * (romSignal - be.romance), 0, 100);
     be.affinity = clamp(be.affinity + alpha * (affSignal - be.affinity), -100, 100);
     be.conf = clamp(be.conf + 0.08, 0, 1);

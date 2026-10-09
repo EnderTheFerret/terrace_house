@@ -95,7 +95,7 @@ export function CityMap() {
   const ref = useRef<HTMLCanvasElement>(null);
   const [sel, setSel] = useState<CityNode | null>(null);
   const [activity, setActivity] = useState<string>('wander');
-  const [invite, setInvite] = useState<string>('');
+  const [invited, setInvited] = useState<string[]>([]); // first = the one you asked, the rest come along (up to 4 more: the whole house)
   const [contract, setContract] = useState(false);
   const [drink, setDrink] = useState(false);
   const [item, setItem] = useState('flowers');
@@ -109,7 +109,8 @@ export function CityMap() {
   const byNode = Object.fromEntries(reach.map((r) => [r.node, r]));
 
   useEffect(() => {
-    const fit = () => setScale(Math.max(2, Math.min(4, Math.floor(Math.min((window.innerWidth - 420) / W, (window.innerHeight - 200) / H)))));
+    // phone portrait: the map spans the width above the destination list
+    const fit = () => setScale(window.innerWidth < 768 ? Math.min((window.innerWidth - 16) / W, (window.innerHeight * 0.4) / H) : Math.max(2, Math.min(4, Math.floor(Math.min((window.innerWidth - 420) / W, (window.innerHeight - 200) / H)))));
     fit();
     window.addEventListener('resize', fit);
     return () => window.removeEventListener('resize', fit);
@@ -162,7 +163,7 @@ export function CityMap() {
   const pick = (n: CityNode) => {
     setSel(n);
     setActivity(n.activities.includes('date') ? 'date' : n.activities[0] ?? 'wander');
-    setInvite('');
+    setInvited([]);
     setContract(false);
     setDrink(false);
   };
@@ -181,7 +182,7 @@ export function CityMap() {
   const go = () => {
     if (!sel) return;
     const r = byNode[sel.id];
-    const a: PlayerAction = { type: 'goOut', node: sel.id, activity: activity as never, invite: needsInvite ? invite || undefined : undefined, useCar: r?.needsCar, contract: activity === 'work' && contract, item: activity === 'gift' ? item : undefined, drink: drinks && drink && !['work', 'class'].includes(activity) };
+    const a: PlayerAction = { type: 'goOut', node: sel.id, activity: activity as never, invite: needsInvite ? invited[0] : undefined, guests: needsInvite && invited.length > 1 ? invited.slice(1) : undefined, useCar: r?.needsCar, contract: activity === 'work' && contract, item: activity === 'gift' ? item : undefined, drink: drinks && drink && !['work', 'class'].includes(activity) };
     setSel(null);
     void act(a);
   };
@@ -189,15 +190,16 @@ export function CityMap() {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * W;
     const y = ((e.clientY - rect.top) / rect.height) * H;
-    const hit = nodes.find((n) => Math.abs(mx(n.x) - x) < 8 && Math.abs(my(n.y) - y) < 8);
+    const r = scale < 2 ? 14 : 8; // finger-sized on a phone
+    const hit = [...nodes].sort((a, b) => Math.hypot(mx(a.x) - x, my(a.y) - y) - Math.hypot(mx(b.x) - x, my(b.y) - y)).find((n) => Math.abs(mx(n.x) - x) < r && Math.abs(my(n.y) - y) < r);
     if (hit && byNode[hit.id]?.reachable) pick(hit);
   };
 
   return (
     <div className="flex h-full flex-col">
       <TopBar /><Tip id="map" />
-      <main className="flex min-h-0 flex-1 gap-4 p-3">
-        <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+      <main className="flex min-h-0 flex-1 gap-4 p-3 max-md:flex-col max-md:gap-2 max-md:p-2">
+        <div className="relative flex flex-1 items-center justify-center overflow-hidden max-md:flex-none">
           <div className="relative" style={{ width: W * scale, height: H * scale }}>
             <canvas ref={ref} width={W * 2} height={H * 2} className="pixelated px-panel block cursor-pointer" style={{ width: W * scale, height: H * scale }} onClick={onCanvasClick} aria-label="city map of Tel Aviv. use the destination list to choose with the keyboard." />
             {nodes.map((n) => (
@@ -207,9 +209,16 @@ export function CityMap() {
             ))}
           </div>
         </div>
-        <Panel title={`${slotLabel(view.slot)} · where to? (${Math.max(0, view.minutesLeft - ACTIVITY_MINUTES)} min for travel there and back)`} className="flex w-96 shrink-0 flex-col overflow-hidden">
+        <Panel title={`${slotLabel(view.slot)} · where to? (${Math.max(0, view.minutesLeft - ACTIVITY_MINUTES)} min for travel there and back)`} className="flex w-96 shrink-0 flex-col overflow-hidden max-md:min-h-0 max-md:w-auto max-md:flex-1 max-md:shrink">
+          {/* who you could take out right now, and why not for the rest */}
+          <ul className="mb-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs" aria-label="housemates">
+            {available.map((c) => {
+              const at = c.cityLocation ? content().city.nodes.find((n) => n.id === c.cityLocation)?.name : undefined;
+              const note = c.outingProblem ?? (at ? `out · ${at}${c.companion ? ` with ${view.characters.find((p) => p.id === c.companion)?.name.split(' ')[0]}` : ''}` : 'free');
+              return <li key={c.id} className={`truncate ${c.outingProblem ? 'caption' : ''}`} title={`${c.name}: ${note}${c.condition ? ` · ${c.condition}` : ''}`}><span aria-hidden>{c.outingProblem ? '✗' : '✓'}</span> {c.name.split(' ')[0]} <span className="caption">{note}</span></li>;
+            })}
+          </ul>
           <ul className="flex-1 overflow-y-auto pr-1 text-sm scroll-thin">
-            {view.characters.filter(c => !c.isPlayer && c.cityLocation).map(c => <li key={`visitor-${c.id}`} className="mb-2 text-xs">{c.name.split(' ')[0]} · at {content().city.nodes.find(n => n.id === c.cityLocation)?.name}{c.condition ? ` · ${c.condition}` : ''}{c.companion ? ` with ${view.characters.find(p => p.id === c.companion)?.name.split(' ')[0]}` : ''}</li>)}
             {nodes
               .map((n) => ({ n, r: byNode[n.id] }))
               .sort((a, b) => Number(b.r?.reachable) - Number(a.r?.reachable) || (a.r?.minutes ?? 999) - (b.r?.minutes ?? 999))
@@ -261,7 +270,7 @@ export function CityMap() {
             <legend className="caption mb-1 text-xs">what will you do?</legend>
             <div className="flex flex-wrap gap-2">
               {[...sel.activities, ...(sel.activities.includes('shop') && !sel.activities.includes('gift') ? ['gift'] : [])].map((a) => (
-                <button key={a} aria-pressed={activity === a} className={`px-btn text-xs ${activity === a ? 'px-btn-primary' : ''}`} onClick={() => setActivity(a)}>
+                <button key={a} aria-pressed={activity === a} className={`px-btn text-xs ${activity === a ? 'px-btn-primary' : ''}`} onClick={() => { setActivity(a); if (a === 'date') setInvited((v) => v.slice(0, 1)); }}>
                   {ACT_LABEL[a] ?? a}
                   
                 </button>
@@ -277,15 +286,23 @@ export function CityMap() {
             </label>
           )}
           {needsInvite && (
-            <label className="mb-3 flex items-center gap-2 text-sm">
-              with
-              <select className="px-panel-soft px-2 py-1" value={invite} onChange={(e) => setInvite(e.target.value)}>
-                <option value="">(choose)</option>
-                {available.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </label>
+            <fieldset className="mb-3 text-sm">
+              <legend className="caption mb-1 text-xs">{activity === 'date' ? 'who is the date with?' : `who comes along? (up to 5) · ${invited.length} chosen`}</legend>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {available.map((c) => {
+                  const on = invited.includes(c.id);
+                  const away = !!c.outingProblem;
+                  const full = !on && (activity === 'date' ? false : invited.length >= 5);
+                  return (
+                    <label key={c.id} className={`flex items-center gap-1 ${away ? 'caption' : ''}`} title={c.outingProblem ?? undefined}>
+                      <input type={activity === 'date' ? 'radio' : 'checkbox'} name="outing-guest" checked={on} disabled={away || full}
+                        onChange={() => setInvited((v) => (activity === 'date' ? [c.id] : on ? v.filter((x) => x !== c.id) : [...v, c.id]))} />
+                      {c.name.split(' ')[0]}{away ? ` (${c.outingProblem})` : ''}
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
           )}
           {drinks && !['work', 'class'].includes(activity) && (
             <label className="mb-3 flex items-center gap-2 text-sm">
@@ -300,7 +317,7 @@ export function CityMap() {
             {byNode[sel.id]?.minutes} min away{byNode[sel.id]?.needsCar ? ' by car' : ''} · {byNode[sel.id] ? priceLabel(byNode[sel.id].price) : ''} (your budget: {view.budget.label})
           </p>
           <div className="flex gap-3">
-            <Btn primary disabled={busy || (needsInvite && !invite)} onClick={go} autoFocus>
+            <Btn primary disabled={busy || (needsInvite && !invited.length)} onClick={go} autoFocus>
               {activity === 'gift' ? 'buy and return' : 'go'}
             </Btn>
             <Btn onClick={() => setSel(null)}>cancel</Btn>

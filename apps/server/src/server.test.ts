@@ -533,7 +533,7 @@ async function playEpisode(session: GameSession) {
 }
 
 describe('game session (mock + failing adapters)', () => {
-  it('keeps brief texts before sundown instantaneous and blocks them during Shabbat', async () => {
+  it('keeps brief texts instantaneous, before and after sundown alike', async () => {
     const dir = tmp();
     const store = new Store(openDb(':memory:'));
     const queue = new ImageQueue(new MockImageBackend(dir), new MockImageBackend(dir), store, 'mock', dir, null);
@@ -563,8 +563,11 @@ describe('game session (mock + failing adapters)', () => {
     expect(replayEvents(store.events(session.state.gameId))).toEqual(session.state);
     session.state = passTime(session.state, 15 / 3, [], 3);
     session.logSeq = store.appendEvent(session.state.gameId, 'time', { lines: 15 / 3 });
-    await expect(session.act({ type: 'text', target: target.id, text: 'Still there?' })).rejects.toThrow(/Shabbat/);
-    expect(generatedKinds).toEqual(['chat', 'summary']);
+    // phones stay on after sundown too: the message goes through and the thread gets a reply
+    await expect(session.act({ type: 'text', target: target.id, text: 'Still there?' })).resolves.toBeDefined();
+    const thread = session.state.chats[[session.state.playerId, target.id].sort().join('|')];
+    expect(thread.at(-2)!.text).toBe('Still there?');
+    expect(thread.at(-1)!.from).toBe(target.id); // the observer answers on Shabbat too, not just reads
     expect(replayEvents(store.events(session.state.gameId))).toEqual(session.state);
   });
 

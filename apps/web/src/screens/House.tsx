@@ -2,7 +2,7 @@
 // A full keyboard-accessible action list mirrors everything the map offers.
 import { Tip } from '../components/Tip';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { classToday, content, HOUSEHOLD, HOUSEHOLD_ACTIVITIES, priceLabel, ROOMS, placeName, roomName, shiftToday, TRIPS, type HouseholdActivity, type CharView, type PlayerAction, type PlayerView, type Room } from '@shared-roof/shared';
+import { classToday, clockLabel, content, HOUSEHOLD, HOUSEHOLD_ACTIVITIES, priceLabel, ROOMS, SLOTS, placeName, roomName, shiftToday, TRIPS, type HouseholdActivity, type CharView, type PlayerAction, type PlayerView, type Room } from '@shared-roof/shared';
 import { useGame } from '../store';
 import { TopBar, StudioStrip, DigestModal, slotLabel } from '../components/layout';
 import { Btn, Modal, Panel } from '../components/ui';
@@ -63,13 +63,13 @@ function drawHouseLife(ctx: CanvasRenderingContext2D, house: PlayerView['house']
 }
 
 export function House() {
-  const { view, act, busy, setScreen, settings, setView, resume } = useGame();
+  const { view, act, busy, setScreen, settings, setView, resume, spendUntil } = useGame();
   const unfinished = useGame((st) => st.scenes.some((x) => x.rendered && x.phase !== 'done'));
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(3);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(() => (window.innerWidth < 768 ? 0.5 : 1)); // phones start zoomed out
   const [prompt, setPrompt] = useState<{ label: string; run: () => void } | null>(null);
   const [confirm, setConfirm] = useState<{ title: string; action: PlayerAction } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -99,7 +99,6 @@ export function House() {
   const previousDoorways = useRef<Map<string, { x: number; y: number; floor: number }>>(new Map());
   const doorAngles = useRef<Map<string, number>>(new Map());
   const keys = useRef<Set<string>>(new Set());
-  const daySlot = !!view && view.slot !== 'morning';
 
   const chars = useMemo(() => (view ? view.characters.filter((c) => c.status === 'inHouse') : []), [view]);
   const byId = useMemo(() => Object.fromEntries(chars.map((c) => [c.id, c])), [chars]);
@@ -271,10 +270,7 @@ export function House() {
     if (action.startsWith('stairs')) return stairs();
     if (action === 'fridge') return setScreen('fridge');
     if (action === 'cook') return setScreen('cooking');
-    if (action === 'map') {
-      if (!daySlot) return setToast('it is still early. the city opens later.');
-      return setScreen('map');
-    }
+    if (action === 'map') return setScreen('map');
     const act2: Record<string, PlayerAction> = {
       hangout: { type: 'house', activity: 'hangout' },
       hobby: { type: 'house', activity: 'hobby' },
@@ -523,8 +519,8 @@ export function House() {
   return (
     <div className="flex h-full flex-col">
       <TopBar />{settings.tipsSeen.includes('walk') ? <Tip id="blocks" /> : <Tip id="walk" />}
-      <main className="flex min-h-0 flex-1 gap-3 p-3">
-        <div ref={wrapRef} className="relative flex min-w-0 flex-1 items-center justify-center overflow-hidden">
+      <main className="flex min-h-0 flex-1 gap-3 p-3 max-md:flex-col max-md:gap-2 max-md:p-2">
+        <div ref={wrapRef} className="relative flex min-w-0 flex-1 items-center justify-center overflow-hidden max-md:h-[46dvh] max-md:flex-none">
           <div ref={stageRef} className="relative shrink-0" style={{ width: W * scale, height: H * scale }}>
             <canvas
               ref={canvasRef}
@@ -556,16 +552,24 @@ export function House() {
             })}
           </div>
           {/* pinned to the viewport, not the zoomed stage, so they stay on screen while the camera pans */}
-          <div className="absolute right-3 top-3 z-10 flex items-center gap-2 px-panel p-2" role="group" aria-label="house zoom">
+          <div className="absolute right-3 top-3 z-10 flex items-center gap-2 px-panel p-2 max-md:right-2 max-md:top-2 max-md:gap-1 max-md:p-1" role="group" aria-label="house zoom">
             <button className="px-btn" aria-label="zoom out" disabled={zoom <= 0.25} onClick={() => setZoom(z => Math.max(0.25, z - 0.25))}>−</button>
             <span className="text-xs">{Math.round(zoom * 100)}%</span>
             <button className="px-btn" aria-label="zoom in" disabled={zoom >= 2} onClick={() => setZoom(z => Math.min(2, z + 0.25))}>+</button>
-            <Btn onClick={() => setZoom(1)}>reset view</Btn>
+            <Btn className="max-md:hidden" onClick={() => setZoom(1)}>reset view</Btn>
+          </div>
+          {/* touch d-pad: holds a key in the same set the keyboard fills */}
+          <div className="absolute bottom-2 left-2 z-10 grid grid-cols-3 gap-1 md:hidden" role="group" aria-label="walk">
+            {([['arrowup', '▲', 'col-start-2'], ['arrowleft', '◀', 'col-start-1 row-start-2'], ['arrowright', '▶', 'col-start-3 row-start-2'], ['arrowdown', '▼', 'col-start-2 row-start-3']] as const).map(([k, glyph, pos]) => (
+              <button key={k} aria-label={`walk ${k.slice(5)}`} className={`px-btn h-11 w-11 p-0 text-base opacity-90 ${pos}`} style={{ touchAction: 'none' }}
+                onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); keys.current.add(k); }}
+                onPointerUp={() => keys.current.delete(k)} onPointerCancel={() => keys.current.delete(k)} onContextMenu={(e) => e.preventDefault()}>{glyph}</button>
+            ))}
           </div>
           {prompt && (
-            <div className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 px-panel px-3 py-1 text-sm" aria-live="polite">
-              <kbd>E</kbd> {prompt.label}
-            </div>
+            <button type="button" className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 px-panel px-3 py-1 text-sm max-md:left-auto max-md:right-2 max-md:max-w-[50%] max-md:translate-x-0 max-md:py-3" aria-live="polite" onClick={() => nearestInteraction()?.run()}>
+              <kbd className="max-md:hidden">E</kbd> {prompt.label}
+            </button>
           )}
           {toast && (
             <div className="absolute left-1/2 top-2 z-10 -translate-x-1/2 px-panel px-3 py-1 text-sm" role="status" onAnimationEnd={() => setToast(null)}>
@@ -576,7 +580,7 @@ export function House() {
             </div>
           )}
         </div>
-        <div className="flex w-80 shrink-0 flex-col gap-3 overflow-y-auto scroll-thin pr-1">
+        <div className="flex w-80 shrink-0 flex-col gap-3 overflow-y-auto scroll-thin pr-1 max-md:min-h-0 max-md:w-full max-md:flex-1 max-md:shrink max-md:px-1 max-md:pt-1">
           {unfinished && <Panel title="conversation in progress"><p className="caption mb-2 text-xs">You stepped away mid-scene. Finish it before doing anything else.</p><Btn primary disabled={busy} onClick={() => void resume()}>back to the conversation</Btn></Panel>}
           <Panel title="your life in the house"><p className="text-sm">{view.goals.short}</p><p className="caption mt-1 text-xs">long term: {view.goals.long}</p>{view.goals.career && <p className="mt-2 text-xs">work: {view.goals.career.title} · {view.goals.career.completed ? 'resolved' : `chapter ${view.goals.career.act + 1}`}</p>}</Panel>
           <Panel title={floor === 0 ? 'ground floor' : 'upstairs'}>
@@ -601,13 +605,14 @@ export function House() {
               <Btn disabled={busy || walking} onClick={() => doAct({ type: 'house', activity: 'tidy' })}>tidy up</Btn>
               <Btn disabled={busy || walking} onClick={() => doAct({ type: 'house', activity: 'hobby' })}>hobby</Btn>
               <Btn disabled={busy || walking} onClick={() => doAct({ type: 'house', activity: 'rest' })}>rest</Btn>
-              <Btn disabled={busy || walking || !daySlot} onClick={() => setScreen('map')} title={daySlot ? 'go out into the city' : 'the city opens later'}>
+              <Btn disabled={busy || walking} onClick={() => setScreen('map')} title="go out into the city">
                 go out
               </Btn>
               <Btn disabled={busy || walking} onClick={() => doAct({ type: 'idle' })}>let time pass</Btn>
               <Btn disabled={busy || walking} onClick={() => doAct({ type: 'skip' })}>skip to next block</Btn>
               <Btn disabled={busy || walking} onClick={() => setConfirm({ title: 'sleep until morning? (plans and shifts still happen)', action: { type: 'sleep' } })}>sleep until morning</Btn>
             </div>
+            <SpendUntil view={view} disabled={busy || walking || unfinished} onGo={(p, doing) => void spendUntil(p.episode, p.slot, doing)} />
             {shiftToday(view.job, view.weekday, view.slot) && (
               <div className="mt-3 text-sm" role="status">
                 <p>⚑ you have a shift at {placeName(view.job!.nodeId)} now. skipping it twice gets you let go.</p>
@@ -712,6 +717,24 @@ export function House() {
 }
 
 /** The latest aired episode on the living-room TV: every scene as it was broadcast, yours highlighted. */
+/** Let time pass until a planned hangout's block begins, so you can pick the plan up right when it starts. */
+function SpendUntil({ view, disabled, onGo }: { view: PlayerView; disabled: boolean; onGo: (p: { episode: number; slot: string }, doing: 'skip' | 'hobby' | 'rest') => void }) {
+  const at = (p: { episode: number; slot: string }) => p.episode * SLOTS.length + (SLOTS as readonly string[]).indexOf(p.slot);
+  const plans = view.invitations.filter(p => p.status === 'accepted' && [p.from, p.to].includes(view.playerId) && at(p) > at(view)).sort((a, b) => at(a) - at(b));
+  const [id, setId] = useState('');
+  const [doing, setDoing] = useState<'skip' | 'hobby' | 'rest'>('skip');
+  const plan = plans.find(p => p.id === id) ?? plans[0];
+  if (!plan) return null;
+  const when = (p: typeof plan) => `${p.episode === view.episode ? 'today' : p.episode === view.episode + 1 ? 'tomorrow' : `in ${p.episode - view.episode} days`} ${clockLabel(p.slot, 0)}`;
+  return (
+    <div className="mt-3 flex flex-col gap-2 text-sm">
+      <label className="flex flex-col gap-1 text-xs">spend time until<select aria-label="spend time until" className="bg-paper p-1 text-sm" value={plan.id} onChange={e => setId(e.target.value)}>{plans.map(p => <option key={p.id} value={p.id}>{placeName(p.node)} · {when(p)}</option>)}</select></label>
+      <label className="flex flex-col gap-1 text-xs">meanwhile<select aria-label="meanwhile" className="bg-paper p-1 text-sm" value={doing} onChange={e => setDoing(e.target.value as typeof doing)}><option value="skip">let time pass</option><option value="hobby">hobby</option><option value="rest">rest</option></select></label>
+      <Btn disabled={disabled} onClick={() => onGo(plan, doing)}>{doing === 'skip' ? 'let time pass' : doing} until {when(plan)}</Btn>
+    </div>
+  );
+}
+
 function BroadcastPanel({ episode }: { episode: number }) {
   const [data, setData] = useState<Awaited<ReturnType<typeof api.broadcast>> | null>(null);
   return (

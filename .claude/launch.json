@@ -12,6 +12,12 @@
       "runtimeExecutable": "cmd",
       "runtimeArgs": ["/c", "set MODE=mock&& set PORT=8795&& set DATA_DIR=.e2e-data/preview&& npm run build -w apps/web && npx tsx apps/server/src/main.ts"],
       "port": 8795
+    },
+    {
+      "name": "shared-roof-mock-dev",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set PORT=8796&& set WEB_PORT=5180&& set DATA_DIR=.e2e-data/mobile&& node scripts/dev.mjs mock"],
+      "port": 5180
     }
   ]
 }

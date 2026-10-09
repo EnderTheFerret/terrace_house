@@ -15,7 +15,9 @@ export function guestCharacter(s: Pick<GameState, 'seed'>, id: string): Characte
   const npc = content().npcs.find(n => n.id === id);
   if (!npc) return undefined;
   const rng = mulberry32(hashSeed(`${s.seed}:guest:${id}`));
-  const gender = /mother|sister/i.test(npc.role) ? 'woman' : /father|brother/i.test(npc.role) ? 'man' : rng.pick(['woman', 'man'] as const);
+  // roll even when content fixes it, so guests whose roll already matched keep their look
+  const rolled = /mother|sister/i.test(npc.role) ? 'woman' : /father|brother/i.test(npc.role) ? 'man' : rng.pick(['woman', 'man'] as const);
+  const gender = npc.gender ?? rolled;
   const c = fromArchetype(null, rng, rng.pick(content().archetypes), gender, new Set(), 0, 9999);
   return { ...c, id, name: id === 'classmate' ? c.name : npc.name, occupation: npc.role, location: npc.location, status: 'left' };
 }

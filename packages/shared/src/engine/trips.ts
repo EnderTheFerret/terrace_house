@@ -1,6 +1,6 @@
 // Overnight trips (the show's recurring big episodes): Friday afternoon in the shared car, back Saturday morning.
 import type { GameState } from '../model';
-import { addFact, addLog, firstName, housemates, isRoom, learn, npcs, player, rel } from './core';
+import { addFact, addLog, attracted, firstName, housemates, isRoom, learn, npcs, player, rel } from './core';
 import type { Rng } from '../rng';
 import { afford, budgetFor, playerBudget, type Price } from './budget';
 import { isShabbat } from './agents';
@@ -66,7 +66,7 @@ export function leaveOnTrip(s: GameState, node: string, group: string[], roommat
  */
 function shareRoom(s: GameState, node: string, a: string, b?: string) {
   if (!b || !s.characters[b]) return;
-  for (const [x, y] of [[a, b], [b, a]]) if (rel(s, x, y).romance >= 20 || rel(s, x, y).affinity >= 40) s.rel[x][y].romance = Math.min(100, s.rel[x][y].romance + 3);
+  for (const [x, y] of [[a, b], [b, a]]) if ((rel(s, x, y).romance >= 20 || rel(s, x, y).affinity >= 40) && attracted(s.characters[x], s.characters[y])) s.rel[x][y].romance = Math.min(100, s.rel[x][y].romance + 3);
   const f = addFact(s, { subject: a, about: b, kind: 'romance', content: `${firstName(s, a)} and ${firstName(s, b)} shared a room at ${TRIPS[node].name}`, truth: true, sensitivity: 0.6 });
   learn(s, a, f.id, 'self');
   learn(s, b, f.id, 'self');

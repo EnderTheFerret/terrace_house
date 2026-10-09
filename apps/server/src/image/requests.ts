@@ -183,10 +183,10 @@ const POSE: Record<Emotion, string> = {
  * Freeze-frame / scene still with everyone in it (up to 6). `fileOf` returns a finished image file for a request:
  * The room is the only image reference; identities and actions stay together in each character description.
  */
-export function freezeRequest(s: GameState, ev: EventInstance, fileOf: (r: ImageRequest) => string | null = () => null, context = '', lines: { speaker: string; emotion?: Emotion }[] = [], poses: Record<string, string> = {}): ImageRequest {
+export function freezeRequest(s: GameState, ev: EventInstance, fileOf: (r: ImageRequest) => string | null = () => null, context = '', lines: { speaker: string; emotion?: Emotion }[] = [], poses: Record<string, string> = {}, outfits: Record<string, string> = {}): ImageRequest {
   const people = [...new Set(ev.participants)].map((id) => s.characters[id]).filter(Boolean).slice(0, 6);
   const dressed = people.map((c) => {
-    const outfit = outfitFor(c, occasionForCharacter(c, ev), s.world.day);
+    const outfit = outfits[c.id] ?? outfitFor(c, occasionForCharacter(c, ev), s.world.day);
     return { original: c, outfit, character: { ...c, appearanceText: outfit === c.appearance.outfit ? c.appearanceText : '', appearance: { ...c.appearance, outfit, accessory: outfit === c.appearance.outfit ? c.appearance.accessory : 'none' } } };
   });
   // each person is staged on their own: where they are (in the water or not) and the body language of their last line

@@ -25,6 +25,24 @@ export function leaveReasons(s: GameState, c: Character): LeaveReason[] {
   return out;
 }
 
+/**
+ * "cafe worker and indie musician": the paid day job comes first, the aspiration after "and". Anything else is one job.
+ * ponytail: text split on " and "; "surf instructor turned content creator" counts as a single job.
+ */
+export function occupationParts(occupation: string): { job: string; aspiration?: string } {
+  const [job, ...rest] = occupation.split(/\s+and\s+/i);
+  return { job, aspiration: rest.join(' and ') || undefined };
+}
+
+/** How an aspiration pays off, in the words of the farewell: the big break is what finally takes someone out of the house. */
+const ASPIRATION_EXITS: [RegExp, string][] = [
+  [/music|singer|songwriter|band/, 'left to record and tour with a small label'],
+  [/\bdj\b/, 'left for a club residency abroad'],
+  [/actor|actress|theat|perform|comed/, 'left to join a touring production'],
+  [/artist|illustrat|design|ceramic|photograph|writer|content creator|streamer/, 'left for a paid residency out of town'],
+];
+const aspirationExit = (c: Character) => ASPIRATION_EXITS.find(([re]) => re.test((occupationParts(c.occupation).aspiration ?? '').toLowerCase()))?.[1];
+
 const REASON_TEXT: Record<LeaveReason, string> = {
   rejection: 'left after an unanswered confession',
   mood: 'decided the house was not for them',
@@ -102,7 +120,7 @@ export function evaluateLeaves(s: GameState, rng: Rng): string[] {
     if (reason) {
       marked.push(c.id);
       solo++;
-      markLeaving(s, c.id, REASON_TEXT[reason]);
+      markLeaving(s, c.id, reason === 'goal' ? aspirationExit(c) ?? REASON_TEXT.goal : REASON_TEXT[reason]);
     }
   }
   for (const id of [...marked]) {

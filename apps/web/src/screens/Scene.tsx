@@ -3,8 +3,8 @@ import { Tip } from '../components/Tip';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGame, findInvite, type LiveLine } from '../store';
 import { StudioStrip, TopBar } from '../components/layout';
-import { Btn, INTENT_LABEL } from '../components/ui';
-import { content, EMOTIONS, isOutdoors, type Emotion, type Occasion } from '@shared-roof/shared';
+import { Btn } from '../components/ui';
+import { content, EMOTIONS, isOutdoors, TYPED_MAX, type Emotion, type Occasion } from '@shared-roof/shared';
 import { SceneArtwork } from '../components/SceneArtwork';
 import { PixelImage, Portrait, Stand, useImage } from '../components/pixel';
 import { api, waitImage, type ImageStatus } from '../api';
@@ -41,7 +41,7 @@ function useReveal(lines: LiveLine[], enabled: boolean) {
 }
 
 export function Scene() {
-  const { live, view, choose, say, inviteTo, endTalk, keepListening, respond, nextScene, finishSlot, act, settings, hangOut, hangoutCg, scenes } = useGame();
+  const { live, view, say, inviteTo, editReply, askFavor, endTalk, keepListening, respond, nextScene, finishSlot, act, settings, hangOut, hangoutCg, scenes } = useGame();
   const [phaseShown, setPhaseShown] = useState<'dialogue' | 'freeze' | 'panel'>('dialogue');
   const [recipient, setRecipient] = useState('');
   const [meetingRoom, setMeetingRoom] = useState('kitchen');
@@ -49,6 +49,9 @@ export function Scene() {
   const recipientId = live && live.recipients.length >= 2 && (recipient === 'everyone' || live.recipients.some(p => p.id === recipient)) ? recipient : undefined;
   const logRef = useRef<HTMLDivElement>(null);
   const reveal = useReveal(live?.lines ?? [], settings.typewriter && !settings.reducedMotion);
+  // artwork finishes minutes after it was asked for: the preview belongs to the line showing then, not when it was asked
+  const revealIdx = useRef(0);
+  revealIdx.current = reveal.idx;
   const bg = useImage(live?.header ? async () => live.header!.background : null, [live?.header?.background?.key]);
   const [freezeImg, setFreezeImg] = useState<ImageStatus | null>(null);
   const [sceneImg, setSceneImg] = useState<ImageStatus | null>(null);
@@ -115,10 +118,6 @@ export function Scene() {
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (!live || (e.target as HTMLElement)?.closest('input,textarea,select,dialog')) return;
-      if (live.choice && reveal.complete && !live.streaming) {
-        const n = Number(e.key);
-        if (n >= 1 && n <= live.choice.length) void choose(live.choice[n - 1], recipientId, 'key');
-      }
       if ((e.key === ' ' || e.key === 'Enter') && !reveal.complete && !(e.target as HTMLElement)?.closest('button')) {
         e.preventDefault();
         reveal.skip();
@@ -126,7 +125,7 @@ export function Scene() {
     };
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
-  }, [live, reveal, choose, recipientId]);
+  }, [live, reveal]);
 
   const people = useMemo(() => (live?.header?.participants ?? []).map((p) => view?.characters.find((c) => c.id === p.id)).filter(Boolean), [live?.header, view]);
   if (!live || !view) return null;
@@ -152,6 +151,7 @@ export function Scene() {
     ...content().city.nodes.filter(n => n.activities.includes('invite') || n.activities.includes('date')).map(n => ({ id: n.id, name: n.name, date: n.activities.includes('date') })),
     ...(content().house.rooms.some(r => r.id === view.playerLocation) ? content().house.rooms.filter(r => !r.private && !r.id.startsWith('stairs') && r.id !== view.playerLocation).map(r => ({ id: r.id, name: `${r.name} (at home)`, date: false })) : []),
   ];
+  const lastOwnLine = live.lines.findLastIndex(l => l.speaker === view.playerId);
   const roomCompany = stage.filter(c => c.status === 'inHouse').slice(0, 4);
   const meetingRooms = content().house.rooms.filter(r => !r.private && !r.id.startsWith('stairs') && r.id !== view.playerLocation);
   const occasionOf = (id: string): Occasion => artwork[id]?.occasion ?? h?.participants.find(p => p.id === id)?.occasion ?? (view.characters.find(c => c.id === id)?.swimming && h?.location === 'backyard' ? 'beach' : h?.occasion ?? 'daily');
@@ -165,7 +165,7 @@ export function Scene() {
           <div className="px-panel max-w-lg p-6 text-center">
             <p className="caption mb-2 text-sm">you can hear a conversation nearby</p>
             <p className="mb-5">{sc?.premise}</p>
-            <div className="flex justify-center gap-3">
+            <div className="flex flex-wrap justify-center gap-3">
               <Btn primary autoFocus onClick={() => void respond('join')}>join in</Btn>
               <Btn onClick={() => void respond('eavesdrop')}>eavesdrop</Btn>
               <Btn onClick={() => void respond('ignore')}>leave them be</Btn>
@@ -189,29 +189,33 @@ export function Scene() {
           {view.slot === 'evening' && <div className="absolute inset-0 bg-[rgb(30_30_80/0.25)]" />}
         </div>
         {/* header */}
+        {/* header card left, artwork buttons right; on a phone the buttons sit under the card */}
+        <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-start justify-between gap-2 max-md:inset-x-2 max-md:top-2 max-md:flex-col max-md:items-stretch">
         {h && (
-          <div className="absolute left-3 top-3 z-10 px-panel max-w-md px-3 py-2">
+          <div className="pointer-events-auto px-panel max-w-md px-3 py-2 max-md:max-w-none max-md:px-2 max-md:py-1">
             <div className="text-sm lowercase">{h.title}</div>
             <div className="caption text-xs">{h.locationName}{h.eavesdrop ? ' · eavesdropping' : ''}</div>
-            <p className="mt-1 text-xs">{h.premise}</p>
+            <p className="mt-1 text-xs max-md:line-clamp-2">{h.premise}</p>
+            {!chat && !live.streaming && !live.done && <button type="button" className="caption mt-1 text-xs underline" onClick={(e) => { e.stopPropagation(); reveal.reset(0); void useGame.getState().changeBeat(); }} title="start over with a different story beat">change beat</button>}
           </div>
         )}
         {!h && <div className="absolute inset-0 flex items-center justify-center text-paper">setting the scene<span className="blink">…</span></div>}
-        {h?.broadcast?.days && <aside className="absolute left-4 top-28 z-20 max-h-[42%] w-80 overflow-y-auto px-panel p-3 scroll-thin" aria-label="episode highlights on TV">
-          <h2 className="mb-2 text-sm">episode {h.broadcast.episode} · days {h.broadcast.days.start}–{h.broadcast.days.end}</h2>
-          {h.broadcast.highlights.map((moment, i) => <p key={i} className="reply-text mb-3"><span className="caption">day {moment.day}:</span> {moment.text}</p>)}
-          {h.broadcast.scenes.map((scene, i) => <details key={i} className="mb-2"><summary className="text-sm">day {scene.day} · {scene.title}</summary>{scene.lines.map((line, j) => <p key={j} className="reply-text"><span className="caption">{line.name}:</span> {line.text}</p>)}</details>)}
-          <section aria-label="panel commentary on TV"><h3 className="mb-2 text-sm">the panel, on TV</h3>{h.broadcast.panel.map((line, i) => <p key={i} className="reply-text mb-3"><span className="caption">day {line.day} · {line.name}:</span> {line.text}</p>)}</section>
-        </aside>}
         {h && (stage.length > 0 || h.participants.some(p => p.id === view.playerId)) && (
-          <div className="absolute right-3 top-3 z-20 flex flex-wrap justify-end gap-2">
-    {!chat && stage.length > 0 && <SceneArtwork key={live.id} people={stage.map(c => ({ id: c.id, name: c.name, occasion: occasionOf(c.id), emotion: emotionOf(c.id), outfit: artwork[c.id]?.outfit, customExpression: artwork[c.id]?.line === reveal.idx ? artwork[c.id]?.customExpression : undefined }))} day={view.day} disabled={live.streaming || !settings.images} onReady={(id, occasion, emotion, outfit, customExpression) => setArtwork(prev => ({ ...prev, [id]: { occasion, emotion, outfit, customExpression, line: reveal.idx, version: (prev[id]?.version ?? 0) + 1 } }))} />}
+          <div className="pointer-events-auto flex flex-wrap justify-end gap-2 max-md:text-xs">
+    {!chat && stage.length > 0 && <SceneArtwork key={live.id} people={stage.map(c => ({ id: c.id, name: c.name, occasion: occasionOf(c.id), emotion: emotionOf(c.id), outfit: artwork[c.id]?.outfit, customExpression: artwork[c.id]?.line === reveal.idx ? artwork[c.id]?.customExpression : undefined }))} day={view.day} disabled={live.streaming || !settings.images} onReady={(id, occasion, emotion, outfit, customExpression) => setArtwork(prev => ({ ...prev, [id]: { occasion, emotion, outfit, customExpression, line: revealIdx.current, version: (prev[id]?.version ?? 0) + 1 } }))} />}
             {h.participants.some(p => p.id === view.playerId) && h.participants.length >= 2 && <Btn disabled={live.streaming || imageBusy || !settings.images} onClick={() => void generateScene()} title={!settings.images ? 'Enable images in settings to generate a scene' : live.streaming ? 'Available when the current dialogue finishes' : 'Illustrate this conversation'}>
               {imageBusy ? 'generating scene…' : 'generate scene'}
             </Btn>}
             {sceneImg?.status === 'ready' && <Btn className="ml-2" onClick={() => setImageOpen(true)}>view scene</Btn>}
           </div>
         )}
+        </div>
+        {h?.broadcast?.days && <aside className="absolute left-4 top-28 z-20 max-h-[42%] w-80 overflow-y-auto px-panel p-3 scroll-thin max-md:inset-x-2 max-md:w-auto" aria-label="episode highlights on TV">
+          <h2 className="mb-2 text-sm">episode {h.broadcast.episode} · days {h.broadcast.days.start}–{h.broadcast.days.end}</h2>
+          {h.broadcast.highlights.map((moment, i) => <p key={i} className="reply-text mb-3"><span className="caption">day {moment.day}:</span> {moment.text}</p>)}
+          {h.broadcast.scenes.map((scene, i) => <details key={i} className="mb-2"><summary className="text-sm">day {scene.day} · {scene.title}</summary>{scene.lines.map((line, j) => <p key={j} className="reply-text"><span className="caption">{line.name}:</span> {line.text}</p>)}</details>)}
+          <section aria-label="panel commentary on TV"><h3 className="mb-2 text-sm">the panel, on TV</h3>{h.broadcast.panel.map((line, i) => <p key={i} className="reply-text mb-3"><span className="caption">day {line.day} · {line.name}:</span> {line.text}</p>)}</section>
+        </aside>}
         {h?.intro && (
           <div key={h.intro.id} className="intro-card pointer-events-none absolute left-1/2 top-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center gap-4 px-panel p-4" role="note" aria-label="new housemate">
             {(() => {
@@ -228,7 +232,7 @@ export function Scene() {
         )}
         {/* visual-novel stage: cut-out figures stand on the location; the speaker steps forward, the rest drop back */}
         {!chat && h && (
-          <div role="group" aria-label="people in this conversation" className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-center" style={{ top: '6%', right: live.choice && reveal.complete && !live.streaming ? 304 : 0 }}>
+          <div role="group" aria-label="people in this conversation" className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-center max-md:right-0!" style={{ top: '6%', right: live.choice && reveal.complete && !live.streaming ? 304 : 0 }}>
             {stage.map((c, i) => {
               const speaking = lastSpeaker === c.id;
               const occasion = occasionOf(c.id);
@@ -245,9 +249,10 @@ export function Scene() {
             ))}
           </div>
         )}
-        {/* dialogue box or phone */}
+        {/* dialogue box or phone; on a phone it stacks over the choices at the bottom (on desktop the wrapper has no box) */}
+        <div className={`max-md:absolute max-md:inset-x-2 max-md:bottom-2 max-md:z-20 max-md:flex max-md:flex-col max-md:gap-2 md:contents ${chat ? 'max-md:top-28' : ''}`}>
         {chat ? (
-          <div className="absolute left-1/2 top-1/2 z-10 flex h-[70%] w-80 -translate-x-1/2 -translate-y-1/2 flex-col rounded-[18px] bg-[#2b2b33] p-3">
+          <div className="absolute left-1/2 top-1/2 z-10 flex h-[70%] w-80 -translate-x-1/2 -translate-y-1/2 flex-col rounded-[18px] bg-[#2b2b33] p-3 max-md:static max-md:h-auto max-md:min-h-0 max-md:w-full max-md:flex-1 max-md:translate-x-0 max-md:translate-y-0 max-md:p-2">
             <div className="caption mb-2 text-center text-xs text-paper">messages</div>
             <div ref={logRef} className="flex flex-1 flex-col gap-2 overflow-y-auto rounded-[10px] bg-[#f4f6f8] p-2 scroll-thin" aria-live="polite">
               {visible.map((l, i) => {
@@ -264,15 +269,15 @@ export function Scene() {
             </div>
           </div>
         ) : (
-          <div className="absolute bottom-3 left-3 right-3 z-10" style={{ right: live.choice && reveal.complete && !live.streaming ? 316 : 12 }}>
+          <div className="absolute bottom-3 left-3 right-3 z-10 max-md:static" style={{ right: live.choice && reveal.complete && !live.streaming ? 316 : 12 }}>
             {/* name tag over the box, visual-novel style */}
             {current && (
               <div className="relative z-10 -mb-2 ml-4 inline-block bg-paper px-4 py-1 text-lg lowercase" style={{ boxShadow: '0 0 0 3px var(--color-ink), 4px 4px 0 var(--color-ink)' }}>
                 {current.speaker === view.playerId ? 'you' : current.name}
               </div>
             )}
-            <div className="px-panel bg-paper/90 p-4 pt-5 backdrop-blur-[2px]">
-              <div ref={logRef} className="max-h-[35vh] min-h-28 overflow-y-auto pr-2 scroll-thin" aria-live="polite">
+            <div className="px-panel bg-paper/90 p-4 pt-5 backdrop-blur-[2px] max-md:p-3 max-md:pt-4">
+              <div ref={logRef} className="max-h-[35vh] min-h-28 overflow-y-auto pr-2 scroll-thin max-md:max-h-[22dvh] max-md:min-h-16" aria-live="polite">
                 {visible.map((l, i) => {
                   const text = i === reveal.idx ? l.text.slice(0, reveal.chars) : l.text;
                   return (
@@ -293,12 +298,9 @@ export function Scene() {
         )}
         {/* choices */}
         {live.choice && reveal.complete && !live.streaming && (
-          <div className="absolute right-4 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-2" role="group" aria-label="how do you respond?">
-            <div className="caption bg-paper px-2 text-xs" style={{ boxShadow: '0 0 0 2px var(--color-ink)' }}>
-              how do you respond?
-            </div>
+          <div className="absolute right-4 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-2 max-md:static max-md:grid max-md:max-h-[34dvh] max-md:translate-y-0 max-md:grid-cols-2 max-md:gap-1.5 max-md:overflow-y-auto max-md:p-0.5 max-md:text-sm" role="group" aria-label="how do you respond?">
             {live.recipients.length >= 2 && (
-              <label className="px-panel-soft flex flex-col gap-1 bg-paper p-2 text-xs">
+              <label className="px-panel-soft flex flex-col gap-1 bg-paper p-2 text-xs max-md:col-span-2">
                 reply to
                 <select aria-label="reply to" className="max-w-64 bg-paper p-1 text-sm" value={recipientId ?? ''} onChange={e => setRecipient(e.target.value)}>
                   <option value="">Automatic</option>
@@ -307,23 +309,20 @@ export function Scene() {
                 </select>
               </label>
             )}
-            {live.choice.map((c, i) => (
-              <Btn key={c} onClick={() => void choose(c, recipientId)}>
-                {i + 1}. {INTENT_LABEL[c] ?? c}
-              </Btn>
-            ))}
             {live.canType && chat && <SayBox onSay={(t) => void say(t, recipientId)} autoFocus={live.canEnd} />}
-            {live.inviteNote && <div role="status" className="caption bg-paper px-2 text-xs" style={{ boxShadow: '0 0 0 2px var(--color-ink)' }}>{live.inviteNote}</div>}
-            {invite && <Btn primary onClick={() => void hangOut(invite)} title={`go to ${invite.placeName} together`}>{invite.activity === 'talk' ? `go to ${invite.placeName} with ${invite.names}` : `${invite.activity === 'date' ? 'go on a date' : 'hang out'} with ${invite.names} · ${invite.placeName}`}</Btn>}
+            {live.inviteNote && <div role="status" className="caption bg-paper px-2 text-xs max-md:col-span-2" style={{ boxShadow: '0 0 0 2px var(--color-ink)' }}>{live.inviteNote}</div>}
+            {invite && <Btn primary className="max-md:col-span-2" onClick={() => void hangOut(invite)} title={`go to ${invite.placeName} together`}>{invite.activity === 'talk' ? `go to ${invite.placeName} with ${invite.names}` : `${invite.activity === 'date' ? 'go on a date' : 'hang out'} with ${invite.names} · ${invite.placeName}`}</Btn>}
             <InviteBox people={stage.filter(c => c.status === 'inHouse')} options={inviteOptions} onInvite={(node, date, who) => void inviteTo(node, date, who)} />
+            <FavorBox helpers={stage.filter(c => c.status === 'inHouse')} housemates={view.characters.filter(c => c.id !== view.playerId && c.status === 'inHouse')} playerId={view.playerId} onAsk={(kind, a, b, helper) => void askFavor(kind, a, b, helper)} />
             {!chat && roomCompany.length > 0 && content().house.rooms.some(r => r.id === view.playerLocation) && (
-              <div className="px-panel-soft flex flex-col gap-2 bg-paper p-2">
+              <div className="px-panel-soft flex flex-col gap-2 bg-paper p-2 max-md:col-span-2">
                 <label className="flex flex-col gap-1 text-xs">continue in another room<select aria-label="move conversation to" className="bg-paper p-1 text-sm" value={meetingRooms.some(r => r.id === meetingRoom) ? meetingRoom : meetingRooms[0]?.id ?? ''} onChange={e => setMeetingRoom(e.target.value)}>{meetingRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
                 <Btn onClick={() => { const room = meetingRooms.find(r => r.id === meetingRoom) ?? meetingRooms[0]; if (room) void hangOut({ from: roomCompany[0].id, name: roomCompany[0].name, names: roomCompany.map(c => c.name.split(' ')[0]).join(' and '), guests: roomCompany.slice(1).map(c => c.id), node: room.id, activity: 'talk', placeName: room.name }); }}>go together & talk</Btn>
               </div>
             )}
             {live.canListen && <Btn onClick={() => void keepListening()} title="stay quiet and let them talk among themselves">keep listening…</Btn>}
-            {live.canRetry && <Btn onClick={() => { reveal.reset(Math.max(0, live.lines.findLastIndex(l => l.speaker === view.playerId) + 1)); void useGame.getState().submitChoice({ retry: true }); }}>retry reply</Btn>}
+            {live.canRetry && <Btn onClick={() => { reveal.reset(Math.max(0, lastOwnLine + 1)); void useGame.getState().submitChoice({ retry: true }); }}>retry reply</Btn>}
+            {live.canEdit && lastOwnLine >= 0 && <EditReply initial={live.lines[lastOwnLine].text} onEdit={(t) => { reveal.reset(lastOwnLine); void editReply(t); }} />}
             {live.canEnd && (
               <Btn primary onClick={() => void endTalk()}>
                 that's all
@@ -331,12 +330,13 @@ export function Scene() {
             )}
           </div>
         )}
+        </div>
         {live.error && !live.streaming && <div className="absolute right-4 top-20 z-30 px-panel p-3" role="alert"><p>{live.error}</p><Btn onClick={() => void useGame.getState().playLive(live.id)}>retry connection</Btn></div>}
         {/* freeze frame */}
         {phaseShown === 'freeze' && live.freeze && (
           <div className="absolute inset-0 z-30 flex items-center justify-center bg-[rgb(20_16_28/0.75)]" onClick={() => setPhaseShown('panel')}>
             <div className="relative max-h-[80%] max-w-[80%] overflow-hidden px-panel">
-              {freezeImg?.url ? <img src={freezeImg.url} alt={live.freeze.caption} className="freeze-zoom block" style={{ width: 640, maxWidth: '100%' }} /> : <div className="flex h-64 w-[480px] items-center justify-center bg-[#3a2e3f] text-paper">developing<span className="blink">…</span></div>}
+              {freezeImg?.url ? <img src={freezeImg.url} alt={live.freeze.caption} className="freeze-zoom block" style={{ width: 640, maxWidth: '100%' }} /> : <div className="flex h-64 w-[480px] max-w-full items-center justify-center bg-[#3a2e3f] text-paper">developing<span className="blink">…</span></div>}
               <div className="absolute bottom-3 left-3 bg-paper px-2 text-sm lowercase" style={{ boxShadow: '0 0 0 2px var(--color-ink)' }}>
                 {live.freeze.caption}
               </div>
@@ -350,7 +350,7 @@ export function Scene() {
         )}
         {/* outcome + continue */}
         {phaseShown === 'panel' && (
-          <div className="absolute right-4 top-4 z-20 flex max-w-sm flex-col items-end gap-2">
+          <div className="absolute right-4 top-4 z-20 flex max-w-sm flex-col items-end gap-2 max-md:inset-x-2 max-md:top-2 max-md:max-w-none">
             {live.arrivalPending && <p role="status" className="px-panel p-3">The doorbell rings — {live.arrivalPending} has arrived. Your conversation pauses to welcome them.</p>}
             {live.outcome?.cues.map((c, i) => (
               <div key={i} className="slide-up px-panel px-3 py-1 text-sm">
@@ -390,7 +390,7 @@ function SayBox({ onSay, autoFocus, wide }: { onSay: (text: string) => void; aut
   const [text, setText] = useState('');
   return (
     <form
-      className={`flex gap-1 ${wide ? 'w-full' : ''}`}
+      className={`flex gap-1 max-md:col-span-2 ${wide ? 'w-full' : ''}`}
       onSubmit={(e) => {
         e.preventDefault();
         if (text.trim()) onSay(text);
@@ -399,7 +399,7 @@ function SayBox({ onSay, autoFocus, wide }: { onSay: (text: string) => void; aut
       <input
         aria-label="say something in your own words"
         placeholder={wide ? 'say something… (address someone by name, or everyone)' : 'or say it yourself…'}
-        className={`px-panel-soft bg-paper px-2 py-1 text-sm ${wide ? 'flex-1 text-base' : 'w-56'}`}
+        className={`px-panel-soft bg-paper px-2 py-1 text-sm ${wide ? 'flex-1 text-base' : 'w-56 max-md:w-auto max-md:min-w-0 max-md:flex-1'}`}
         value={text}
         autoFocus={autoFocus}
         onChange={(e) => setText(e.target.value)}
@@ -407,6 +407,25 @@ function SayBox({ onSay, autoFocus, wide }: { onSay: (text: string) => void; aut
       <button type="submit" className="px-btn text-xs" disabled={!text.trim()}>
         say
       </button>
+    </form>
+  );
+}
+
+/** Reword your last reply: the talk rewinds to it and the housemate answers the new wording. */
+function EditReply({ initial, onEdit }: { initial: string; onEdit: (text: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState(initial);
+  if (!open) return <Btn onClick={() => { setText(initial); setOpen(true); }} title="change what you just said and get a fresh answer">edit reply</Btn>;
+  return (
+    <form
+      className="px-panel-soft flex flex-col gap-2 bg-paper p-2 text-xs max-md:col-span-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (text.trim()) { onEdit(text); setOpen(false); }
+      }}
+    >
+      <label className="flex flex-col gap-1">edit your reply<input aria-label="edit your last reply" className="bg-paper p-1 text-sm" value={text} maxLength={TYPED_MAX} autoFocus onChange={(e) => setText(e.target.value)} /></label>
+      <div className="flex gap-2"><Btn primary>send edit</Btn><Btn onClick={() => setOpen(false)}>never mind</Btn></div>
     </form>
   );
 }
@@ -422,11 +441,37 @@ function InviteBox({ people, options, onInvite }: { people: { id: string; name: 
   if (!people.length || !place) return null;
   if (!open) return <Btn onClick={() => setOpen(true)} title="ask a housemate to go somewhere with you">invite someone out…</Btn>;
   return (
-    <div className="px-panel-soft flex flex-col gap-2 bg-paper p-2 text-xs" role="group" aria-label="invite someone">
+    <div className="px-panel-soft flex flex-col gap-2 bg-paper p-2 text-xs max-md:col-span-2" role="group" aria-label="invite someone">
       {people.length > 1 && <label className="flex flex-col gap-1">invite<select aria-label="invite who" className="bg-paper p-1 text-sm" value={target} onChange={e => setWho(e.target.value)}>{people.map(p => <option key={p.id} value={p.id}>{p.name.split(' ')[0]}</option>)}</select></label>}
       <label className="flex flex-col gap-1">to<select aria-label="invite to" className="bg-paper p-1 text-sm" value={place.id} onChange={e => { setNode(e.target.value); setDate(false); }}>{options.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
       {place.date && <label className="flex items-center gap-1"><input type="checkbox" checked={date} onChange={e => setDate(e.target.checked)} />as a date</label>}
       <div className="flex gap-2"><Btn primary onClick={() => { onInvite(place.id, date && place.date, target); setOpen(false); }}>ask {people.find(p => p.id === target)?.name.split(' ')[0]}</Btn><Btn onClick={() => setOpen(false)}>never mind</Btn></div>
+    </div>
+  );
+}
+
+/** Ask a close housemate to play matchmaker (you and someone, or two housemates) or to snoop around (does someone like you, do two housemates have a thing). Their answer follows how close you are and their personality. */
+function FavorBox({ helpers, housemates, playerId, onAsk }: { helpers: { id: string; name: string }[]; housemates: { id: string; name: string }[]; playerId: string; onAsk: (kind: 'match' | 'snoop', a: string, b: string, helper: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<'match' | 'snoop'>('match');
+  const [who, setWho] = useState('');
+  const [first, setFirst] = useState(playerId);
+  const [second, setSecond] = useState('');
+  const helper = helpers.some(p => p.id === who) ? who : helpers[0]?.id ?? '';
+  const firsts = [{ id: playerId, name: 'me' }, ...housemates.filter(c => c.id !== helper)];
+  const a = firsts.some(p => p.id === first) ? first : playerId;
+  const seconds = [...(a === playerId ? [] : [{ id: playerId, name: 'me' }]), ...housemates.filter(c => c.id !== helper && c.id !== a)];
+  const b = seconds.some(p => p.id === second) ? second : seconds[0]?.id ?? '';
+  if (!helpers.length || !b) return null;
+  const short = (id: string) => id === playerId ? 'me' : (housemates.find(c => c.id === id)?.name ?? '').split(' ')[0];
+  if (!open) return <Btn onClick={() => setOpen(true)} title="ask a housemate you're close to to play matchmaker or snoop around">matchmaker / snoop…</Btn>;
+  return (
+    <div className="px-panel-soft flex flex-col gap-2 bg-paper p-2 text-xs max-md:col-span-2" role="group" aria-label="matchmaker or snoop">
+      {helpers.length > 1 && <label className="flex flex-col gap-1">ask<select aria-label="favor helper" className="bg-paper p-1 text-sm" value={helper} onChange={e => setWho(e.target.value)}>{helpers.map(p => <option key={p.id} value={p.id}>{p.name.split(' ')[0]}</option>)}</select></label>}
+      <label className="flex flex-col gap-1">to<select aria-label="favor kind" className="bg-paper p-1 text-sm" value={kind} onChange={e => setKind(e.target.value as 'match' | 'snoop')}><option value="match">play matchmaker</option><option value="snoop">snoop around</option></select></label>
+      <label className="flex flex-col gap-1">between<select aria-label="favor first" className="bg-paper p-1 text-sm" value={a} onChange={e => setFirst(e.target.value)}>{firsts.map(p => <option key={p.id} value={p.id}>{p.id === playerId ? 'me' : p.name.split(' ')[0]}</option>)}</select></label>
+      <label className="flex flex-col gap-1">and<select aria-label="favor second" className="bg-paper p-1 text-sm" value={b} onChange={e => setSecond(e.target.value)}>{seconds.map(p => <option key={p.id} value={p.id}>{p.id === playerId ? 'me' : p.name.split(' ')[0]}</option>)}</select></label>
+      <div className="flex gap-2"><Btn primary onClick={() => { onAsk(kind, a, b, helper); setOpen(false); }}>{kind === 'match' ? `match ${short(a)} & ${short(b)}` : a === playerId || b === playerId ? `does ${short(a === playerId ? b : a)} like me?` : `${short(a)} & ${short(b)}: a thing?`}</Btn><Btn onClick={() => setOpen(false)}>never mind</Btn></div>
     </div>
   );
 }

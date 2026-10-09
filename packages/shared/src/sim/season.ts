@@ -45,7 +45,7 @@ export function activePolicy(seed: number): Policy {
       const dates = reachable.filter((r) => ['cafe', 'arcade'].includes(r.node));
       if (r < 0.35 && dates.length && !['work', 'sleep', 'nap', 'shower'].includes(fav.lastAction ?? '') && !isShabbat(s, fav)) return { type: 'goOut', node: rng.pick(dates).node, activity: 'date', invite: fav.id };
       if (r < 0.5 && reachable.some((r) => r.node === 'konbini')) return { type: 'goOut', node: 'konbini', activity: 'work' };
-      if (r < 0.65 && !isShabbat(s, fav)) return { type: 'text', target: fav.id };
+      if (r < 0.65) return { type: 'text', target: fav.id };
       return { type: 'house', activity: rng.pick(['hangout', 'backyard', 'hobby'] as const) };
     },
     respond: () => (rng.chance(0.5) ? 'join' : 'eavesdrop'),

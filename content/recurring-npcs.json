@@ -13,6 +13,7 @@
     {
       "id": "hamabe",
       "name": "Dalia",
+      "gender": "woman",
       "role": "cafe owner",
       "traits": [
         "warm",
@@ -49,6 +50,7 @@
     {
       "id": "tsutomu",
       "name": "Yossi",
+      "gender": "man",
       "role": "makolet owner",
       "traits": [
         "deadpan"
@@ -78,7 +80,7 @@
         "Points card. No? Okay."
       ],
       "returningLines": [
-        "The warm pita again?",
+        "Back again. Pita's still warm, if you want one.",
         "Your housemate bought the last malabi. Sorry.",
         "Same time as yesterday. Interesting."
       ]
@@ -86,6 +88,7 @@
     {
       "id": "daisuke",
       "name": "Daniel",
+      "gender": "man",
       "role": "Maya's ex",
       "traits": [
         "charming",
@@ -114,6 +117,7 @@
     {
       "id": "kaede",
       "name": "Yael Azulay",
+      "gender": "woman",
       "role": "Ron's younger sister who phones",
       "traits": [
         "blunt",
@@ -142,6 +146,7 @@
     {
       "id": "gonda",
       "name": "Chef Eli",
+      "gender": "man",
       "role": "boss at Florentin Mangal",
       "traits": [
         "gruff",
@@ -174,6 +179,7 @@
     {
       "id": "yoshioka",
       "name": "Mr. Sasson",
+      "gender": "man",
       "role": "next-door neighbor",
       "traits": [
         "grumpy",
@@ -207,6 +213,7 @@
     {
       "id": "tak",
       "name": "Itai",
+      "gender": "man",
       "role": "Dizengoff street musician",
       "traits": [
         "free-spirited"
@@ -235,6 +242,7 @@
     {
       "id": "natsume",
       "name": "Neta",
+      "gender": "woman",
       "role": "former housemate visiting",
       "traits": [
         "nostalgic",
@@ -261,6 +269,7 @@
     {
       "id": "mama-hayakawa",
       "name": "Shai's mother",
+      "gender": "woman",
       "role": "phones about marriage meetings",
       "traits": [
         "pushy",
@@ -315,6 +324,7 @@
     {
       "id": "falafel-owner",
       "name": "Samir",
+      "gender": "man",
       "role": "Jaffa falafel stand owner",
       "traits": [
         "warm",

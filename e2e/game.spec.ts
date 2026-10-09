@@ -1,5 +1,6 @@
 // End-to-end: the real UI in a real browser against the mock-mode server (deterministic, SEED=7).
 import { expect, test, type Page } from '@playwright/test';
+import { answerer } from './answer';
 
 test.beforeEach(async ({ page }) => {
   // instant text so the driver doesn't wait on the typewriter
@@ -18,7 +19,7 @@ async function playUntil(page: Page, until: () => Promise<boolean>, maxSteps = 2
   const studio: string[] = [];
   for (let i = 0; i < maxSteps; i++) {
     if (await until()) return studio;
-    const choice = page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first();
+    const choice = answerer(page);
     const steps: [() => Promise<boolean>, () => Promise<void>][] = [
       // talks are open-ended: answer once, then end your part
       [() => btn(page, "that's all").isVisible(), () => btn(page, "that's all").click()],

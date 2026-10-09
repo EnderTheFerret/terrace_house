@@ -7,7 +7,7 @@ import { openDb, Store } from '../db';
 import { MockLlm } from '../llm/mock';
 import { MockImageBackend } from '../image/mock';
 import { replayEvents } from './replay';
-import { createGame, dropUnattracted, FEELING_SCALE, planConflict, planFromWords, proposedPlan, rel, rereadChange, ROOMS, welcomedFlirts } from '@shared-roof/shared';
+import { applyPlanRead, todaysMessages, createGame, dropUnattracted, FEELING_SCALE, planConflict, planFromWords, proposedPlan, rel, rereadChange, ROOMS, welcomedFlirts } from '@shared-roof/shared';
 import { plansBlock } from '../prompts/common';
 
 it('reads a later meet-up from typed words and leaves right-now or plan-free talk alone', () => {
@@ -31,15 +31,20 @@ it('a calendar plan marked as a date is private to the pair and survives replay'
     await session.newGame({ seed: 21, moveInDay: false });
     const s0 = session.state!;
     const target = Object.values(s0.characters).find(c => !c.isPlayer && c.interestedIn.includes(s0.characters[s0.playerId].gender))!;
-    rel(s0, target.id, s0.playerId).trust = 60;
+    Object.assign(rel(s0, target.id, s0.playerId), { trust: 60, affinity: 80, romance: 80 });
     await session.act({ type: 'plan', target: target.id, node: 'cafe', episode: 2, slot: 'slot1', date: true });
     const s = session.state!;
     const plan = s.invitations.at(-1)!;
     expect(plan).toMatchObject({ to: target.id, date: true, status: 'accepted' });
+    const thread = s.chats[[target.id, s.playerId].sort().join('|')];
+    expect(thread[0]).toMatchObject({ from: s.playerId, text: expect.stringMatching(/date to Rothschild Coffee tomorrow/) }); // sent as a text
+    expect(thread.some(m => m.from === target.id)).toBe(true); // and answered
+    await session.act({ type: 'plan', target: target.id, node: 'beach', episode: 3, slot: 'slot3' });
+    expect(session.state!.chats[[target.id, s.playerId].sort().join('|')].at(-2)!.text).toMatch(/^Want to hang out at/);
     const outsider = Object.values(s.characters).find(c => !c.isPlayer && c.id !== target.id)!;
     expect(plansBlock(s, outsider.id)).not.toContain('Rothschild Coffee');
     expect(plansBlock(s, target.id)).toContain('on a private date to Rothschild Coffee');
-    expect(replayEvents(store.events(s.gameId)).invitations).toEqual(s.invitations);
+    expect(replayEvents(store.events(s.gameId)).invitations).toEqual(session.state!.invitations);
   } finally { await close(); }
 });
 
@@ -119,6 +124,22 @@ it('adds, moves and calls off a plan the model read from texts, and replays it',
   } finally { await close(); }
 });
 
+it('never turns old texts or a plan already under way into new or moved plans', () => {
+  const s = createGame({ seed: 21 });
+  Object.assign(s.world, { episode: 3, slot: 'slot3', tick: 15 });
+  const P = s.playerId;
+  // the day-2 "Florentin bar on 9 pm?" thread: kept yesterday, never re-read today
+  s.invitations.push({ id: 'plan-6', from: P, to: 'ren', episode: 2, slot: 'evening', node: 'bar', status: 'kept' });
+  expect(todaysMessages(s, [{ tick: 10, text: 'Florentin bar on 9 pm?' }, { tick: 13, text: 'today' }]).map((m) => m.text)).toEqual(['today']);
+  // Maya's onsen plan is this block: a read that lands on "16:00 tomorrow" is the same plan, not a move
+  s.invitations.push({ id: 'plan-11', from: P, to: 'mio', episode: 3, slot: 'slot3', node: 'onsen', status: 'accepted' });
+  expect(applyPlanRead(s, P, 'mio', { plan: { node: 'onsen', episode: 4, slot: 'slot3' } })).toBe(s);
+  // and an unrelated new plan with them is added, not taken out of the open one
+  const added = applyPlanRead(s, P, 'mio', { plan: { node: 'cafe', episode: 4, slot: 'slot1' } });
+  expect(added.invitations.find((p) => p.id === 'plan-11')).toMatchObject({ node: 'onsen', episode: 3, slot: 'slot3' });
+  expect(added.invitations.at(-1)).toMatchObject({ node: 'cafe', episode: 4, slot: 'slot1', status: 'accepted' });
+});
+
 it('keeps what a scene gave pairs the reading leaves out, and drops romance without attraction', () => {
   const empty = { affinityDeltas: [], romanceDeltas: [], tensionDeltas: [], trustDeltas: [], newMemories: [], moodDeltas: [] };
   const applied = { ...empty, trustDeltas: [{ from: 'hana', to: 'player', delta: 4.8 }], affinityDeltas: [{ from: 'hana', to: 'player', delta: 3 }] };
@@ -126,6 +147,9 @@ it('keeps what a scene gave pairs the reading leaves out, and drops romance with
   const change = rereadChange(next, applied, FEELING_SCALE);
   expect(change.trustDeltas).toEqual([]); // trust the reading didn't mention stays as the scene left it
   expect(change.affinityDeltas).toEqual([{ from: 'hana', to: 'player', delta: 4 * FEELING_SCALE - 3 * FEELING_SCALE }]);
+  // but a warm gain the reading contradicts (the listener cooled on the speaker) is taken back
+  const cold = rereadChange({ ...empty, affinityDeltas: [{ from: 'sora', to: 'player', delta: -8 }] }, { ...empty, romanceDeltas: [{ from: 'sora', to: 'player', delta: 3 }] }, FEELING_SCALE);
+  expect(cold.romanceDeltas).toEqual([{ from: 'sora', to: 'player', delta: -3 * FEELING_SCALE }]);
   const s = createGame({ seed: 3 });
   const [a, b] = Object.values(s.characters).filter((c) => !c.isPlayer && c.gender === 'man');
   const romance = dropUnattracted(s, { ...empty, romanceDeltas: [{ from: a.id, to: b.id, delta: 3 }] });
@@ -136,7 +160,11 @@ it('keeps what a scene gave pairs the reading leaves out, and drops romance with
   const other = Object.values(s.characters).find((c) => !c.isPlayer && !c.interestedIn.includes(P.gender))!;
   const liked = { ...empty, affinityDeltas: [{ from: fan.id, to: P.id, delta: 2 }, { from: other.id, to: P.id, delta: 3 }] };
   const flirted = welcomedFlirts(s, [{ speaker: P.id, text: '"Yeah, missed me?" I say in a flirty tone.' }], liked);
-  expect(flirted.romanceDeltas).toEqual([{ from: fan.id, to: P.id, delta: 2 }]);
+  const mine = [fan, other].filter((c) => P.interestedIn.includes(c.gender)).map((c) => ({ from: P.id, to: c.id, delta: 2 }));
+  expect(flirted.romanceDeltas).toEqual([{ from: fan.id, to: P.id, delta: 2 }, ...mine]);
+  // two flirt lines aimed at the fan count double
+  const twice = welcomedFlirts(s, [{ speaker: P.id, text: 'you look cute today', recipient: fan.id }, { speaker: P.id, text: 'missed you', recipient: fan.id }], liked);
+  expect(twice.romanceDeltas.find((d) => d.from === fan.id)?.delta).toBe(4);
   expect(welcomedFlirts(s, [{ speaker: P.id, text: 'Dinner at eight?' }], liked).romanceDeltas).toEqual([]);
 });
 

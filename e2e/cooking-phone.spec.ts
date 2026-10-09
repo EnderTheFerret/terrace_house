@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { answerer } from './answer';
 
 const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
 
@@ -13,7 +14,7 @@ async function settle(page: Page) {
       continue;
     }
     const end = button(page, "that's all");
-    const choice = page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first();
+    const choice = answerer(page);
     const next = page.getByRole('button', { name: /^(begin|continue|ok|leave them be|to the studio|back to the house|next episode)$/ }).first();
     if (await end.isVisible()) await end.click();
     else if (await choice.isVisible()) await choice.click();

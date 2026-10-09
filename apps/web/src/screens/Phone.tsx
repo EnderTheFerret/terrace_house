@@ -27,6 +27,7 @@ export function Phone() {
   useEffect(() => { useGame.setState((s) => ({ phoneRead: { ...s.phoneRead, [tab]: messages.length, ...Object.fromEntries(planIds.split('|').filter(Boolean).map(id => [`plan:${id}`, 1])) } })); }, [tab, messages.length, planIds]);
   if (!view) return null;
   const name = (id: string) => view.characters.find((c) => c.id === id)?.name.split(' ')[0] ?? id;
+  const tagged = name;
   const housemates = view.characters.filter((c) => c.status === 'inHouse' && !c.isPlayer);
   const contact = housemates.find((c) => c.id === tab);
   const pending = scenes.find(s => s.rendered && s.phase !== 'done');
@@ -34,6 +35,7 @@ export function Phone() {
   const destinations = reachability('house', view.slot as Slot, view.budget.level, view.carFree, 180 - view.minutesLeft, view.weekday);
   const submit = (action: Parameters<typeof act>[0]) => void act(action).then(() => {
     if (action.type === 'text' && !useGame.getState().error) { setDraft(''); setAlso([]); }
+    if (action.type === 'plan' && !useGame.getState().error) setTab(action.target); // the invitation went out as a text: show their reply
     if (['plan', 'respondPlan', 'post', 'like'].includes(action.type) && useGame.getState().screen === 'house') setScreen('phone');
   });
   const retry = async () => {
@@ -51,7 +53,7 @@ export function Phone() {
         <div className="flex w-full max-w-2xl flex-col rounded-[22px] bg-[#2b2b33] p-3 shadow-xl">
           <div className="mb-2 flex justify-between px-2 text-xs text-paper"><span>{view.dateLabel} · {view.clock}</span><button className="underline" onClick={goBack}>close</button></div>
           <div className="flex gap-1 overflow-x-auto pb-2 scroll-thin" role="tablist" aria-label="phone">
-            {[['group', `house (${view.groupChat.members.length})`], ['calendar', 'plans'], ['feed', 'feed'], ...housemates.map((c) => [c.id, name(c.id)])].map(([id, label]) => {
+            {[['group', `house (${view.groupChat.members.length})`], ['calendar', 'plans'], ['feed', 'feed'], ...housemates.map((c) => [c.id, tagged(c.id)])].map(([id, label]) => {
               const thread = id === 'group' ? view.groupChat.messages : view.chats.find((t) => t.with === id)?.messages ?? [];
               const unread = id === 'calendar' ? view.invitations.filter(p => p.to === view.playerId && p.status === 'pending' && !read[`plan:${p.id}`]).length : unreadMessages(thread, view.playerId, read[id]);
               return <button key={id} role="tab" aria-selected={tab === id} className={`shrink-0 rounded px-2 py-1 text-xs ${tab === id ? 'bg-[#9fe0b0]' : 'bg-white/80'}`} onClick={() => { setTab(id); setDraft(''); setAlso([]); }}>{label}{unread > 0 && ` (${unread})`}</button>;
@@ -62,7 +64,7 @@ export function Phone() {
               {tab === 'group' && !view.groupChat.member && <p className="caption text-xs">you are no longer in this group chat.</p>}
               {messages.length === 0 && <p className="caption text-xs">no messages yet.</p>}
               {messages.map((m, i) => <div key={i} className={`reply-text max-w-[85%] ${m.from === view.playerId ? 'self-end' : 'self-start'}`}>
-                {m.from !== view.playerId && <div className="caption text-[0.65rem]">{name(m.from)}</div>}
+                {m.from !== view.playerId && <div className="caption text-[0.65rem]">{tagged(m.from)}</div>}
                 {'photo' in m && !!m.photo && <PhonePhoto request={() => api.selfie(m.from, m.tick)} deps={[m.from, m.tick]} alt={`photo from ${name(m.from)}`} />}
                 <div className={`rounded-[10px] px-2 py-1 ${m.from === view.playerId ? 'bg-[#9fe0b0]' : 'bg-white'}`}>{m.text}</div>
                 {m.from === view.playerId && <div className="caption text-right text-[0.6rem]">{'read' in m && !m.read ? 'delivered' : 'read'}</div>}
@@ -72,9 +74,11 @@ export function Phone() {
               <h2 className="text-sm">shared plans</h2>
               {view.invitations.length === 0 && <p className="caption text-xs">Make a plan. Save a little time for someone.</p>}
               {view.invitations.map((p) => <div key={p.id} className="rounded bg-white p-2 text-sm">
+                {p.meeting && <p className="font-semibold">house meeting · {p.meeting.topic}</p>}
                 {p.performance && <p className="font-semibold">{p.performance.title} · {p.performance.audience === 'house' ? 'house invitation' : 'personal invitation'}</p>}
-                <p>{name(p.from)} → {name(p.to)} · {content().city.nodes.find((n) => n.id === p.node)?.name ?? p.node}{p.date && ' · date (private)'}</p>
+                <p>{name(p.from)} → {name(p.to)} · {content().city.nodes.find((n) => n.id === p.node)?.name ?? content().house.rooms.find((r) => r.id === p.node)?.name ?? p.node}{p.date && ' · date (private)'}</p>
                 <p className="caption text-xs">episode {p.episode}, {slotLabel(p.slot)} · {p.status}</p>
+                {p.status === 'declined' && p.reason && <p className="caption text-xs">{name(p.to)} {p.reason}.</p>}
                 {p.to === view.playerId && p.status === 'pending' && <div className="mt-1 flex gap-2"><Btn disabled={busy} onClick={() => submit({ type: 'respondPlan', id: p.id, accept: true })}>accept plan</Btn><Btn disabled={busy} onClick={() => submit({ type: 'respondPlan', id: p.id, accept: false })}>decline plan</Btn></div>}
                 {p.performance && p.to === view.playerId && p.status === 'accepted' && <p className="caption mt-1 text-xs">{p.episode === view.episode && p.slot === view.slot ? 'The show is tonight. Head to the venue to keep your promise.' : 'Go to the venue during the scheduled evening to attend.'}</p>}
                 {p.performance && p.to === view.playerId && p.status === 'accepted' && p.episode === view.episode && p.slot === view.slot && <Btn className="mt-1" disabled={blocked || !destinations.some(r => r.node === p.node && r.reachable && r.afford !== 'out')} onClick={() => submit({ type: 'goOut', node: p.node, activity: 'invite' })}>attend {p.performance.kind === 'dj' ? 'DJ set' : p.performance.kind === 'play' ? 'play' : 'show'}</Btn>}
@@ -110,11 +114,11 @@ export function Phone() {
             {messages.at(-1)?.from === tab && messages.at(-2)?.from === view.playerId && <Btn className="mt-2 self-start text-xs" disabled={busy} onClick={() => void retry()}>retry reply</Btn>}
             <div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-paper" role="group" aria-label="also send to">
               <span>also send to:</span>
-              {housemates.filter((c) => c.id !== tab).map((c) => <button type="button" key={c.id} aria-pressed={also.includes(c.id)} className={`rounded px-2 py-0.5 ${also.includes(c.id) ? 'bg-[#9fe0b0] text-black' : 'bg-white/80 text-black'}`} onClick={() => setAlso(also.includes(c.id) ? also.filter((x) => x !== c.id) : [...also, c.id].slice(0, 4))}>{name(c.id)}</button>)}
+              {housemates.filter((c) => c.id !== tab).map((c) => <button type="button" key={c.id} aria-pressed={also.includes(c.id)} className={`rounded px-2 py-0.5 ${also.includes(c.id) ? 'bg-[#9fe0b0] text-black' : 'bg-white/80 text-black'}`} onClick={() => setAlso(also.includes(c.id) ? also.filter((x) => x !== c.id) : [...also, c.id].slice(0, 4))}>{tagged(c.id)}</button>)}
             </div>
             <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (!busy && draft.trim()) submit({ type: 'text', target: tab, ...(also.length ? { guests: also.filter((id) => id !== tab) } : {}), text: draft.trim() }); }}><input aria-label={`message to ${name(tab)}`} placeholder="type a message…" className="min-w-0 flex-1 rounded bg-white px-2 py-1 text-sm" value={draft} onChange={(e) => setDraft(e.target.value)} /><Btn disabled={busy || !draft.trim()}>send</Btn></form>
             {pending && <Btn className="mt-2 text-xs" onClick={() => { if (live && !live.done) setScreen('scene'); else void useGame.getState().nextScene(); }}>return to conversation</Btn>}
-            <p className="mt-1 text-xs text-paper">Quick messages and hangout requests don’t advance time. Some housemates put their phone away for Shabbat.</p>
+            <p className="mt-1 text-xs text-paper">Quick messages and hangout requests don’t advance time.</p>
             <div className="mt-2 flex flex-wrap gap-2"><Btn disabled={blocked} onClick={() => submit({ type: 'favor', target: tab, kind: 'coffee' })}>make coffee</Btn><Btn disabled={blocked} onClick={() => submit({ type: 'favor', target: tab, kind: 'note' })}>leave a note</Btn>
               <select aria-label="gift from your bag" className="rounded px-1 text-xs" value={item} onChange={(e) => setItem(e.target.value)}><option value="">your gifts</option>{[...new Set(view.inventory)].map((g) => <option key={g}>{g}</option>)}</select><Btn disabled={blocked || !item || !view.inventory.includes(item)} onClick={() => { submit({ type: 'gift', target: tab, item }); setItem(''); }}>give gift</Btn>
             </div>

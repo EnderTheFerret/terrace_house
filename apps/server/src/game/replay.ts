@@ -1,8 +1,8 @@
 // Deterministic replay of an events_log: re-applies engine steps in the same order the session used.
 import {
   applyReread, autoChoices, createGame, finishSlot, panelPrediction, planSlot, proposeOutcome, recordCommentary, resolveScene, applyCooking,
-  applyDrinks, debugEdit, editPlayer, joinNewPlayer, recordChat, recordConversation, recordPlayerWords, passTime, recordDiary, planMoveInArrival, planHouseMeal, queueNpcPlans,
-  type EventInstance, type GameState, beginBroadcast, respondToPlan, addTalkPlan, applyPlanRead, askBack, sendFollowUp,
+  applyDrinks, debugEdit, debugPlan, editPlayer, joinNewPlayer, recordChat, recordConversation, recordPlayerWords, passTime, recordDiary, planMoveInArrival, planHouseMeal, queueNpcPlans,
+  type EventInstance, type GameState, beginBroadcast, respondToPlan, addTalkPlan, declineTalkPlan, applyPlanRead, askBack, sendFollowUp, favorDecision, queueFavor, tellMissions,
 } from '@shared-roof/shared';
 import { applyCharacterSnapshot } from './personas';
 
@@ -40,6 +40,9 @@ export function replayEvents(events: LoggedEvent[]): GameState {
       case 'talk-plan':
         s = addTalkPlan(s!, p.from, p.to, p.plan);
         break;
+      case 'talk-plan-declined':
+        s = declineTalkPlan(s!, p.from, p.to, p.plan, p.reason);
+        break;
       case 'scene': {
         let ev = (p.event as EventInstance | undefined) ?? plan.get(p.eventId);
         if (!ev) throw new Error(`replay: unknown event ${p.eventId} at seq ${e.seq}`);
@@ -52,6 +55,12 @@ export function replayEvents(events: LoggedEvent[]): GameState {
       }
       case 'reread':
         applyReread(s!, p.id, p.change, p.participants, true, p.boardChange ?? { ...p.change, affinityDeltas: [], romanceDeltas: [] }, p.episode);
+        break;
+      case 'favor':
+        s = queueFavor(s!, p.helper, p.favor, favorDecision(s!, p.helper, p.favor, p.seed), p.seed).state;
+        break;
+      case 'mission-told':
+        s = tellMissions(s!, p.ids);
         break;
       case 'follow-up':
         s = sendFollowUp(s!, p.id, p.text);
@@ -123,6 +132,9 @@ export function replayEvents(events: LoggedEvent[]): GameState {
         break;
       case 'drinks':
         s = applyDrinks(s!, p.changes);
+        break;
+      case 'debug-plan':
+        s = debugPlan(s!, p.edit);
         break;
       case 'debug-edit':
         s = debugEdit(s!, p.edit);

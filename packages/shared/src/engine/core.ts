@@ -54,6 +54,8 @@ const RANGES: Record<keyof PairRel, [number, number]> = {
 
 export function addRel(s: GameState, i: string, j: string, field: keyof PairRel, delta: number) {
   if (i === j || !Number.isFinite(delta)) return;
+  // romance only grows toward someone you're attracted to, whichever system adds it
+  if (field === 'romance' && delta > 0 && s.characters[i] && s.characters[j] && !attracted(s.characters[i], s.characters[j])) return;
   const r = rel(s, i, j);
   const [lo, hi] = RANGES[field];
   r[field] = clamp(r[field] + delta, lo, hi);

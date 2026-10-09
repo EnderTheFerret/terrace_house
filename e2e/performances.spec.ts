@@ -1,4 +1,5 @@
 import { expect, test, type Page, type APIRequestContext } from '@playwright/test';
+import { answerer } from './answer';
 
 async function skipBlock(request: APIRequestContext) {
   const action = await request.post('/api/game/action', { data: { action: { type: 'skip' } } });
@@ -14,7 +15,7 @@ async function reachHouse(page: Page) {
     const skip = page.getByRole('button', { name: 'skip to next block', exact: true });
     if (await skip.isVisible() && await skip.isEnabled()) return;
     const end = page.getByRole('button', { name: "that's all", exact: true });
-    const choice = page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first();
+    const choice = answerer(page);
     const next = page.getByRole('button', { name: /^(begin|continue|ok|leave them be|to the studio|back to the house|next episode)$/ }).first();
     if (await end.isVisible()) await end.click();
     else if (await choice.isVisible()) await choice.click();

@@ -37,6 +37,7 @@ export * from './wardrobe';
 export * from './engine/view';
 export * from './engine/cooking';
 export * from './engine/talk';
+export * from './engine/matchmaker';
 export * from './engine/living';
 export * from './engine/broadcast';
 export * from './engine/budget';

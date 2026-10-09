@@ -5,8 +5,9 @@ import { mulberry32 } from '../rng';
 import { candidateActions, durationFor, isShabbat, jobSchedule, resolveLocations, type AgentAction } from './agents';
 import { applyCooking, canEat, npcRecipe, recipeById } from './cooking';
 import { arcCandidates, refreshJobArc } from './arcs';
-import { reachability, node, isOpen } from './city';
+import { reachability, node } from './city';
 import { houseTick, workCareerTick } from './house';
+import { evaluateLeaves } from './leave';
 import { evalAll } from './conditions';
 
 describe('Tel Aviv house life', () => {
@@ -49,13 +50,13 @@ describe('Tel Aviv house life', () => {
     s.world.flags.kosherPanViolation=true;s.house.kitchen.meatPanClean=false;
     expect(allowed(pan.pre)).toBe(true);
   });
-  it('keeps Shabbat without cooking, work, cars or phone, and varies short activity durations', () => {
+  it('keeps Shabbat without cooking, work or cars (phones stay on), and varies short activity durations', () => {
     const s = createGame({ seed: 3 });
     s.world.weekday = 5; s.world.slot = 'evening';
     const ron = s.characters.ren;
     expect(isShabbat(s,ron)).toBe(true);
     const actions = candidateActions(s,ron);
-    expect(actions.some((a) => ['cook','work','text'].includes(a.kind) || a.useCar)).toBe(false);
+    expect(actions.some((a) => ['cook','work'].includes(a.kind) || a.useCar)).toBe(false);
     expect(durationFor({kind:'shower'})).toBe(40);
     expect(durationFor({kind:'nap'})).toBe(90);
     expect(durationFor({kind:'snack'})).toBe(20);
@@ -69,7 +70,6 @@ describe('Tel Aviv house life', () => {
   });
   it('counts the journey home, remaining time, arrival hours and Saturday closures', () => {
     expect(reachability('house','slot1',3,false,160).every((r)=>!r.reachable)).toBe(true);
-    expect(isOpen(node('cafe'),'slot1',0,6)).toBe(false);
     const reaches=reachability('house','slot3',3,true,150);
     expect(reaches.find((r)=>r.node==='lighthouse')!.reachable).toBe(false);
   });
@@ -87,6 +87,29 @@ describe('Tel Aviv house life', () => {
     s.world.tick++;rng.next=()=>.045;
     workCareerTick(s,rng,s.characters[s.playerId]);
     expect(s.world.playerJob).toBeNull();
+  });
+  it('keeps the day job and the dream apart: shifts bring work offers, the big break only comes when the dream\'s arc is done', () => {
+    const s=createGame({seed:3});
+    const rng=mulberry32(2);rng.next=()=>.07;rng.chance=()=>true; // an offer arrives and they would take it
+    expect(s.characters.sora.occupation).toBe('cafe worker and indie musician');
+    s.arcs.sora={arcId:'arc-sora',act:2,done:['sora-1'],pending:null};
+    // a cafe shift gives her a bigger role at the cafe, never a label deal, and never ends her stay, even with the arc done
+    workCareerTick(s,rng,s.characters.sora);
+    expect(s.log.at(-1)!.text).toMatch(/employer offered a bigger role.*indie musician/);
+    s.world.tick++;s.arcs.sora.outcome='complete';
+    workCareerTick(s,rng,s.characters.sora);
+    expect(s.world.flags.leaving_sora).toBeUndefined();
+    // the dream pays off through the arc: that is what takes her out of the house, in a musician's words
+    s.world.episode=6;s.world.flags.arcEp_sora=3;
+    evaluateLeaves(s,rng);
+    expect(s.world.flags.leaveReason_sora).toBe('left to record and tour with a small label');
+    // someone whose job is their career can take an out-of-town offer, but only after their own arc is complete
+    const ren=s.characters.ren; expect(ren.occupation).toBe('line cook');
+    s.world.tick++;workCareerTick(s,rng,ren);
+    expect(s.world.flags.leaving_ren).toBeUndefined();
+    s.arcs.ren={arcId:'arc-ren',act:3,done:['ren-1'],pending:null,outcome:'complete'};
+    s.world.tick++;workCareerTick(s,rng,ren);
+    expect(s.world.flags.leaveReason_ren).toBe('left for a kitchen job in another city');
   });
   it('declines incompatible food without satisfying hunger and rewards considerate cooking', () => {
     const s=createGame({seed:3});

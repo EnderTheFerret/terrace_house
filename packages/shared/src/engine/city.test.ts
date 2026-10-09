@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { content } from '../content';
-import { isOpen, node, reachability, shiftToday, shortestTimes, ACTIVITY_MINUTES } from './city';
+import { node, reachability, shiftToday, shortestTimes, ACTIVITY_MINUTES } from './city';
 import { afford, playerBudget } from './budget';
 import { SLOT_MINUTES } from './core';
 import { createGame, finishSlot, planSlot } from './loop';
+import { weatherRefusal } from './living';
+import { outingProblem } from './agents';
+import { projectForPlayer } from './view';
 import { debugEdit } from './debugedit';
 
 describe('city exploration', () => {
@@ -18,19 +21,12 @@ describe('city exploration', () => {
     const d = shortestTimes('house', false);
     expect(d.records).toBe(10 + 10 + 5); // house→station→arcade→records
   });
-  it('opening hours respect slot windows, including past-midnight venues', () => {
-    expect(isOpen(node('market'), 'slot1')).toBe(true);
-    expect(isOpen(node('market'), 'slot3')).toBe(false);
-    expect(isOpen(node('bar'), 'slot1')).toBe(false);
-    expect(isOpen(node('bar'), 'slot3')).toBe(true);
-    expect(isOpen(node('karaoke'), 'evening')).toBe(true); // open until 5 a.m.
-  });
   it('reachability: time budget, price levels and car constraints', () => {
     const r = Object.fromEntries(reachability('house', 'slot1', 3, false).map((x) => [x.node, x]));
     expect(r.cafe.reachable).toBe(true);
     expect(r.lighthouse.reachable).toBe(false);
     expect(r.lighthouse.reason).toBe('needs the car');
-    expect(r.bar.reason).toBe('closed now');
+    expect(r.bar.reachable).toBe(true); // no opening hours
     const car = Object.fromEntries(reachability('house', 'slot1', 3, true).map((x) => [x.node, x]));
     expect(car.lighthouse.reachable).toBe(true);
     expect(car.lighthouse.needsCar).toBe(true);
@@ -63,6 +59,52 @@ describe('city exploration', () => {
     const ev = plan.scenes.find((p) => p.event.isPlayerScene)!.event;
     expect(ev.participants).toEqual(expect.arrayContaining(['player', 'ren', 'kaito']));
     expect(`${ev.title} ${ev.premise}`).not.toMatch(/chance encounter|Neither of them planned/); // an invited outing is planned
+  });
+  it('an outing can bring the whole house: all five housemates arrive and join the scene', () => {
+    const s0 = createGame({ seed: 7 });
+    s0.world.slot = 'slot1';
+    const ids = Object.values(s0.characters).filter((c) => !c.isPlayer && c.status === 'inHouse').map((c) => c.id);
+    expect(ids).toHaveLength(5);
+    for (const id of ids) s0.characters[id].lastAction = undefined;
+    const { state, plan } = planSlot(s0, { type: 'goOut', node: 'beach', activity: 'invite', invite: ids[0], guests: ids.slice(1) });
+    expect(ids.map((id) => state.characters[id].location)).toEqual(ids.map(() => 'beach'));
+    const ev = plan.scenes.find((p) => p.event.isPlayerScene)!.event;
+    expect(ev.participants).toEqual(expect.arrayContaining(['player', ...ids]));
+    expect(ev.participants).toHaveLength(6);
+  });
+  it('says why a housemate cannot come out (busy or Shabbat), in the view and when you ask them', () => {
+    const s = createGame({ seed: 7 });
+    s.world.slot = 'slot1';
+    const ren = s.characters.ren;
+    ren.lastAction = undefined; ren.persona.keepsShabbat = false;
+    expect(outingProblem(s, ren)).toBeNull();
+    expect(projectForPlayer(s).characters.find((c) => c.id === 'ren')!.outingProblem).toBeNull();
+    ren.lastAction = 'work';
+    expect(projectForPlayer(s).characters.find((c) => c.id === 'ren')!.outingProblem).toBe('busy: at work');
+    expect(() => planSlot(s, { type: 'goOut', node: 'beach', activity: 'invite', invite: 'ren' })).toThrow(/can't come: busy: at work/);
+    ren.lastAction = undefined; ren.persona.keepsShabbat = true; s.world.weekday = 5; s.world.slot = 'evening';
+    expect(outingProblem(s, ren)).toBe('keeping Shabbat');
+  });
+  it('a heatwave or typhoon never stops you going out, and only open-air places make a guest think twice', () => {
+    const indoor = content().city.nodes.find((n) => n.type === 'cafe' && n.activities.includes('invite'))!.id;
+    const start = (weather: 'heatwave' | 'typhoon') => { const s = createGame({ seed: 7 }); s.world.slot = 'slot1'; s.world.weather = weather; return s; };
+    for (const w of ['heatwave', 'typhoon'] as const) {
+      expect(planSlot(start(w), { type: 'goOut', node: 'beach', activity: 'wander' }).state.characters.player.location).toBe('beach');
+      expect(planSlot(start(w), { type: 'goOut', node: indoor, activity: 'invite', invite: 'ren' }).state.characters.ren.location).toBe(indoor);
+    }
+    // the same guest at the same beach: timid ones almost always stay in, bold ones come along far more often
+    const s = start('heatwave');
+    const asks = (traits: number[], weather: 'heatwave' | 'typhoon') => { s.world.weather = weather; s.characters.ren.persona.traits = traits as never; return Array.from({ length: 200 }, (_, i) => weatherRefusal(s, 'ren', 'beach', `${i}`)).filter((r) => r === null).length; };
+    const timid = asks([0, 0.5, 0, 0.5, 1], 'heatwave'), bold = asks([1, 0.5, 1, 0.5, 0], 'heatwave');
+    expect(timid).toBeLessThan(40);
+    expect(bold).toBeGreaterThan(timid * 3);
+    expect(asks([1, 0.5, 1, 0.5, 0], 'typhoon')).toBeLessThan(bold);
+    s.world.weather = 'sunny'; expect(weatherRefusal(s, 'ren', 'beach', '1')).toBeNull();
+    s.world.weather = 'heatwave'; expect(weatherRefusal(s, 'ren', indoor, '1')).toBeNull();
+    // and the refusal reaches the player as the guest declining, not as "the weather keeps everyone in"
+    s.characters.ren.persona.traits = [0, 0.5, 0, 0.5, 1] as never;
+    for (let tick = 0; tick < 200; tick++) { s.world.tick = tick; if (weatherRefusal(s, 'ren', 'beach', `${tick}`)) break; }
+    expect(() => planSlot(s, { type: 'goOut', node: 'beach', activity: 'invite', invite: 'ren' })).toThrow(new RegExp(`${s.characters.ren.name.split(' ')[0]} .*(heat|storm)`));
   });
   it('a guest who can afford the place covers a player who is out of budget', () => {
     const s0 = createGame({ seed: 7 });
@@ -118,8 +160,8 @@ describe('city exploration', () => {
   });
   it('unreachable destinations are refused (player stays home)', () => {
     const s0 = createGame({ seed: 7 });
-    s0.world.slot = 'slot1';
-    expect(() => planSlot(s0, { type: 'goOut', node: 'bar', activity: 'date' })).toThrow(/closed|budget/);
+    s0.world.slot = 'slot1'; s0.world.minutes = 170;
+    expect(() => planSlot(s0, { type: 'goOut', node: 'bar', activity: 'date' })).toThrow(/too far|car|budget/);
     expect(s0.characters.player.location).toBe('living');
   });
 });

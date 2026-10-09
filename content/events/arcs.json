@@ -1828,12 +1828,12 @@
     {
       "id": "job-food-critic-1",
       "type": "career",
-      "title": "a critic books a table",
+      "title": "good news from the kitchen",
       "tags": [
         "arc",
         "career",
         "food",
-        "routine"
+        "news"
       ],
       "arcOnly": true,
       "slots": [
@@ -1876,10 +1876,10 @@
       "intents": [
         "support",
         "honest",
-        "listen",
-        "confront"
+        "joke",
+        "listen"
       ],
-      "premise": "At {place}, {self} tells {b} that a critic books a table. Their next choice affects both work and life in the house.",
+      "premise": "{self} comes home buzzing and tells {b} the head chef put one of {self}'s dishes on the menu this week.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -1887,12 +1887,12 @@
     {
       "id": "job-food-critic-2",
       "type": "career",
-      "title": "the critic notices a mistake",
+      "title": "kitchen gossip",
       "tags": [
         "arc",
         "career",
         "food",
-        "routine"
+        "gossip"
       ],
       "arcOnly": true,
       "slots": [
@@ -1927,18 +1927,17 @@
       },
       "beats": [
         "open",
+        "smalltalk",
         "reveal",
-        "choice",
-        "comfort",
         "close"
       ],
       "intents": [
-        "support",
-        "honest",
+        "joke",
         "listen",
+        "honest",
         "confront"
       ],
-      "premise": "At {place}, {self} tells {b} that the critic notices a mistake. Their next choice affects both work and life in the house.",
+      "premise": "{b} drops by {place} on {self}'s break. {self} whispers the latest: the sous-chef and a waiter keep sneaking out back together, and the whole kitchen knows.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -1946,12 +1945,12 @@
     {
       "id": "job-food-critic-3",
       "type": "career",
-      "title": "a chance to open a small place",
+      "title": "a quiet dream",
       "tags": [
         "arc",
         "career",
         "food",
-        "decision"
+        "secret"
       ],
       "arcOnly": true,
       "slots": [
@@ -1986,18 +1985,18 @@
       },
       "beats": [
         "open",
+        "probe",
         "reveal",
-        "choice",
         "comfort",
         "close"
       ],
       "intents": [
         "support",
-        "honest",
         "listen",
-        "confront"
+        "honest",
+        "deflect"
       ],
-      "premise": "At {place}, {self} tells {b} that a chance to open a small place. Their next choice affects both work and life in the house.",
+      "premise": "{self} admits something to {b}: they've been saving in secret to open a tiny place of their own one day. Nobody else knows yet.",
       "peak": true,
       "freeze": true,
       "effects": []
@@ -2005,12 +2004,12 @@
     {
       "id": "job-food-burnout-1",
       "type": "career",
-      "title": "a double shift goes wrong",
+      "title": "a rough shift",
       "tags": [
         "arc",
         "career",
         "food",
-        "routine"
+        "news"
       ],
       "arcOnly": true,
       "slots": [
@@ -2053,10 +2052,10 @@
       "intents": [
         "support",
         "honest",
-        "listen",
-        "confront"
+        "joke",
+        "listen"
       ],
-      "premise": "At {place}, {self} tells {b} that a double shift goes wrong. Their next choice affects both work and life in the house.",
+      "premise": "{self} drops onto the sofa next to {b}: the dishwasher broke mid-service and they scrubbed pans by hand all night. It's funny now, mostly.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -2064,12 +2063,12 @@
     {
       "id": "job-food-burnout-2",
       "type": "career",
-      "title": "the kitchen pressure follows you home",
+      "title": "someone quit",
       "tags": [
         "arc",
         "career",
         "food",
-        "routine"
+        "gossip"
       ],
       "arcOnly": true,
       "slots": [
@@ -2104,18 +2103,17 @@
       },
       "beats": [
         "open",
+        "smalltalk",
         "reveal",
-        "choice",
-        "comfort",
         "close"
       ],
       "intents": [
-        "support",
-        "honest",
+        "joke",
         "listen",
+        "honest",
         "confront"
       ],
-      "premise": "At {place}, {self} tells {b} that the kitchen pressure follows you home. Their next choice affects both work and life in the house.",
+      "premise": "{b} visits {place} and {self} pulls them aside: the line cook everyone liked quit yesterday by text, and nobody knows why.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -2123,12 +2121,12 @@
     {
       "id": "job-food-burnout-3",
       "type": "career",
-      "title": "choose a sustainable kitchen role",
+      "title": "a confession",
       "tags": [
         "arc",
         "career",
         "food",
-        "decision"
+        "secret"
       ],
       "arcOnly": true,
       "slots": [
@@ -2163,18 +2161,18 @@
       },
       "beats": [
         "open",
+        "probe",
         "reveal",
-        "choice",
         "comfort",
         "close"
       ],
       "intents": [
         "support",
-        "honest",
         "listen",
-        "confront"
+        "honest",
+        "deflect"
       ],
-      "premise": "At {place}, {self} tells {b} that choose a sustainable kitchen role. Their next choice affects both work and life in the house.",
+      "premise": "{self} admits to {b} that they don't really love cooking anymore, not like they used to. They've never said it out loud.",
       "peak": true,
       "freeze": true,
       "effects": []
@@ -2182,12 +2180,12 @@
     {
       "id": "job-health-night-shift-1",
       "type": "career",
-      "title": "a night shift leaves no energy",
+      "title": "after the night shift",
       "tags": [
         "arc",
         "career",
         "health",
-        "routine"
+        "news"
       ],
       "arcOnly": true,
       "slots": [
@@ -2230,10 +2228,10 @@
       "intents": [
         "support",
         "honest",
-        "listen",
-        "confront"
+        "joke",
+        "listen"
       ],
-      "premise": "At {place}, {self} tells {b} that a night shift leaves no energy. Their next choice affects both work and life in the house.",
+      "premise": "{self} gets home at dawn and tells {b} about the night: a baby was born in the hospital elevator, and {self} helped deliver it.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -2241,12 +2239,12 @@
     {
       "id": "job-health-night-shift-2",
       "type": "career",
-      "title": "a difficult patient outcome weighs on you",
+      "title": "hospital gossip",
       "tags": [
         "arc",
         "career",
         "health",
-        "routine"
+        "gossip"
       ],
       "arcOnly": true,
       "slots": [
@@ -2281,18 +2279,17 @@
       },
       "beats": [
         "open",
+        "smalltalk",
         "reveal",
-        "choice",
-        "comfort",
         "close"
       ],
       "intents": [
-        "support",
-        "honest",
+        "joke",
         "listen",
+        "honest",
         "confront"
       ],
-      "premise": "At {place}, {self} tells {b} that a difficult patient outcome weighs on you. Their next choice affects both work and life in the house.",
+      "premise": "{b} brings coffee to {place}. {self} shares the ward's big story: two doctors who supposedly can't stand each other were seen holding hands in the parking lot.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -2300,12 +2297,12 @@
     {
       "id": "job-health-night-shift-3",
       "type": "career",
-      "title": "a transfer offer needs an answer",
+      "title": "a job elsewhere",
       "tags": [
         "arc",
         "career",
         "health",
-        "decision"
+        "secret"
       ],
       "arcOnly": true,
       "slots": [
@@ -2340,18 +2337,18 @@
       },
       "beats": [
         "open",
+        "probe",
         "reveal",
-        "choice",
         "comfort",
         "close"
       ],
       "intents": [
         "support",
-        "honest",
         "listen",
-        "confront"
+        "honest",
+        "deflect"
       ],
-      "premise": "At {place}, {self} tells {b} that a transfer offer needs an answer. Their next choice affects both work and life in the house.",
+      "premise": "{self} quietly tells {b} they applied for a job at a hospital in another city. Nothing is decided, and nobody else knows.",
       "peak": true,
       "freeze": true,
       "effects": []
@@ -2359,12 +2356,12 @@
     {
       "id": "job-health-mentor-1",
       "type": "career",
-      "title": "a trainee asks for help",
+      "title": "a new trainee",
       "tags": [
         "arc",
         "career",
         "health",
-        "routine"
+        "news"
       ],
       "arcOnly": true,
       "slots": [
@@ -2407,10 +2404,10 @@
       "intents": [
         "support",
         "honest",
-        "listen",
-        "confront"
+        "joke",
+        "listen"
       ],
-      "premise": "At {place}, {self} tells {b} that a trainee asks for help. Their next choice affects both work and life in the house.",
+      "premise": "{self} tells {b} they've been put in charge of a new trainee, who has already nicknamed them 'the scary one'.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -2418,12 +2415,12 @@
     {
       "id": "job-health-mentor-2",
       "type": "career",
-      "title": "you doubt you can hold everyone up",
+      "title": "the trainee's love life",
       "tags": [
         "arc",
         "career",
         "health",
-        "routine"
+        "gossip"
       ],
       "arcOnly": true,
       "slots": [
@@ -2458,18 +2455,17 @@
       },
       "beats": [
         "open",
+        "smalltalk",
         "reveal",
-        "choice",
-        "comfort",
         "close"
       ],
       "intents": [
-        "support",
-        "honest",
+        "joke",
         "listen",
+        "honest",
         "confront"
       ],
-      "premise": "At {place}, {self} tells {b} that you doubt you can hold everyone up. Their next choice affects both work and life in the house.",
+      "premise": "{b} stops by {place}. Between patients, {self} spills it: the trainee is dating a nurse's ex from the next ward, and it's getting messy.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -2477,12 +2473,12 @@
     {
       "id": "job-health-mentor-3",
       "type": "career",
-      "title": "set boundaries and mentor on your terms",
+      "title": "an old mistake",
       "tags": [
         "arc",
         "career",
         "health",
-        "decision"
+        "secret"
       ],
       "arcOnly": true,
       "slots": [
@@ -2517,18 +2513,18 @@
       },
       "beats": [
         "open",
+        "probe",
         "reveal",
-        "choice",
         "comfort",
         "close"
       ],
       "intents": [
         "support",
-        "honest",
         "listen",
-        "confront"
+        "honest",
+        "deflect"
       ],
-      "premise": "At {place}, {self} tells {b} that set boundaries and mentor on your terms. Their next choice affects both work and life in the house.",
+      "premise": "{self} tells {b} about a mistake from their first year that still keeps them up some nights. They've never told the house.",
       "peak": true,
       "freeze": true,
       "effects": []
@@ -2536,12 +2532,12 @@
     {
       "id": "job-creative-viral-1",
       "type": "career",
-      "title": "one piece unexpectedly goes viral",
+      "title": "a post takes off",
       "tags": [
         "arc",
         "career",
         "creative",
-        "routine"
+        "news"
       ],
       "arcOnly": true,
       "slots": [
@@ -2584,10 +2580,10 @@
       "intents": [
         "support",
         "honest",
-        "listen",
-        "confront"
+        "joke",
+        "listen"
       ],
-      "premise": "At {place}, {self} tells {b} that one piece unexpectedly goes viral. Their next choice affects both work and life in the house.",
+      "premise": "{self} shows {b} their phone: one of their posts got thousands of views overnight, and strangers are leaving comments.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -2595,12 +2591,12 @@
     {
       "id": "job-creative-viral-2",
       "type": "career",
-      "title": "a sponsor wants a different version of you",
+      "title": "scene gossip",
       "tags": [
         "arc",
         "career",
         "creative",
-        "routine"
+        "gossip"
       ],
       "arcOnly": true,
       "slots": [
@@ -2635,18 +2631,17 @@
       },
       "beats": [
         "open",
+        "smalltalk",
         "reveal",
-        "choice",
-        "comfort",
         "close"
       ],
       "intents": [
-        "support",
-        "honest",
+        "joke",
         "listen",
+        "honest",
         "confront"
       ],
-      "premise": "At {place}, {self} tells {b} that a sponsor wants a different version of you. Their next choice affects both work and life in the house.",
+      "premise": "{b} catches up with {self} at {place}. {self} leans in: a well-known local artist got caught copying someone's work, and everyone is pretending not to talk about it.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -2654,12 +2649,12 @@
     {
       "id": "job-creative-viral-3",
       "type": "career",
-      "title": "choose your voice over easy exposure",
+      "title": "the secret account",
       "tags": [
         "arc",
         "career",
         "creative",
-        "decision"
+        "secret"
       ],
       "arcOnly": true,
       "slots": [
@@ -2694,18 +2689,18 @@
       },
       "beats": [
         "open",
+        "probe",
         "reveal",
-        "choice",
         "comfort",
         "close"
       ],
       "intents": [
         "support",
-        "honest",
         "listen",
-        "confront"
+        "honest",
+        "deflect"
       ],
-      "premise": "At {place}, {self} tells {b} that choose your voice over easy exposure. Their next choice affects both work and life in the house.",
+      "premise": "{self} confesses to {b} that they run an anonymous account nobody in the house knows about. That's where their real work goes.",
       "peak": true,
       "freeze": true,
       "effects": []
@@ -2713,12 +2708,12 @@
     {
       "id": "job-creative-audition-1",
       "type": "career",
-      "title": "a major audition or gallery invitation arrives",
+      "title": "a callback",
       "tags": [
         "arc",
         "career",
         "creative",
-        "routine"
+        "news"
       ],
       "arcOnly": true,
       "slots": [
@@ -2761,10 +2756,10 @@
       "intents": [
         "support",
         "honest",
-        "listen",
-        "confront"
+        "joke",
+        "listen"
       ],
-      "premise": "At {place}, {self} tells {b} that a major audition or gallery invitation arrives. Their next choice affects both work and life in the house.",
+      "premise": "{self} tells {b} they got a callback for something big and can't stop pacing the room.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -2772,12 +2767,12 @@
     {
       "id": "job-creative-audition-2",
       "type": "career",
-      "title": "rehearsal nerves strain the house",
+      "title": "backstage rumors",
       "tags": [
         "arc",
         "career",
         "creative",
-        "routine"
+        "gossip"
       ],
       "arcOnly": true,
       "slots": [
@@ -2812,18 +2807,17 @@
       },
       "beats": [
         "open",
+        "smalltalk",
         "reveal",
-        "choice",
-        "comfort",
         "close"
       ],
       "intents": [
-        "support",
-        "honest",
+        "joke",
         "listen",
+        "honest",
         "confront"
       ],
-      "premise": "At {place}, {self} tells {b} that rehearsal nerves strain the house. Their next choice affects both work and life in the house.",
+      "premise": "{b} visits {place} before rehearsal. {self} has gossip: the lead and the director had a shouting match yesterday, and someone might get replaced.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -2831,12 +2825,12 @@
     {
       "id": "job-creative-audition-3",
       "type": "career",
-      "title": "the showcase finally happens",
+      "title": "stage fright",
       "tags": [
         "arc",
         "career",
         "creative",
-        "decision"
+        "secret"
       ],
       "arcOnly": true,
       "slots": [
@@ -2871,18 +2865,18 @@
       },
       "beats": [
         "open",
+        "probe",
         "reveal",
-        "choice",
         "comfort",
         "close"
       ],
       "intents": [
         "support",
-        "honest",
         "listen",
-        "confront"
+        "honest",
+        "deflect"
       ],
-      "premise": "At {place}, {self} tells {b} that the showcase finally happens. Their next choice affects both work and life in the house.",
+      "premise": "{self} admits to {b} that they almost skipped the audition, and that they freeze on stage more often than anyone knows.",
       "peak": true,
       "freeze": true,
       "effects": []
@@ -2890,12 +2884,12 @@
     {
       "id": "job-trades-commission-1",
       "type": "career",
-      "title": "a commission is bigger than your workshop",
+      "title": "a big order",
       "tags": [
         "arc",
         "career",
         "trades",
-        "routine"
+        "news"
       ],
       "arcOnly": true,
       "slots": [
@@ -2938,10 +2932,10 @@
       "intents": [
         "support",
         "honest",
-        "listen",
-        "confront"
+        "joke",
+        "listen"
       ],
-      "premise": "At {place}, {self} tells {b} that a commission is bigger than your workshop. Their next choice affects both work and life in the house.",
+      "premise": "{self} tells {b} a client just ordered a full set of custom furniture, the biggest job they've ever had.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -2949,12 +2943,12 @@
     {
       "id": "job-trades-commission-2",
       "type": "career",
-      "title": "a deadline demands asking for help",
+      "title": "workshop gossip",
       "tags": [
         "arc",
         "career",
         "trades",
-        "routine"
+        "gossip"
       ],
       "arcOnly": true,
       "slots": [
@@ -2989,18 +2983,17 @@
       },
       "beats": [
         "open",
+        "smalltalk",
         "reveal",
-        "choice",
-        "comfort",
         "close"
       ],
       "intents": [
-        "support",
-        "honest",
+        "joke",
         "listen",
+        "honest",
         "confront"
       ],
-      "premise": "At {place}, {self} tells {b} that a deadline demands asking for help. Their next choice affects both work and life in the house.",
+      "premise": "{b} drops by {place}. {self} puts the tools down: the shop next door is closing, and the owner hasn't told the staff yet.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -3008,12 +3001,12 @@
     {
       "id": "job-trades-commission-3",
       "type": "career",
-      "title": "finish the job and name your price",
+      "title": "the money",
       "tags": [
         "arc",
         "career",
         "trades",
-        "decision"
+        "secret"
       ],
       "arcOnly": true,
       "slots": [
@@ -3048,18 +3041,18 @@
       },
       "beats": [
         "open",
+        "probe",
         "reveal",
-        "choice",
         "comfort",
         "close"
       ],
       "intents": [
         "support",
-        "honest",
         "listen",
-        "confront"
+        "honest",
+        "deflect"
       ],
-      "premise": "At {place}, {self} tells {b} that finish the job and name your price. Their next choice affects both work and life in the house.",
+      "premise": "{self} quietly tells {b} they've undercharged for years because they're scared clients will leave. They've never admitted it.",
       "peak": true,
       "freeze": true,
       "effects": []
@@ -3067,12 +3060,12 @@
     {
       "id": "job-trades-family-1",
       "type": "career",
-      "title": "the family business needs you back",
+      "title": "a call from home",
       "tags": [
         "arc",
         "career",
         "trades",
-        "routine"
+        "news"
       ],
       "arcOnly": true,
       "slots": [
@@ -3115,10 +3108,10 @@
       "intents": [
         "support",
         "honest",
-        "listen",
-        "confront"
+        "joke",
+        "listen"
       ],
-      "premise": "At {place}, {self} tells {b} that the family business needs you back. Their next choice affects both work and life in the house.",
+      "premise": "{self} tells {b} their dad called: he's finally retiring, and he wants to talk about the family business.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -3126,12 +3119,12 @@
     {
       "id": "job-trades-family-2",
       "type": "career",
-      "title": "an apprentice wants a place with you",
+      "title": "the new apprentice",
       "tags": [
         "arc",
         "career",
         "trades",
-        "routine"
+        "gossip"
       ],
       "arcOnly": true,
       "slots": [
@@ -3166,18 +3159,17 @@
       },
       "beats": [
         "open",
+        "smalltalk",
         "reveal",
-        "choice",
-        "comfort",
         "close"
       ],
       "intents": [
-        "support",
-        "honest",
+        "joke",
         "listen",
+        "honest",
         "confront"
       ],
-      "premise": "At {place}, {self} tells {b} that an apprentice wants a place with you. Their next choice affects both work and life in the house.",
+      "premise": "{b} visits {place}. {self} shares what everyone is whispering: the new apprentice turned out to be the boss's nephew, and nobody was told.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -3185,12 +3177,12 @@
     {
       "id": "job-trades-family-3",
       "type": "career",
-      "title": "choose between home and a new workshop",
+      "title": "a family secret",
       "tags": [
         "arc",
         "career",
         "trades",
-        "decision"
+        "secret"
       ],
       "arcOnly": true,
       "slots": [
@@ -3225,18 +3217,18 @@
       },
       "beats": [
         "open",
+        "probe",
         "reveal",
-        "choice",
         "comfort",
         "close"
       ],
       "intents": [
         "support",
-        "honest",
         "listen",
-        "confront"
+        "honest",
+        "deflect"
       ],
-      "premise": "At {place}, {self} tells {b} that choose between home and a new workshop. Their next choice affects both work and life in the house.",
+      "premise": "{self} tells {b} something they never mention: they left the family business after a big fight, and still haven't made up with their dad.",
       "peak": true,
       "freeze": true,
       "effects": []
@@ -3244,12 +3236,12 @@
     {
       "id": "job-office-promotion-1",
       "type": "career",
-      "title": "a promotion would mean leaving Tel Aviv",
+      "title": "maybe a promotion",
       "tags": [
         "arc",
         "career",
         "office",
-        "routine"
+        "news"
       ],
       "arcOnly": true,
       "slots": [
@@ -3292,10 +3284,10 @@
       "intents": [
         "support",
         "honest",
-        "listen",
-        "confront"
+        "joke",
+        "listen"
       ],
-      "premise": "At {place}, {self} tells {b} that a promotion would mean leaving Tel Aviv. Their next choice affects both work and life in the house.",
+      "premise": "{self} tells {b} they might be up for a promotion. Their manager mentioned it in the hallway, almost like a joke.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -3303,12 +3295,12 @@
     {
       "id": "job-office-promotion-2",
       "type": "career",
-      "title": "your boss pressures you for an answer",
+      "title": "office gossip",
       "tags": [
         "arc",
         "career",
         "office",
-        "routine"
+        "gossip"
       ],
       "arcOnly": true,
       "slots": [
@@ -3343,18 +3335,17 @@
       },
       "beats": [
         "open",
+        "smalltalk",
         "reveal",
-        "choice",
-        "comfort",
         "close"
       ],
       "intents": [
-        "support",
-        "honest",
+        "joke",
         "listen",
+        "honest",
         "confront"
       ],
-      "premise": "At {place}, {self} tells {b} that your boss pressures you for an answer. Their next choice affects both work and life in the house.",
+      "premise": "{b} meets {self} at {place}. {self} has gossip: two managers are up for the same job and have stopped speaking to each other.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -3362,12 +3353,12 @@
     {
       "id": "job-office-promotion-3",
       "type": "career",
-      "title": "choose the offer or the life here",
+      "title": "a secret plan",
       "tags": [
         "arc",
         "career",
         "office",
-        "decision"
+        "secret"
       ],
       "arcOnly": true,
       "slots": [
@@ -3402,18 +3393,18 @@
       },
       "beats": [
         "open",
+        "probe",
         "reveal",
-        "choice",
         "comfort",
         "close"
       ],
       "intents": [
         "support",
-        "honest",
         "listen",
-        "confront"
+        "honest",
+        "deflect"
       ],
-      "premise": "At {place}, {self} tells {b} that choose the offer or the life here. Their next choice affects both work and life in the house.",
+      "premise": "{self} admits to {b} they've been interviewing at other companies, promotion or not. Nobody at work knows.",
       "peak": true,
       "freeze": true,
       "effects": []
@@ -3421,12 +3412,12 @@
     {
       "id": "job-office-layoffs-1",
       "type": "career",
-      "title": "layoffs are rumored at work",
+      "title": "news from work",
       "tags": [
         "arc",
         "career",
         "office",
-        "routine"
+        "news"
       ],
       "arcOnly": true,
       "slots": [
@@ -3469,10 +3460,10 @@
       "intents": [
         "support",
         "honest",
-        "listen",
-        "confront"
+        "joke",
+        "listen"
       ],
-      "premise": "At {place}, {self} tells {b} that layoffs are rumored at work. Their next choice affects both work and life in the house.",
+      "premise": "{self} tells {b} the company was just bought, and nobody knows yet what it means for their team.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -3480,12 +3471,12 @@
     {
       "id": "job-office-layoffs-2",
       "type": "career",
-      "title": "the workload doubles and a coworker visits",
+      "title": "who's leaving",
       "tags": [
         "arc",
         "career",
         "office",
-        "routine"
+        "gossip"
       ],
       "arcOnly": true,
       "slots": [
@@ -3520,18 +3511,17 @@
       },
       "beats": [
         "open",
+        "smalltalk",
         "reveal",
-        "choice",
-        "comfort",
         "close"
       ],
       "intents": [
-        "support",
-        "honest",
+        "joke",
         "listen",
+        "honest",
         "confront"
       ],
-      "premise": "At {place}, {self} tells {b} that the workload doubles and a coworker visits. Their next choice affects both work and life in the house.",
+      "premise": "{b} visits {place}. {self} whispers the rumor: half of marketing got called into a meeting this morning and never came back to their desks.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -3539,12 +3529,12 @@
     {
       "id": "job-office-layoffs-3",
       "type": "career",
-      "title": "a new job offer gives you a way forward",
+      "title": "an offer elsewhere",
       "tags": [
         "arc",
         "career",
         "office",
-        "decision"
+        "secret"
       ],
       "arcOnly": true,
       "slots": [
@@ -3579,18 +3569,18 @@
       },
       "beats": [
         "open",
+        "probe",
         "reveal",
-        "choice",
         "comfort",
         "close"
       ],
       "intents": [
         "support",
-        "honest",
         "listen",
-        "confront"
+        "honest",
+        "deflect"
       ],
-      "premise": "At {place}, {self} tells {b} that a new job offer gives you a way forward. Their next choice affects both work and life in the house.",
+      "premise": "{self} admits to {b} they already have an offer from another company, and haven't told their team or the house.",
       "peak": true,
       "freeze": true,
       "effects": []
@@ -3598,12 +3588,12 @@
     {
       "id": "job-student-finals-1",
       "type": "career",
-      "title": "finals collide with house plans",
+      "title": "exam news",
       "tags": [
         "arc",
         "career",
         "student",
-        "routine"
+        "news"
       ],
       "arcOnly": true,
       "slots": [
@@ -3646,10 +3636,10 @@
       "intents": [
         "support",
         "honest",
-        "listen",
-        "confront"
+        "joke",
+        "listen"
       ],
-      "premise": "At {place}, {self} tells {b} that finals collide with house plans. Their next choice affects both work and life in the house.",
+      "premise": "{self} tells {b} they passed the exam they were sure they'd failed, and wants to celebrate.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -3657,12 +3647,12 @@
     {
       "id": "job-student-finals-2",
       "type": "career",
-      "title": "a disappointing grade shakes your confidence",
+      "title": "campus gossip",
       "tags": [
         "arc",
         "career",
         "student",
-        "routine"
+        "gossip"
       ],
       "arcOnly": true,
       "slots": [
@@ -3697,18 +3687,17 @@
       },
       "beats": [
         "open",
+        "smalltalk",
         "reveal",
-        "choice",
-        "comfort",
         "close"
       ],
       "intents": [
-        "support",
-        "honest",
+        "joke",
         "listen",
+        "honest",
         "confront"
       ],
-      "premise": "At {place}, {self} tells {b} that a disappointing grade shakes your confidence. Their next choice affects both work and life in the house.",
+      "premise": "{b} meets {self} at {place}. {self} has gossip: a professor got caught reusing old exams, and half the class had the answers.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -3716,12 +3705,12 @@
     {
       "id": "job-student-finals-3",
       "type": "career",
-      "title": "retake the exam with support",
+      "title": "skipping class",
       "tags": [
         "arc",
         "career",
         "student",
-        "decision"
+        "secret"
       ],
       "arcOnly": true,
       "slots": [
@@ -3756,18 +3745,18 @@
       },
       "beats": [
         "open",
+        "probe",
         "reveal",
-        "choice",
         "comfort",
         "close"
       ],
       "intents": [
         "support",
-        "honest",
         "listen",
-        "confront"
+        "honest",
+        "deflect"
       ],
-      "premise": "At {place}, {self} tells {b} that retake the exam with support. Their next choice affects both work and life in the house.",
+      "premise": "{self} confesses to {b} they've skipped most of their classes for weeks, and their family thinks everything is fine.",
       "peak": true,
       "freeze": true,
       "effects": []
@@ -3775,12 +3764,12 @@
     {
       "id": "job-student-exchange-1",
       "type": "career",
-      "title": "an exchange program abroad opens",
+      "title": "an acceptance email",
       "tags": [
         "arc",
         "career",
         "student",
-        "routine"
+        "news"
       ],
       "arcOnly": true,
       "slots": [
@@ -3823,10 +3812,10 @@
       "intents": [
         "support",
         "honest",
-        "listen",
-        "confront"
+        "joke",
+        "listen"
       ],
-      "premise": "At {place}, {self} tells {b} that an exchange program abroad opens. Their next choice affects both work and life in the house.",
+      "premise": "{self} shows {b} an email: they've been accepted to a semester abroad.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -3834,12 +3823,12 @@
     {
       "id": "job-student-exchange-2",
       "type": "career",
-      "title": "you wonder whether the degree is yours or your family's",
+      "title": "classmate drama",
       "tags": [
         "arc",
         "career",
         "student",
-        "routine"
+        "gossip"
       ],
       "arcOnly": true,
       "slots": [
@@ -3874,18 +3863,17 @@
       },
       "beats": [
         "open",
+        "smalltalk",
         "reveal",
-        "choice",
-        "comfort",
         "close"
       ],
       "intents": [
-        "support",
-        "honest",
+        "joke",
         "listen",
+        "honest",
         "confront"
       ],
-      "premise": "At {place}, {self} tells {b} that you wonder whether the degree is yours or your family's. Their next choice affects both work and life in the house.",
+      "premise": "{b} drops by {place}. {self} fills them in: two classmates broke up in the middle of a group presentation, in front of everyone.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -3893,12 +3881,12 @@
     {
       "id": "job-student-exchange-3",
       "type": "career",
-      "title": "choose the exchange, the course or a new direction",
+      "title": "the real reason",
       "tags": [
         "arc",
         "career",
         "student",
-        "decision"
+        "secret"
       ],
       "arcOnly": true,
       "slots": [
@@ -3933,18 +3921,18 @@
       },
       "beats": [
         "open",
+        "probe",
         "reveal",
-        "choice",
         "comfort",
         "close"
       ],
       "intents": [
         "support",
-        "honest",
         "listen",
-        "confront"
+        "honest",
+        "deflect"
       ],
-      "premise": "At {place}, {self} tells {b} that choose the exchange, the course or a new direction. Their next choice affects both work and life in the house.",
+      "premise": "{self} admits to {b} they chose their degree to make their parents happy, and they're not sure they want it anymore.",
       "peak": true,
       "freeze": true,
       "effects": []
@@ -3952,12 +3940,12 @@
     {
       "id": "job-service-regular-1",
       "type": "career",
-      "title": "a regular remembers your name",
+      "title": "a funny regular",
       "tags": [
         "arc",
         "career",
         "service",
-        "routine"
+        "news"
       ],
       "arcOnly": true,
       "slots": [
@@ -4000,10 +3988,10 @@
       "intents": [
         "support",
         "honest",
-        "listen",
-        "confront"
+        "joke",
+        "listen"
       ],
-      "premise": "At {place}, {self} tells {b} that a regular remembers your name. Their next choice affects both work and life in the house.",
+      "premise": "{self} tells {b} about a regular who orders the same thing every day and today, finally, asked for {self}'s name.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -4011,12 +3999,12 @@
     {
       "id": "job-service-regular-2",
       "type": "career",
-      "title": "the regular becomes a friend outside work",
+      "title": "who's flirting",
       "tags": [
         "arc",
         "career",
         "service",
-        "routine"
+        "gossip"
       ],
       "arcOnly": true,
       "slots": [
@@ -4051,18 +4039,17 @@
       },
       "beats": [
         "open",
+        "smalltalk",
         "reveal",
-        "choice",
-        "comfort",
         "close"
       ],
       "intents": [
-        "support",
-        "honest",
+        "joke",
         "listen",
+        "honest",
         "confront"
       ],
-      "premise": "At {place}, {self} tells {b} that the regular becomes a friend outside work. Their next choice affects both work and life in the house.",
+      "premise": "{b} visits {place} during {self}'s shift. {self} whispers: the manager has been flirting with a regular all week, and the staff have a bet going.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -4070,12 +4057,12 @@
     {
       "id": "job-service-regular-3",
       "type": "career",
-      "title": "you decide how much of yourself to share",
+      "title": "why they moved",
       "tags": [
         "arc",
         "career",
         "service",
-        "decision"
+        "secret"
       ],
       "arcOnly": true,
       "slots": [
@@ -4110,18 +4097,18 @@
       },
       "beats": [
         "open",
+        "probe",
         "reveal",
-        "choice",
         "comfort",
         "close"
       ],
       "intents": [
         "support",
-        "honest",
         "listen",
-        "confront"
+        "honest",
+        "deflect"
       ],
-      "premise": "At {place}, {self} tells {b} that you decide how much of yourself to share. Their next choice affects both work and life in the house.",
+      "premise": "{self} tells {b} why they really moved to Tel Aviv. It's not the story they told the house on day one.",
       "peak": true,
       "freeze": true,
       "effects": [
@@ -4133,12 +4120,12 @@
     {
       "id": "job-service-closing-1",
       "type": "career",
-      "title": "the shop may close",
+      "title": "news from the shop",
       "tags": [
         "arc",
         "career",
         "service",
-        "routine"
+        "news"
       ],
       "arcOnly": true,
       "slots": [
@@ -4181,10 +4168,10 @@
       "intents": [
         "support",
         "honest",
-        "listen",
-        "confront"
+        "joke",
+        "listen"
       ],
-      "premise": "At {place}, {self} tells {b} that the shop may close. Their next choice affects both work and life in the house.",
+      "premise": "{self} tells {b} the owner is renovating, so {self} might get a few weeks off, maybe unpaid.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -4192,12 +4179,12 @@
     {
       "id": "job-service-closing-2",
       "type": "career",
-      "title": "coworkers bring the worry to the house",
+      "title": "tip jar drama",
       "tags": [
         "arc",
         "career",
         "service",
-        "routine"
+        "gossip"
       ],
       "arcOnly": true,
       "slots": [
@@ -4232,18 +4219,17 @@
       },
       "beats": [
         "open",
+        "smalltalk",
         "reveal",
-        "choice",
-        "comfort",
         "close"
       ],
       "intents": [
-        "support",
-        "honest",
+        "joke",
         "listen",
+        "honest",
         "confront"
       ],
-      "premise": "At {place}, {self} tells {b} that coworkers bring the worry to the house. Their next choice affects both work and life in the house.",
+      "premise": "{b} stops by {place}. {self} leans over the counter: someone has been taking money from the tip jar, and everyone is whispering about who.",
       "peak": false,
       "freeze": false,
       "effects": []
@@ -4251,12 +4237,12 @@
     {
       "id": "job-service-closing-3",
       "type": "career",
-      "title": "choose a new position or help save the shop",
+      "title": "tight money",
       "tags": [
         "arc",
         "career",
         "service",
-        "decision"
+        "secret"
       ],
       "arcOnly": true,
       "slots": [
@@ -4291,18 +4277,18 @@
       },
       "beats": [
         "open",
+        "probe",
         "reveal",
-        "choice",
         "comfort",
         "close"
       ],
       "intents": [
         "support",
-        "honest",
         "listen",
-        "confront"
+        "honest",
+        "deflect"
       ],
-      "premise": "At {place}, {self} tells {b} that choose a new position or help save the shop. Their next choice affects both work and life in the house.",
+      "premise": "{self} quietly tells {b} they send part of every paycheck to family back home. Nobody in the house knows how tight money really is.",
       "peak": true,
       "freeze": true,
       "effects": [

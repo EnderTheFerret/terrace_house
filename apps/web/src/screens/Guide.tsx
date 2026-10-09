@@ -44,7 +44,7 @@ export function Guide() {
           <Shot id="house" caption="House: walking view, room buttons and activity sidebar" />
           <p><strong>Hang out</strong> starts a living-room scene; <strong>backyard</strong> spends time on the pool deck; <strong>hobby</strong> starts a leisure scene; <strong>tidy up</strong> does housework; <strong>rest</strong> takes a break. Stove → cook; fridge → chores; sofa → hang out; TV → hobby; sink → tidy; bed → rest; front door → city.</p>
           <Shot id="house-actions" caption="House actions, work or class reminders, and season choices" />
-          <p>Watch the clock: six blocks run from morning to late night. Talking costs six game minutes per spoken line. Watching the house or city adds five minutes every 20 seconds. <strong>Let time pass</strong> uses the block; <strong>skip to next block</strong> advances it; <strong>sleep until morning</strong> needs confirmation. Plans and shifts still happen.</p>
+          <p>Watch the clock: six blocks run from morning to late night. Talking costs six game minutes per spoken line. Watching the house or city adds five minutes every 20 seconds. <strong>Let time pass</strong> uses the block; <strong>skip to next block</strong> advances it; <strong>sleep until morning</strong> needs confirmation. With an accepted plan ahead, <strong>spend time until</strong> lets you pass the time (or do your hobby, or rest) until that plan's block starts (it stops early if a scene or a new episode comes up). Plans and shifts still happen.</p>
         </Section>
         <Section title="Everyday life: all 15 quick activities">
           <p>House → <strong>everyday life</strong> (scroll the sidebar) → choose <strong>activity</strong> and <strong>company</strong> → <strong>start activity</strong> alone or <strong>invite & start together</strong>. No minigame is required. Select an activity below to see its actual controls.</p>
@@ -62,7 +62,8 @@ export function Guide() {
           <p>Walk up and press <strong>E</strong>, or use <strong>who’s where → talk to [name] → yes</strong>. To choose the room: <strong>invite a housemate → room → housemate → go together & talk</strong>.</p>
           <Shot id="invite-room" caption="Meet at home: choose room, housemate and go together & talk" />
           <Shot id="talk" caption="Conversation: response choices, your own words and ending the talk" />
-          <p>Choose a response (number keys also work), or type up to 200 characters and press <strong>say</strong>. Pick who you address when offered. Space / Enter reveals text faster. <strong>Keep listening…</strong> lets others continue; <strong>that's all</strong> ends your talk.</p>
+          <p>Close to a housemate? Press <strong>matchmaker / snoop…</strong> to ask them to play matchmaker (you and someone, or two housemates) or to snoop around (does someone like you, do two housemates have a thing). Shy or private housemates say no, and a helper with feelings of their own may refuse, stall or downplay what they find. It takes until the next block and happens off screen: the helper, sometimes with a friend, comes to find you with the news, or texts you if you are out.</p>
+          <p>Type up to 200 characters and press <strong>say</strong>. <strong>Retry reply</strong> redoes their answer; <strong>edit reply</strong> lets you reword what you just said (not offered once it set up a plan, favor, invitation or drink). Pick who you address when offered. Space / Enter reveals text faster. <strong>Keep listening…</strong> lets others continue; <strong>that's all</strong> ends your talk.</p>
           <p>When you encounter others talking, choose <strong>join</strong>, <strong>eavesdrop</strong> or <strong>leave them be</strong>. Listening secretly can cost trust. During your talk, use the invitation controls to suggest a place or date; use <strong>continue in another room → go together & talk</strong> to move together.</p>
           <p>Flirt, support, joke, apologize, confront or confess through choices or your own words. Friendship, romance and trust grow over days; an invitation or confession can be declined. Dates can lead to hand-holding and a first kiss when both people are ready.</p>
         </Section>
@@ -80,7 +81,7 @@ export function Guide() {
             <div><p><strong>Go shopping:</strong> choose a shop and go. <strong>Buy a gift:</strong> choose the gift, then <strong>buy and return</strong>. Give it later from the phone contact.</p><Shot id="city-gift" caption="Shopping: gift choice, price and buy and return" /></div>
             <div><p><strong>Karaoke:</strong> choose the karaoke venue, select <strong>karaoke</strong>, choose company and go.</p><Shot id="city-karaoke" caption="Karaoke: activity choice and invitation" /></div>
           </div>
-          <p>Travel, activity and the return trip must fit. Opening hours, weather, Shabbat and the shared car matter. Your job sets your budget; ₪ / ₪₪ / ₪₪₪ are price levels. Stretching above your budget can strain you; a guest may need you to treat them.</p>
+          <p>Travel, activity and the return trip must fit. Weather, Shabbat and the shared car matter. Your job sets your budget; ₪ / ₪₪ / ₪₪₪ are price levels. Stretching above your budget can strain you; a guest may need you to treat them.</p>
         </Section>
         <Section title="Work, class & weekend trips">
           <p><strong>Part-time work:</strong> city → a workplace → <strong>work a shift</strong>. Tick <strong>sign a contract</strong> before going to commit to three fixed weekdays in that block and raise your budget one level. House → <strong>go to work (back after the shift)</strong> appears when your contract shift is due. Two missed shifts can cost the job.</p>
@@ -112,7 +113,7 @@ export function Guide() {
           <p>Complete every step within the recipe time budget. Ingredients, taste, diet and kosher cookware affect reception. After the score, <strong>sit down to eat (60 minutes)</strong> starts dinner. Title menu → <strong>practice cooking</strong> lets you learn without using season ingredients or time.</p>
         </Section>
         <Section title="Phone: messages, gifts, plans & social posts">
-          <p>Press <strong>P</strong> or select <strong>phone</strong>. Open a person’s tab → type → <strong>send</strong> to start a chat scene. Ask for a “pic” to request a selfie. Phone chats take game time; Shabbat observers may put their phone away.</p>
+          <p>Press <strong>P</strong> or select <strong>phone</strong>. Open a person’s tab → type → <strong>send</strong> to start a chat scene. Ask for a “pic” to request a selfie. Phone chats take game time.</p>
           <Shot id="phone" caption="Contact: message, coffee, note and gift controls" />
           <p><strong>Make coffee / leave a note:</strong> use the contact buttons. <strong>Give gift:</strong> buy one in the city first, choose it from <strong>your gifts</strong>, then <strong>give gift</strong>. Tastes matter.</p>
           <p><strong>Plans tab:</strong> choose person, destination (including rooms and balconies), episode and time → <strong>make plan</strong>. Use <strong>accept plan / decline plan</strong> on incoming invitations; keep enough time at the agreed block.</p>
@@ -146,7 +147,7 @@ export function Guide() {
           <Shot id="saves" caption="Save and load slots" />
           <p><strong>Settings:</strong> change text size, captions, sound, typewriter, reduced motion and image generation. <strong>How to play: replay the tips</strong> restores tutorial prompts.</p>
           <Shot id="settings" caption="Settings and tutorial replay" />
-          <p>If an action is dim or refused, read its reason: finish a scene or movement, choose an available person, wait for opening hours or the next block, check ingredients, budget and car, or respect privacy and Shabbat. Automatic arrivals, visitors, career events, arguments and reunions happen as the season advances; they have no summon button.</p>
+          <p>If an action is dim or refused, read its reason: finish a scene or movement, choose an available person, wait for the next block, check ingredients, budget and car, or respect privacy and Shabbat. Automatic arrivals, visitors, career events, arguments and reunions happen as the season advances; they have no summon button.</p>
         </Section>
       </div>
     </main>

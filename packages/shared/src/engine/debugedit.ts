@@ -1,8 +1,8 @@
 // Author debug edits: put a character somewhere else or tweak their state. Logged and replayed like any other edit.
-import type { Character, GameState } from '../model';
+import type { Character, GameState, Slot } from '../model';
 import { clamp } from '../util';
 import { content } from '../content';
-import { isRoom } from './core';
+import { addRel, isRoom } from './core';
 import { hasJobNow, jobNode, type AgentAction } from './agents';
 import { scheduleActivity } from './living';
 
@@ -29,6 +29,34 @@ function actionAt(s: GameState, c: Character, place: string): AgentAction {
   if (/^(bedroom|balcony)/.test(place)) return { kind: 'retreat' };
   if (place === 'backyard') return { kind: 'exercise' };
   return { kind: 'hobby', room: place as AgentAction['room'] };
+}
+
+export interface DebugPlan {
+  id: string;
+  /** delete the plan, undoing what settling it did (trust, closeness, its "kept/missed" log line) */
+  remove?: boolean;
+  episode?: number;
+  slot?: Slot;
+}
+
+/** Fix a calendar entry that should not exist or landed on the wrong day. Logged and replayed like any other edit. */
+export function debugPlan(s0: GameState, e: DebugPlan): GameState {
+  const s = structuredClone(s0);
+  const i = s.invitations.findIndex((p) => p.id === e.id);
+  if (i < 0) throw new Error('unknown plan');
+  const p = s.invitations[i];
+  if (e.remove) {
+    if (p.status === 'kept' || p.status === 'broken') for (const [x, y] of [[p.from, p.to], [p.to, p.from]]) {
+      addRel(s, x, y, 'trust', p.status === 'kept' ? -4 : 5);
+      if (p.status === 'kept') addRel(s, x, y, 'closeness', -4);
+    }
+    s.invitations.splice(i, 1);
+    s.log = s.log.filter((l) => !(l.episode === p.episode && /their plan at/.test(l.text) && l.participants.includes(p.from) && l.participants.includes(p.to)));
+    return s;
+  }
+  if (e.episode !== undefined) p.episode = e.episode;
+  if (e.slot) p.slot = e.slot;
+  return s;
 }
 
 export function debugEdit(s0: GameState, e: DebugEdit): GameState {

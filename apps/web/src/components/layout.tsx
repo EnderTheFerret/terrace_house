@@ -12,6 +12,7 @@ export const slotLabel = (s: string) => SLOT_LABEL[s] ?? s;
 
 export function TopBar() {
   const { view, setScreen, settings, phoneRead } = useGame();
+  const [menu, setMenu] = useState(false); // phone only: the buttons fold behind a menu toggle
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest('input,textarea,select,dialog')) return;
@@ -26,21 +27,25 @@ export function TopBar() {
   if (!view) return null;
   const notifications = phoneNotifications(view, phoneRead);
   return (
-    <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b-[3px] border-ink bg-paper px-3 py-2 text-sm">
-      <span className="text-base">ep {view.episode}{view.seasonLength > 0 && view.seasonLength < 1000 && <span className="caption">/{view.seasonLength}</span>}{view.finaleEpisode && <span className="caption"> · finale announced</span>}</span>
+    <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b-[3px] border-ink bg-paper px-3 py-2 text-sm max-md:gap-x-2 max-md:px-2 max-md:py-1 max-md:text-xs">
+      <span className="text-base max-md:text-sm">ep {view.episode}{view.seasonLength > 0 && view.seasonLength < 1000 && <span className="caption">/{view.seasonLength}</span>}{view.finaleEpisode && <span className="caption max-md:hidden"> · finale announced</span>}</span>
       <span className="caption">{view.dateLabel}</span>
       <span>
         {slotLabel(view.slot)} <span className="caption">{view.clock}</span>
       </span>
       <span title={view.weather} aria-label={`weather: ${view.weather}`}>
-        {WEATHER_ICON[view.weather] ?? ''} <span className="caption">{view.weather}</span>
+        {WEATHER_ICON[view.weather] ?? ''} <span className="caption max-md:hidden">{view.weather}</span>
       </span>
       {view.cityEvent && <span className="px-1" style={{ background: '#f6d48f', boxShadow: '0 0 0 1px var(--color-ink)' }}>today: {view.cityEvent.name}</span>}
-      <span title={`tomorrow: ${view.forecast}`}>tomorrow: {WEATHER_ICON[view.forecast] ?? ''} {view.forecast}</span>
-      <span title={`what you can afford comes from your job${view.budget.partTime ? ', plus your part-time job' : ''}`}>budget: {view.budget.label}</span>
-      <span className="ml-auto flex flex-wrap items-center gap-2">
+      <span className={menu ? '' : 'max-md:hidden'} title={`tomorrow: ${view.forecast}`}>tomorrow: {WEATHER_ICON[view.forecast] ?? ''} {view.forecast}</span>
+      <span className={menu ? '' : 'max-md:hidden'} title={`what you can afford comes from your job${view.budget.partTime ? ', plus your part-time job' : ''}`}>budget: {view.budget.label}</span>
+      <span className="ml-auto flex items-center gap-2 md:hidden">
+        <button aria-label="phone" className="px-btn text-xs" onClick={() => setScreen('phone')}>phone{notifications > 0 && <span aria-hidden> ●</span>}</button>
+        <button className="px-btn text-xs" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>{menu ? '✕' : '☰'}</button>
+      </span>
+      <span className={`ml-auto flex flex-wrap items-center gap-2 ${menu ? 'max-md:w-full max-md:pb-1 max-md:pt-1' : 'max-md:hidden'}`}>
         <HealthBadge />
-        <button aria-label="phone" className="px-btn text-xs" onClick={() => setScreen('phone')} title={`phone (p)${notifications ? ` · ${notifications} notifications` : ''}`}>phone{notifications > 0 && <span aria-hidden> ●</span>}</button>
+        <button aria-label="phone" className="px-btn text-xs max-md:hidden" onClick={() => setScreen('phone')} title={`phone (p)${notifications ? ` · ${notifications} notifications` : ''}`}>phone{notifications > 0 && <span aria-hidden> ●</span>}</button>
         <button className="px-btn text-xs" onClick={() => setScreen('board')} title="relationships (b)">board</button>
         <button className="px-btn text-xs" onClick={() => setScreen('chatlog')} title="today's conversations, and let the model re-read them">chat log</button>
         <button className="px-btn text-xs" onClick={() => setScreen('bible')} title="housemates (i)">bible</button>
@@ -120,7 +125,7 @@ export function StudioStrip({ lines, prediction, expanded }: { lines?: { speaker
             {panel.map((p) => (
               <PanelAvatar key={p.id} id={p.id} size={28} />
             ))}
-            <span className="caption ml-2 text-xs">the panel is watching.</span>
+            <span className="caption ml-2 text-xs max-md:hidden">the panel is watching.</span>
           </div>
         )}
         {open && (

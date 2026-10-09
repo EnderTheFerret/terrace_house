@@ -441,12 +441,38 @@ export type ArcState = z.infer<typeof ArcState>;
 export const Couple = z.object({ a: z.string(), b: z.string(), since: z.number().int(), status: z.enum(['dating', 'left-together', 'broken']) });
 export type Couple = z.infer<typeof Couple>;
 
+/** A favor the player asked a housemate for ("play matchmaker", "snoop around"): done off screen, reported back later. */
+export const Mission = z.object({
+  id: z.string(),
+  kind: z.enum(['match', 'snoop']),
+  a: z.string(),
+  b: z.string(),
+  helper: z.string(),
+  /** a second housemate the helper brought along */
+  partner: z.string().optional(),
+  /** it gets done at the start of this block */
+  dueEpisode: z.number().int(),
+  dueSlot: Slot,
+  honest: z.boolean(),
+  hurt: z.boolean(),
+  seed: z.string(),
+  /** pending: not done yet; ready: done, waiting to tell the player; told: the player knows */
+  status: z.enum(['pending', 'ready', 'told']),
+  note: z.string().default(''),
+  brief: z.string().default(''),
+});
+export type Mission = z.infer<typeof Mission>;
+
 export const Invitation = z.object({
   id: z.string(), from: z.string(), to: z.string(), episode: z.number().int(), slot: Slot, node: z.string(),
   status: z.enum(['pending', 'accepted', 'kept', 'broken', 'declined']),
   /** a date stays private to the pair (and whoever they tell); friend plans are on the house calendar */
   date: z.boolean().optional(),
+  /** why a declined plan was turned down, in the housemate's terms ("has work then"); shown on the plans tab */
+  reason: z.string().max(120).optional(),
   performance: z.object({ id: z.string(), kind: z.enum(['concert', 'dj', 'play', 'comedy']), title: z.string(), audience: z.enum(['personal', 'house']) }).optional(),
+  /** a house meeting both agreed on: the whole house gathers in `node` at that block, and `topic` is what it is about */
+  meeting: z.object({ topic: z.string().max(120) }).optional(),
 });
 export type Invitation = z.infer<typeof Invitation>;
 export const FeedPost = z.object({
@@ -506,6 +532,7 @@ export const GameState = z.object({
   finaleEpisode: z.number().int().nullable().default(null),
   invitations: z.array(Invitation).default([]),
   approaches: z.array(z.object({ id: z.string(), from: z.string(), text: z.string() })).default([]),
+  missions: z.array(Mission).default([]),
   feed: z.array(FeedPost).default([]),
   inventory: z.array(z.string()).default([]),
   observedRoutines: z.record(z.string(), z.array(z.string())).default({}),
@@ -535,8 +562,8 @@ export const PlayerAction = z.discriminatedUnion('type', [
     activity: z.enum(['date', 'wander', 'work', 'class', 'shop', 'karaoke', 'eat', 'invite', 'gift']),
     item: z.string().max(60).optional(),
     invite: z.string().optional(),
-    /** more housemates who come along on the outing (up to three besides `invite`) */
-    guests: z.array(z.string()).max(3).optional(),
+    /** more housemates who come along on the outing (up to four besides `invite`: the whole house) */
+    guests: z.array(z.string()).max(4).refine((ids) => new Set(ids).size === ids.length, 'choose each housemate once').optional(),
     useCar: z.boolean().optional(),
     /** have a few drinks (only where drinks are served); the others may follow, and tomorrow may hurt */
     drink: z.boolean().optional(),

@@ -1,9 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
+import { answerer } from './answer';
 
 async function reachHouse(page: Page) {
   for (let i = 0; i < 90; i++) {
     if (await page.getByRole('button', { name: /take stairs (upstairs|downstairs)/ }).isVisible()) return;
-    const choice = page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first();
+    const choice = answerer(page);
     if (await choice.isVisible()) { await choice.click(); continue; }
     const next = page.getByRole('button', { name: /^(begin|continue|ok|leave them be|to the studio|back to the house|next episode)$/ }).first();
     if (await next.isVisible()) await next.click();
@@ -129,11 +130,27 @@ test('stairs, private balconies and a shared plan are accessible', async ({ page
   await page.getByLabel('plan episode').fill('2');
   await Promise.all([page.waitForResponse((r) => r.url().endsWith('/api/game/action') && r.request().method() === 'POST'), page.getByRole('button', { name: 'make plan', exact: true }).click()]);
   const g = await (await request.get('/api/game')).json();
-  expect(g.view.invitations.some((p: any) => p.from === g.view.playerId && p.to === 'ren' && p.episode === 2)).toBe(true);
+  // the plan goes to Ron as a text and he decides: a near-stranger may decline, so only the invitation itself and his answer are certain
+  const thread = g.view.chats.find((c: any) => c.with === 'ren').messages;
+  expect(thread.some((m: any) => m.from === g.view.playerId && /hang out at .*tomorrow/.test(m.text))).toBe(true);
+  expect(thread.at(-1).from).toBe('ren');
+  // Ron turned it down: the plans tab keeps it as declined, with his reason
+  expect(g.view.invitations.some((p: any) => p.to === 'ren' && p.status === 'declined' && p.reason)).toBe(true);
+  await page.getByRole('tab', { name: 'plans', exact: true }).click(); // sending the plan opens Ron's thread
+  await expect(page.getByText(/· declined$/)).toBeVisible();
+  await expect(page.getByText(/^Ron .+\.$/)).toBeVisible();
   if (!(await page.getByRole('tab', { name: 'plans', exact: true }).isVisible())) { await reachHouse(page); await page.getByRole('button', { name: 'phone', exact: true }).click(); }
   await page.getByRole('tab', { name: 'feed', exact: true }).click();
   await page.getByLabel('new social post').fill('First evening in our shared home.');
   await Promise.all([page.waitForResponse((r) => r.url().endsWith('/api/game/action') && r.request().method() === 'POST'), page.getByRole('button', { name: 'post', exact: true }).click()]);
-  await expect(page.getByText('First evening in our shared home.', { exact: true })).toBeVisible();
+  // posting takes a few minutes, which can bring in the next housemate: play that scene out, then read the feed
+  const posted = page.getByText('First evening in our shared home.', { exact: true });
+  await expect(posted.or(page.getByLabel('say something in your own words'))).toBeVisible();
+  if (!(await posted.isVisible())) {
+    await reachHouse(page);
+    await page.getByRole('button', { name: 'phone', exact: true }).click();
+    await page.getByRole('tab', { name: 'feed', exact: true }).click();
+  }
+  await expect(posted).toBeVisible();
   await expect(page.getByRole('img', { name: /^photo by/ }).first()).toBeVisible();
 });

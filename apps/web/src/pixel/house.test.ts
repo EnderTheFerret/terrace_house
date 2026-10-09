@@ -55,6 +55,18 @@ describe('house layout', () => {
       expect(seatFor(room, activity, 6)).toBeNull();
     }
   });
+  it('keeps the tile in front of every living-room seat free and reachable, so nobody sits boxed in behind the coffee table', () => {
+    const solid = solidTiles(0);
+    const stairs = content().house.hotspots.find(h => h.action === 'stairs-up')!;
+    const front = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] } as const;
+    for (let i = 0; i < 6; i++) {
+      const s = seatFor('living', 'hangout', i)!;
+      const [dx, dy] = front[s.dir as keyof typeof front];
+      const tile: [number, number] = [s.x + dx, s.y + dy];
+      expect(solid.has(tile.join(',')), `seat ${s.x},${s.y} front ${tile}`).toBe(false);
+      expect(findPath([stairs.x, stairs.y], tile, solid, 0), `seat ${s.x},${s.y}`).not.toBeNull();
+    }
+  });
   it('keeps water blocked for walkers but gives six swimmers distinct reachable water places', () => {
     const dry = solidTiles(0), water = swimSolids(0);
     const seats = Array.from({ length: 6 }, (_, i) => poolSeat(i)!);

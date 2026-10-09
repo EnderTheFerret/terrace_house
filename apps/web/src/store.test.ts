@@ -12,6 +12,21 @@ it('clears read notifications and does not badge outgoing messages', () => {
   expect(phoneNotifications(phone, { group: 1, kai: 1, 'plan:p1': 1 })).toBe(2);
 });
 
+it('"back" from the map goes home even after a detour through the phone (back used to point at the map itself)', () => {
+  const original = useGame.getState();
+  try {
+    useGame.setState({ view, screen: 'house', back: 'house', live: null });
+    useGame.getState().setScreen('map');
+    useGame.getState().setScreen('phone');
+    useGame.getState().goBack(); // phone → map
+    expect(useGame.getState().screen).toBe('map');
+    useGame.getState().goBack(); // map → home, not map again
+    expect(useGame.getState().screen).toBe('house');
+  } finally {
+    useGame.setState(original, true);
+  }
+});
+
 describe('phone replies during an unfinished scene', () => {
   it.each([false, true])('registers a plan response without leaving the phone or replacing the conversation (accept=%s)', async (accept) => {
     const original = useGame.getState();

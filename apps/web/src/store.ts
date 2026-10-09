@@ -1,6 +1,6 @@
 // Zustand store: screens, game view, scene queue/streaming state, settings.
 import { create } from 'zustand';
-import { content, type Occasion, type PlayerAction, type PlayerSetup, type PlayerView, type Room } from '@shared-roof/shared';
+import { content, SLOTS, type Occasion, type PlayerAction, type PlayerSetup, type PlayerView, type Room } from '@shared-roof/shared';
 import { api, streamScene, type Broadcast, type Health, type ImageStatus, type SceneSummary } from './api';
 import { blip } from './audio';
 
@@ -34,6 +34,7 @@ export interface LiveLine {
 export interface LiveScene {
   id: string;
   canRetry?: boolean;
+  canEdit?: boolean;
   header?: {
     title: string;
     premise: string;
@@ -181,10 +182,16 @@ interface State {
   nextScene(): Promise<void>;
   playLive(id: string): Promise<void>;
   respond(r: 'join' | 'eavesdrop' | 'ignore'): Promise<void>;
+  changeBeat(): Promise<void>;
   choose(intent: string, recipient?: string, via?: 'button' | 'key'): Promise<void>;
   submitChoice(choice: Parameters<typeof api.choose>[1]): Promise<void>;
   say(text: string, recipient?: string): Promise<void>;
   inviteTo(node: string, date: boolean, who?: string): Promise<void>;
+  /** Reword the last typed reply: the talk rewinds to it and the housemate answers the new wording. */
+  editReply(text: string, recipient?: string): Promise<void>;
+  /** Spend time (just let it pass, or hobby / rest) until a planned hangout's block starts; stops early for a scene, a new episode or an error. */
+  spendUntil(episode: number, slot: string, activity?: 'skip' | 'hobby' | 'rest'): Promise<void>;
+  askFavor(kind: 'match' | 'snoop', a: string, b: string, helper: string): Promise<void>;
   endTalk(): Promise<void>;
   hangOut(invite: Invite): Promise<void>;
   resume(): Promise<void>;
@@ -220,7 +227,8 @@ export const useGame = create<State>((set, get) => ({
   phoneRead: {},
 
   setScreen: (screen) => set((st) => ({ screen, back: ['title', 'house', 'map', 'scene'].includes(st.screen) ? st.screen : st.back, ...(['gallery', 'sprites'].includes(screen) && screen !== st.screen ? { galleryBack: st.screen } : {}), ...(screen === 'guide' && screen !== st.screen ? { guideBack: st.screen } : {}) })),
-  goBack: () => set((st) => ({ screen: !st.view ? 'title' : st.back === 'scene' && !st.live ? 'house' : st.back })),
+  // map → phone → back leaves `back` on 'map'; going "back" to the screen you're on would do nothing, so go home
+  goBack: () => set((st) => { const to = !st.view ? 'title' : st.back === 'scene' && !st.live ? 'house' : st.back; return { screen: to === st.screen && st.view ? 'house' : to }; }),
   setSettings: (p) => {
     const settings = { ...get().settings, ...p };
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -352,10 +360,13 @@ export const useGame = create<State>((set, get) => ({
             });
             break;
           case 'choice':
-            patch((l) => ({ ...l, choice: d.intents, recipients: d.recipients ?? [], canRetry: !!d.canRetry, canType: !!d.canType, canEnd: !!d.canEnd, canListen: !!d.canListen }));
+            patch((l) => ({ ...l, choice: d.intents, recipients: d.recipients ?? [], canRetry: !!d.canRetry, canEdit: !!d.canEdit, canType: !!d.canType, canEnd: !!d.canEnd, canListen: !!d.canListen }));
             break;
           case 'invite':
             patch((l) => ({ ...l, invite: d.accepted ? inviteFor({ id: d.from, name: d.name }, d.node, d.date) : null, inviteNote: d.accepted ? undefined : `${String(d.name).split(' ')[0]} ${d.reason}.` }));
+            break;
+          case 'favor':
+            patch((l) => ({ ...l, inviteNote: d.note }));
             break;
           case 'respond':
             patch((l) => ({ ...l, respond: true }));
@@ -398,6 +409,20 @@ export const useGame = create<State>((set, get) => ({
     await get().playLive(live.id);
   },
 
+  /** Throw away the current story beat and conversation, then start a new beat in its place. */
+  changeBeat: async () => {
+    const live = get().live;
+    if (!live || live.streaming || live.done) return;
+    try {
+      const { scene } = await api.changeBeat(live.id);
+      set((st) => ({ error: null, scenes: st.scenes.map((s) => (s.id === live.id && scene ? scene : s)), live: emptyLive(live.id) }));
+    } catch (e) {
+      set({ error: (e as Error).message });
+      return;
+    }
+    await get().playLive(live.id);
+  },
+
   submitChoice: async (choice) => {
     const live = get().live;
     if (!live?.choice || live.streaming) return;
@@ -417,7 +442,22 @@ export const useGame = create<State>((set, get) => ({
 
   inviteTo: (node, date, who) => get().submitChoice({ invite: { node, date, with: who }, via: 'invite' }),
 
+  editReply: async (text, recipient) => { if (text.trim()) await get().submitChoice({ edit: true, text: text.trim(), recipient, via: 'typed' }); },
+
+  askFavor: (kind, a, b, helper) => get().submitChoice({ favor: { kind, a, b, with: helper }, via: 'invite' }),
+
   keepListening: () => get().submitChoice({ listen: true }),
+
+  spendUntil: async (episode, slot, activity = 'skip') => {
+    const at = (v: PlayerView) => v.episode * SLOTS.length + SLOTS.indexOf(v.slot as (typeof SLOTS)[number]);
+    const target = episode * SLOTS.length + SLOTS.indexOf(slot as (typeof SLOTS)[number]);
+    for (let v = get().view; v && at(v) < target; v = get().view) {
+      await get().act(activity === 'skip' ? { type: 'skip' } : { type: 'house', activity });
+      const now = get().view;
+      // a scene, an episode card or an error needs the player; an unchanged clock (same block, same minutes left) means nothing moved
+      if (get().error || !['house', 'map'].includes(get().screen) || !now || at(now) <= at(v) && now.minutesLeft >= v.minutesLeft) return;
+    }
+  },
 
   endTalk: async () => {
     const live = get().live;

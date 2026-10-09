@@ -664,6 +664,110 @@
       ]
     },
     {
+      "id": "house-meeting-called",
+      "type": "house-meeting",
+      "title": "a house meeting",
+      "tags": ["domestic", "group", "house-meeting"],
+      "system": true,
+      "slots": ["morning", "slot1", "slot2", "slot3", "evening", "lateNight"],
+      "location": "living",
+      "roles": { "a": {}, "b": {} },
+      "weight": 1,
+      "drama": {
+        "trust": [["b", "a", 2]]
+      },
+      "beats": ["open", "probe", "choice", "comfort", "close"],
+      "intents": ["honest", "support", "joke", "confront"],
+      "premise": "{a} called the house together to talk things through. Everyone who is home came."
+    },
+    {
+      "id": "house-meeting-food",
+      "type": "house-meeting",
+      "title": "house meeting: the empty fridge",
+      "tags": ["domestic", "group", "house-meeting"],
+      "domestic": true,
+      "slots": ["evening"],
+      "location": "kitchen",
+      "roles": { "a": {}, "b": {}, "c": {} },
+      "pre": [{ "house": "fridgeTotal", "max": 5 }],
+      "weight": 8,
+      "drama": {
+        "tension": [["a", "c", 2]],
+        "trust": [["b", "a", 3]]
+      },
+      "beats": ["open", "probe", "choice", "comfort", "close"],
+      "intents": ["honest", "support", "joke", "confront"],
+      "premise": "The fridge holds a lemon and a bottle of mustard. {a} calls the house into the kitchen: someone has to shop, and the grocery envelope is shared. {b} opens a list on their phone; {c} admits they were counting on someone else.",
+      "effects": [
+        { "fridge": { "rice": 3, "egg": 6, "onion": 2, "chicken": 2, "tomato": 3, "chickpea": 2, "pita": 3, "cucumber": 2, "lentils": 2 } },
+        { "house": { "groceryBudget": -90 } }
+      ]
+    },
+    {
+      "id": "house-meeting-mess",
+      "type": "house-meeting",
+      "title": "house meeting: the sink",
+      "tags": ["domestic", "group", "house-meeting"],
+      "domestic": true,
+      "slots": ["evening"],
+      "location": "living",
+      "roles": { "a": {}, "b": {}, "c": {} },
+      "pre": [{ "house": "dishes", "min": 70 }],
+      "weight": 7,
+      "drama": {
+        "tension": [["a", "c", 3]],
+        "trust": [["b", "a", 2]]
+      },
+      "beats": ["open", "probe", "conflict", "choice", "close"],
+      "intents": ["honest", "support", "joke", "confront"],
+      "premise": "The sink has become a structure. {a} asks everyone to sit down in the living room for a proper house meeting about the chores rota. {c} says it was already like that when they got home; {b} suggests a schedule that is actually written down.",
+      "effects": [
+        { "house": { "dishes": -45, "trash": -25 } }
+      ]
+    },
+    {
+      "id": "house-meeting-noise",
+      "type": "house-meeting",
+      "title": "house meeting: quiet hours",
+      "tags": ["domestic", "group", "house-meeting"],
+      "domestic": true,
+      "slots": ["morning", "evening"],
+      "location": "living",
+      "roles": { "a": {}, "b": {}, "c": {} },
+      "pre": [{ "house": "noise", "min": 55 }],
+      "weight": 6,
+      "drama": {
+        "tension": [["a", "c", 3]],
+        "trust": [["b", "a", 2]]
+      },
+      "beats": ["open", "probe", "choice", "comfort", "close"],
+      "intents": ["honest", "support", "joke", "confront"],
+      "premise": "After a few loud nights, {a} proposes quiet hours and gathers everyone in the living room. {c} promises to keep it down; {b} offers headphones as a compromise.",
+      "effects": [
+        { "house": { "noise": -35 } }
+      ]
+    },
+    {
+      "id": "house-meeting-labeled-food",
+      "type": "house-meeting",
+      "title": "house meeting: whose yogurt was it",
+      "tags": ["domestic", "group", "house-meeting"],
+      "domestic": true,
+      "slots": ["evening"],
+      "location": "kitchen",
+      "roles": { "a": {}, "b": {}, "c": {} },
+      "pre": [{ "house": "labeledEaten", "min": 1 }],
+      "weight": 6,
+      "drama": {
+        "tension": [["a", "c", 3]],
+        "trust": [["b", "a", 2]]
+      },
+      "beats": ["open", "probe", "conflict", "choice", "close"],
+      "intents": ["honest", "support", "joke", "confront"],
+      "premise": "Labeled food keeps disappearing from the fridge. {a} calls a house meeting at the kitchen table to settle shelves and rules. {c} gets defensive; {b} proposes a shelf for each person.",
+      "effects": []
+    },
+    {
       "id": "rice-cooker",
       "type": "rice-cooker",
       "title": "the coffee machine incident",

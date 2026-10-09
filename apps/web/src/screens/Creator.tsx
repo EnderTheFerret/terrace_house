@@ -64,10 +64,10 @@ export function Creator() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-4 border-b-[3px] border-ink bg-paper px-4 py-2">
+      <header className="flex flex-wrap items-center gap-4 border-b-[3px] border-ink bg-paper px-4 py-2 max-md:gap-2 max-md:px-2">
         <button className="px-btn text-xs" onClick={() => setScreen('title')}>back</button>
-        <h1 className="text-lg lowercase">{next ? 'your next housemate moves in' : 'new housemate'}</h1>
-        <ol className="ml-4 flex gap-2 text-xs" aria-label="steps">
+        <h1 className="text-lg lowercase max-md:text-base">{next ? 'your next housemate moves in' : 'new housemate'}</h1>
+        <ol className="ml-4 flex flex-wrap gap-2 text-xs max-md:ml-0 max-md:w-full" aria-label="steps">
           {steps.map((s, i) => (
             <li key={s} className={`px-2 ${i === step ? 'bg-rose text-white' : 'caption'}`} aria-current={i === step ? 'step' : undefined}>
               {i + 1}. {s}
@@ -75,11 +75,11 @@ export function Creator() {
           ))}
         </ol>
       </header>
-      <main className="flex min-h-0 flex-1 gap-4 overflow-y-auto p-4 scroll-thin">
-        <div className="flex-1">
+      <main className="flex min-h-0 flex-1 gap-4 overflow-y-auto p-4 scroll-thin max-md:p-2">
+        <div className="min-w-0 flex-1">
           {step === 0 && (
             <Panel title="who are you?">
-              <div className="grid max-w-lg grid-cols-[8rem_1fr] items-center gap-3 text-sm">
+              <div className="grid max-w-lg grid-cols-[8rem_minmax(0,1fr)] items-center gap-3 text-sm max-md:grid-cols-[5.5rem_minmax(0,1fr)] max-md:gap-2">
                 <label htmlFor="c-name">name</label>
                 <input id="c-name" className="px-panel-soft px-2 py-1" value={p.name} maxLength={40} onChange={(e) => set({ name: e.target.value })} />
                 <label htmlFor="c-age">age (20–35)</label>
@@ -94,7 +94,7 @@ export function Creator() {
                   <option value="nonbinary">nonbinary</option>
                 </select>
                 <span>interested in</span>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
                   {(['woman', 'man', 'nonbinary'] as const).map((g) => (
                     <label key={g} className="flex items-center gap-1">
                       <input type="checkbox" checked={p.interestedIn.includes(g)} onChange={(e) => set({ interestedIn: e.target.checked ? [...p.interestedIn, g] : p.interestedIn.filter((x) => x !== g) })} />
@@ -105,8 +105,8 @@ export function Creator() {
                 <label htmlFor="c-home">hometown</label>
                 <input id="c-home" className="px-panel-soft px-2 py-1" value={p.hometown} maxLength={40} onChange={(e) => set({ hometown: e.target.value })} />
                 <label htmlFor="c-job">occupation</label>
-                <div className="flex gap-2">
-                  <select id="c-job" className="px-panel-soft px-2 py-1" value={p.occupation} onChange={(e) => set({ occupation: e.target.value })}>
+                <div className="flex gap-2 max-md:flex-col">
+                  <select id="c-job" className="px-panel-soft min-w-0 px-2 py-1" value={p.occupation} onChange={(e) => set({ occupation: e.target.value })}>
                     {OCCUPATIONS.map((o) => (
                       <option key={o}>{o}</option>
                     ))}
@@ -131,7 +131,7 @@ export function Creator() {
                   <p className="caption mt-1 text-xs">closest type: {nearestType(p.traits).label} — {nearestType(p.traits).voiceNotes}</p>
                 </fieldset>
                 {TRAIT_NAMES.map((t, i) => (
-                  <label key={t} className="grid grid-cols-[10rem_1fr_3rem] items-center gap-2">
+                  <label key={t} className="grid grid-cols-[10rem_1fr_3rem] items-center gap-2 max-md:grid-cols-[7rem_minmax(0,1fr)_2rem]">
                     {t}
                     <input type="range" min={0} max={1} step={0.05} value={p.traits[i]} onChange={(e) => set({ traits: p.traits.map((v, j) => (j === i ? Number(e.target.value) : v)) })} />
                     <span className="caption">{Math.round(p.traits[i] * 100)}</span>
@@ -169,7 +169,7 @@ export function Creator() {
                 </label>
                 <label className="flex items-center gap-2"><input type="checkbox" checked={p.keepsShabbat ?? false} onChange={(e) => set({ keepsShabbat: e.target.checked })} />keep Shabbat</label>
                 {TASTE_AXES.map((t, i) => (
-                  <label key={t} className="grid grid-cols-[8rem_1fr_5rem] items-center gap-2">
+                  <label key={t} className="grid grid-cols-[8rem_1fr_5rem] items-center gap-2 max-md:grid-cols-[6rem_minmax(0,1fr)_3.5rem]">
                     {t}
                     <input type="range" min={-1} max={1} step={0.1} value={p.tastes[i]} onChange={(e) => set({ tastes: p.tastes.map((v, j) => (j === i ? Number(e.target.value) : v)) })} />
                     <span className="caption">{p.tastes[i] > 0.3 ? 'love' : p.tastes[i] < -0.3 ? 'dislike' : 'okay'}</span>
@@ -204,7 +204,7 @@ export function Creator() {
               }}>{mapping ? 'matching appearance…' : 'match description'}</Btn>
               {appearanceError && <p role="alert" className="mb-2 text-xs text-rose">{appearanceError}</p>}
               <div className="flex flex-wrap gap-6">
-                <div className="grid grid-cols-[7rem_1fr] items-center gap-2 text-sm">
+                <div className="grid grid-cols-[7rem_minmax(0,1fr)] items-center gap-2 text-sm max-md:w-full">
                   {(['hairStyle', 'hairColor', 'eyeColor', 'build', 'outfit', 'accessory', 'skinTone'] as const).map((k) => (
                     <label key={k} className="contents">
                       <span>{k.replace(/([A-Z])/g, ' $1').toLowerCase()}</span>
@@ -239,10 +239,10 @@ export function Creator() {
                 <label><input type="radio" name="cast" checked={randomCast} onChange={() => setRandomCast(true)} /> random cast</label>
               </fieldset>
               {!randomCast ? (
-                <div className="grid grid-cols-5 gap-3">
+                <div className="grid grid-cols-5 gap-3 max-md:grid-cols-2 max-md:gap-2">
                   {defaultCast(p.gender).map((c) => (
                     <div key={c.id} className="px-panel-soft flex flex-col items-center p-2 text-center text-xs">
-                  <img src={`/assets/portraits/finished-${c.id}-thigh-up-v1.png`} alt={c.name} className="pixelated h-[200px] w-[160px] object-contain" />
+                  <img src={`/assets/portraits/finished-${c.id}-thigh-up-v1.png`} alt={c.name} className="pixelated h-[200px] w-[160px] max-w-full object-contain" />
                       {Object.values(assets).includes(`sprites/finished-${c.id}-daily-0.png`) ? <SpritePreview url={`/assets/sprites/finished-${c.id}-daily-0.png`} /> : <p className="caption">Walk sprite will be drawn after move-in.</p>}
                       <div className="mt-1 text-sm">{c.name}</div>
                       <div className="caption">{c.age} · {c.occupation}</div>

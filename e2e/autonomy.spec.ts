@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { answerer } from './answer';
 
 test('the house clock advances while watching and pauses for an open dialog', async ({ page, request }, info) => {
   await page.addInitScript(() => localStorage.setItem('shared-roof-settings', JSON.stringify({ typewriter: false, reducedMotion: false, sound: false })));
@@ -8,7 +9,7 @@ test('the house clock advances while watching and pauses for an open dialog', as
   await page.getByRole('button', { name: /continue · episode 1/ }).click();
   for (let n = 0; n < 90; n++) {
     if (await page.getByRole('button', { name: 'take stairs upstairs', exact: true }).isVisible()) break;
-    const choice = page.getByRole('group', { name: 'how do you respond?' }).getByRole('button').first();
+    const choice = answerer(page);
     if (await choice.isVisible()) { await choice.click(); continue; }
     const next = page.getByRole('button', { name: /^(begin|continue|ok|leave them be|to the studio|back to the house|next episode)$/ }).first();
     if (await next.isVisible()) await next.click(); else await page.waitForTimeout(150);

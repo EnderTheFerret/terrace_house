@@ -47,15 +47,24 @@ export function typedAffinityFallback(s: GameState, participants: string[], tran
 
 /**
  * A flirt the listener took well (the reading raised their liking of the player) earns a little romance from a listener
- * attracted to the player, even when the model wrote none: small models under-read flirting.
+ * attracted to the player, even when the model wrote none: small models under-read flirting. The player's own romance
+ * toward whoever they flirted with grows too, so their row on the board shows who they are pursuing.
  */
 export function welcomedFlirts(s: GameState, transcript: { speaker: string; text: string; recipient?: string }[], p: DeltaProposal): DeltaProposal {
   const flirts = transcript.filter((l) => l.speaker === s.playerId && classifyIntent(l.text, ['flirt', 'honest']) === 'flirt');
   if (!flirts.length) return p;
-  const toAll = flirts.some((l) => !l.recipient || l.recipient === 'everyone');
-  const add = p.affinityDeltas
-    .filter((d) => d.to === s.playerId && d.delta > 0 && (toAll || flirts.some((l) => l.recipient === d.from)) && s.characters[d.from] && attracted(s.characters[d.from], s.characters[s.playerId]) && !p.romanceDeltas.some((r) => r.from === d.from && r.to === s.playerId))
-    .map((d) => ({ from: d.from, to: s.playerId, delta: Math.min(4, Math.max(2, d.delta)) }));
+  const P = s.playerId;
+  // flirt lines aimed at this listener (a line with no addressee reaches everyone there)
+  const at = (id: string) => flirts.filter((l) => !l.recipient || l.recipient === 'everyone' || l.recipient === id).length;
+  const hasRomance = (from: string, to: string) => p.romanceDeltas.some((r) => r.from === from && r.to === to);
+  const listeners = [...new Set(p.affinityDeltas.filter((d) => d.to === P).map((d) => d.from))].filter((id) => at(id) && s.characters[id]);
+  // sustained, welcomed flirting counts more than one line
+  const theirs = p.affinityDeltas
+    .filter((d) => d.to === P && d.delta > 0 && listeners.includes(d.from) && attracted(s.characters[d.from], s.characters[P]) && !hasRomance(d.from, P))
+    .map((d) => ({ from: d.from, to: P, delta: Math.min(6, 2 * at(d.from)) }));
+  // and the player's own row shows who they are pursuing
+  const yours = listeners.filter((id) => attracted(s.characters[P], s.characters[id]) && !hasRomance(P, id)).map((id) => ({ from: P, to: id, delta: Math.min(6, 2 * at(id)) }));
+  const add = [...theirs, ...yours];
   return add.length ? { ...p, romanceDeltas: [...p.romanceDeltas, ...add] } : p;
 }
 

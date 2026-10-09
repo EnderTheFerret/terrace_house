@@ -65,6 +65,64 @@ it('streams narration separately, retries without extra time or messages, and to
   }
 });
 
+it('lets the player reword a plain typed reply, but not one that set something up outside the talk', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'roof-edit-'));
+  const store = new Store(openDb(':memory:'));
+  let turn = 0;
+  const linesLlm = { name: 'test', health: async () => true, complete: async () => 'ok', async *stream(req: LlmRequest) {
+    const speakers = [...req.prompt.matchAll(/^\d+\. ([\w-]+) \(/gm)].map(m => m[1]);
+    for (const id of speakers) yield `${id}: "Reply ${++turn}: I will help with the dishes."\n`;
+  } };
+  const { app, session } = await buildApp({ llm: new MockLlm(), linesLlm, image: new MockImageBackend(dir), store, workflowHash: 'mock', cacheDir: dir });
+  try {
+    await session.newGame({ seed: 7, moveInDay: false });
+    await session.act({ type: 'talk', target: 'ren', room: 'living', guests: ['mio'] });
+    const run = [...session.runs.values()].find(r => r.rendered)!;
+    const events: { event: string; data: any }[] = [];
+    const stream = () => session.stream(run.id, (event, data) => events.push({ event, data }));
+    await stream();
+    session.choose(run.id, { text: 'Please help me wash up.', recipient: 'ren' });
+    await stream();
+    expect(events.filter(e => e.event === 'choice').at(-1)!.data.canEdit).toBe(true);
+    const oldReply = run.transcript.at(-1)!.text;
+    session.choose(run.id, { edit: true, text: 'Could you dry the plates instead?' });
+    await stream();
+    const mine = run.transcript.filter(l => l.source === 'player');
+    expect(mine.map(l => l.text)).toEqual(['Could you dry the plates instead?']);
+    expect(run.said).toEqual(['Could you dry the plates instead?']);
+    expect(run.transcript.at(-1)!.text).not.toBe(oldReply);
+    expect(events.some(e => e.event === 'reset')).toBe(true);
+    // the new line can be reworded again, and a proposed plan can't
+    expect(events.filter(e => e.event === 'choice').at(-1)!.data.canEdit).toBe(true);
+    session.choose(run.id, { text: 'Cafe tomorrow morning?', recipient: 'ren' });
+    await stream();
+    expect(events.filter(e => e.event === 'choice').at(-1)!.data.canEdit).toBe(false);
+    expect(() => session.choose(run.id, { edit: true, text: 'never mind' })).toThrow(/no reply available to edit/);
+  } finally {
+    await app.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+it('keeps a plan from the plans tab that was turned down on the calendar as declined, with the reason, and replays it', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'roof-declined-'));
+  const store = new Store(openDb(':memory:'));
+  const { app, session } = await buildApp({ llm: new MockLlm(), image: new MockImageBackend(dir), store, workflowHash: 'mock', cacheDir: dir });
+  try {
+    await session.newGame({ seed: 9, seasonLength: 0, moveInDay: false } as any);
+    // on day one Ron hardly knows the player and would rather stay in
+    await session.act({ type: 'plan', target: 'ren', node: 'market', episode: 2, slot: 'slot1' });
+    const plan = session.state!.invitations.at(-1)!;
+    expect(plan).toMatchObject({ from: session.state!.playerId, to: 'ren', episode: 2, slot: 'slot1', node: 'market', status: 'declined' });
+    expect(plan.reason).toBeTruthy();
+    expect(session.view().invitations.some(p => p.id === plan.id)).toBe(true);
+    expect(replayEvents(store.events(session.state!.gameId))).toEqual(session.state);
+  } finally {
+    await app.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 it('replays important scenes across three recorded days and preserves the delayed watch through a save', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'roof-broadcast-'));
   const store = new Store(openDb(':memory:'));
@@ -99,6 +157,10 @@ it('replays important scenes across three recorded days and preserves the delaye
     expect(header.broadcast.panel.every((r: any) => r.name !== 'Panel')).toBe(true);
     expect(session.state!.memory[session.state!.playerId].some(m => m.text.includes('second panel comment from day 3'))).toBe(true);
     expect(session.state!.characters[session.state!.playerId].location).toBe('living');
+    // each aired day plays as: the moment on screen, the house reacts, the panel comments
+    const kind = (l: { speaker: string; text: string }) => l.speaker !== 'narrator' ? 'R' : l.text.startsWith('On the TV') ? 'C' : l.text.startsWith('The panel') ? 'P' : 'Q';
+    expect(watch.transcript.map(kind).join('').replace(/(.)\1+/g, '$1')).toBe('CQRPCQRPCQRP');
+    expect(watch.transcript.filter(l => kind(l) === 'C').map(l => l.text.slice(0, 16))).toEqual(['On the TV, day 1', 'On the TV, day 2', 'On the TV, day 3']);
     if (watch.phase === 'awaiting-choice') {
       session.choose(watch.id, { text: 'It is strange seeing those days on TV.' });
       await session.stream(watch.id, () => {});

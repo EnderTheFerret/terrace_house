@@ -2,7 +2,7 @@
 import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { GameState, SCHEMA_VERSION } from '@shared-roof/shared';
+import { clearUnattractedRomance, GameState, SCHEMA_VERSION } from '@shared-roof/shared';
 import { config } from './config';
 
 export type DB = Database.Database;
@@ -55,7 +55,9 @@ export function migrateState(raw: any): GameState {
     s = { previously: '', pendingArrivals: [], counters: {}, ...s, schemaVersion: 1 };
   }
   if (s.schemaVersion > SCHEMA_VERSION) throw new Error(`save is from a newer version (${s.schemaVersion})`);
-  return GameState.parse(s);
+  const state = GameState.parse(s);
+  clearUnattractedRomance(state); // older saves picked some up before attraction was enforced everywhere
+  return state;
 }
 
 export interface SaveRow {

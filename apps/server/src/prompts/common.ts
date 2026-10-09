@@ -87,6 +87,7 @@ export function planReadPrompt(s: GameState, a: string, b: string, lines: { spea
     `Conversation, oldest first:\n${lines.map((l) => `${name(l.speaker)}: ${l.text}`).join('\n')}`,
     'Fields: "agreed" true only when both clearly said yes to the same place and time (a question nobody answered, or a "maybe", is not agreement); "place" the place id, or "" if unclear; "when" like "tonight at 21:30", "tomorrow at 10:00" or "Friday at 20:00"; "date" true only if it was framed as a romantic date; "cancel" true only if they called off a plan they already had.',
     'If they changed an existing plan\'s time or place, report the new agreed time and place. Going to watch the other one perform somewhere counts as meeting there.',
+    'A house meeting: if they agreed to call a meeting for the whole house at a set time (even with no place said), report "meeting" true, "place" "" and "topic" in a few words (what it is about, e.g. "the grocery budget"). Otherwise "meeting" false and "topic" "".',
   ].join('\n');
 }
 
@@ -103,9 +104,11 @@ export function surroundingsLine(s: GameState, loc: string): string {
   if (node) return `${node.name}: ${node.description}`;
   if (!isRoom(loc)) return '';
   const h = s.house;
+  const stock = Object.values(h.fridge).reduce((a, b) => a + b, 0);
   const notes = [
     h.dishes >= 60 && 'dishes are piling up in the sink', h.laundry >= 60 && 'the laundry basket is overflowing', h.trash >= 60 && 'the trash needs taking out',
-    h.noise >= 60 && 'the house is noisy', Object.values(h.fridge).reduce((a, b) => a + b, 0) < 3 && 'the fridge is nearly empty',
+    h.noise >= 60 && 'the house is noisy',
+    stock < 3 && 'the shared fridge is nearly empty and nobody has spare food hidden away (only labeled treats; someone should shop, or the house can hold a meeting about it)',
   ].filter(Boolean);
   return `${isOutdoors(loc) ? 'Outdoors' : 'Indoors'} at home.${notes.length ? ` Around the house: ${notes.join('; ')}.` : ' The house is in decent shape.'}`;
 }
@@ -127,7 +130,7 @@ export function personaCard(s: GameState, c: Character, opts: { compact?: boolea
   const lines = [
     `## ${c.name} (id: ${c.id}), ${c.age}, ${c.occupation}`,
     `Voice tendencies (use lightly): ${c.voiceNotes.replace('Fast, slangy, hype-heavy. Turns everything into a bit or a clip. Jokes when things get serious.', 'Sociable, informal and quick to joke. Interested in filming, but capable of a plain practical answer. Sometimes dodges serious feelings with humor.')}`,
-    `Food: ${p.diet}; kashrut ${p.kashrut}. Shabbat observance: ${p.keepsShabbat ? 'yes; no work, cooking, phone or driving Friday evening to Saturday evening' : 'no'}. Respect these choices without mocking.`,
+    `Food: ${p.diet}; kashrut ${p.kashrut}. Shabbat observance: ${p.keepsShabbat ? 'yes; no work, cooking or driving Friday evening to Saturday evening' : 'no'}. Respect these choices without mocking.`,
     `Speech: ${sp.sentenceLen.mean <= 8 ? 'brief' : 'conversational'} sentences; ${sp.formality >= 0.7 ? 'measured and polite' : sp.formality <= 0.2 ? 'casual' : 'easygoing'}. Humor and hesitation are optional.`,
     'Do not repeat a filler, catchphrase or opening from their recent lines. Their voice is also what they notice, want and avoid.',
     `Wants: ${p.goals.long.text}. Right now: ${p.goals.short.text}. These guide their choices, not topics to recite.`,

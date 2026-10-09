@@ -297,10 +297,10 @@ export function captionFor(beat: Beat): string | null {
 
 const CHAT: Record<string, string[]> = {
   // unprompted texts claim no outing, errand, plan or earlier moment the engine did not record
-  friendly: ['you home?', 'how is your day going', 'lol the fridge situation', 'saw this and thought of you', 'is the bath free'],
-  romantic: ['how is your day going?', 'was just thinking about you', 'you around later?', 'hope today is treating you ok', 'this song made me think of you'],
-  tense: ['we should talk', 'can you not use my shampoo', 'ok', 'whatever', 'fine.'],
-  reply: ['haha yes', 'omw', 'ok!', 'sure', 'lol same', 'maybe later', 'thank you', 'yes please'],
+  friendly: ['you home?', 'how is your day going', 'lol the fridge situation', 'saw this and thought of you', 'is the bath free', 'anyone want tea', 'the wifi is being weird again', 'what are you up to tonight', 'need anything from the shop', 'did you see the kitchen'],
+  romantic: ['how is your day going?', 'was just thinking about you', 'you around later?', 'hope today is treating you ok', 'this song made me think of you', 'miss your laugh already', 'save me a seat later', 'smiling at my phone again'],
+  tense: ['we should talk', 'can you not use my shampoo', 'ok', 'whatever', 'fine.', 'the dishes are still yours', 'not now'],
+  reply: ['haha yes', 'omw', 'ok!', 'sure', 'lol same', 'maybe later', 'thank you', 'yes please', 'give me ten min', 'sounds good', 'ha ok', 'let me check'],
 };
 const STAMPS = ['(thumbs up)', '(cat bowing)', '(sparkles)', '(sweat drop)', '(peace sign)'];
 
@@ -312,17 +312,25 @@ function chatStyle(text: string, sp: Speech, rng: Rng): string {
   return t;
 }
 
+/** A pool line the thread hasn't used lately (any line once all were, so a short pool still answers). */
+function freshLine(s: GameState, rng: Rng, from: string, to: string, pool: string[]): string {
+  const norm = (t: string) => t.toLowerCase().replace(/[^a-z' ]/g, '').trim();
+  const recent = (s.chats[[from, to].sort().join('|')] ?? []).slice(-12).map((m) => norm(m.text));
+  const unused = pool.filter((l) => !recent.some((t) => t.includes(norm(l))));
+  return rng.pick(unused.length ? unused : pool);
+}
+
 export function chatLine(s: GameState, rng: Rng, from: string, to: string): string {
   const c = s.characters[from];
   const r = rel(s, from, to);
   const pool = r.tension > 45 ? CHAT.tense : attracted(c, s.characters[to]) && r.romance > 30 ? CHAT.romantic : CHAT.friendly;
-  return chatStyle(rng.pick(pool), c.persona.speech, rng);
+  return chatStyle(freshLine(s, rng, from, to, pool), c.persona.speech, rng);
 }
 
 export function chatReply(s: GameState, rng: Rng, from: string, to: string): string {
   const c = s.characters[from];
   const r = rel(s, from, to);
-  return chatStyle(r.tension > 45 ? rng.pick(CHAT.tense) : rng.pick(CHAT.reply), c.persona.speech, rng);
+  return chatStyle(freshLine(s, rng, from, to, r.tension > 45 ? CHAT.tense : CHAT.reply), c.persona.speech, rng);
 }
 
 // ---------------------------------------------------------------- studio commentary

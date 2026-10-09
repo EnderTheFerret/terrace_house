@@ -21,7 +21,7 @@ describe('minute-based social life', () => {
     startPlans(s);
     expect(s.invitations[2].status).toBe('declined');
   });
-  it('allows instantaneous texts before sundown, blocks Shabbat texts and rejects car trips across sundown', () => {
+  it('allows instantaneous texts at any time, Shabbat included, and rejects car trips across sundown', () => {
     const s = createGame({ seed: 11 }); s.world.weekday = 5; s.world.slot = 'slot3'; s.world.minutes = 119;
     s.characters[s.playerId].persona.keepsShabbat = false;
     s.characters.ren.persona.keepsShabbat = true;
@@ -29,7 +29,7 @@ describe('minute-based social life', () => {
     expect(texted.state).toEqual(s);
     expect(texted.plan.scenes).toEqual([]);
     s.world.minutes = 120;
-    expect(() => planSlot(s, { type: 'text', target: 'ren' })).toThrow(/Shabbat/);
+    expect(() => planSlot(s, { type: 'text', target: 'ren', text: 'Want to hang out?' })).not.toThrow(); // phones stay on after sundown too
     s.characters[s.playerId].persona.keepsShabbat = true;
     s.world.minutes = 50;
     expect(() => planSlot(s, { type: 'goOut', node: 'riverside', activity: 'wander', useCar: true })).toThrow(/sundown/);
@@ -116,7 +116,7 @@ describe('minute-based social life', () => {
   });
   it('postpones impossible plans and rejects approaches from busy housemates', () => {
     const s = createGame({ seed: 11 });
-    s.world.slot = 'lateNight';
+    s.world.slot = 'lateNight'; s.world.minutes = 170; // too late to get there and back
     s.invitations.push({ id: 'closed', from: 'ren', to: 'mio', episode: 1, slot: 'lateNight', node: 'cafe', status: 'accepted' });
     startPlans(s);
     expect(s.invitations[0].status).toBe('declined');

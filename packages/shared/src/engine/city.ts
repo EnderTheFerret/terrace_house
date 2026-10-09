@@ -2,7 +2,7 @@
 import type { CityNode } from '../contentSchema';
 import type { GameState, Slot } from '../model';
 import { content } from '../content';
-import { SLOT_MINUTES, SLOT_START } from './core';
+import { SLOT_MINUTES } from './core';
 import { afford, nodePrice, type Budget, type Price } from './budget';
 
 export const ACTIVITY_MINUTES = 60;
@@ -41,15 +41,6 @@ export function shortestTimes(from: string, useCar: boolean): Record<string, num
   return dist;
 }
 
-/** Is the node open for any part of the slot window [start, start+3h)? Supports hours past midnight (to > 24). */
-export function isOpen(n: CityNode, slot: Slot, minutes = 0, weekday = 3): boolean {
-  const start = SLOT_START[slot] + minutes / 60;
-  const end = start + SLOT_MINUTES / 60;
-  const [o, c] = n.openDays?.[String(weekday)] ?? n.open;
-  const overlaps = (a: number, b: number) => start < b && end > a;
-  return overlaps(o, c) || overlaps(o - 24, c - 24);
-}
-
 export interface Reach {
   node: string;
   name: string;
@@ -57,7 +48,6 @@ export interface Reach {
   /** price level of going there (₪ … ₪₪₪) and whether your budget covers it */
   price: Price;
   afford: 'ok' | 'stretch' | 'out';
-  open: boolean;
   reachable: boolean;
   needsCar: boolean;
   reason?: string;
@@ -81,15 +71,10 @@ export function reachability(from: string, slot: Slot, budget: Budget, carAvaila
       const needsCar = forceCar || !Number.isFinite(wm) || need(wm) > left;
       const minutes = needsCar ? dm : wm;
       const price = nodePrice(n);
-      const arrival = SLOT_START[slot] + (elapsed + minutes) / 60;
-      const [o, c] = n.openDays?.[String(weekday)] ?? n.open;
-      const fits = (a: number, b: number) => arrival >= a && arrival + ACTIVITY_MINUTES / 60 <= b;
-      const open = fits(o, c) || fits(o - 24, c - 24);
       let reason: string | undefined;
       if (!Number.isFinite(minutes)) reason = carAvailable ? 'no route' : 'needs the car';
       else if (need(minutes) > left) reason = lecture ? 'too late: the lecture is nearly over' : 'too far for this slot';
-      else if (!open) reason = 'closed now';
-      return { node: n.id, name: n.name, minutes, price, afford: afford(budget, price), open, reachable: !reason, needsCar, reason };
+      return { node: n.id, name: n.name, minutes, price, afford: afford(budget, price), reachable: !reason, needsCar, reason };
     });
 }
 

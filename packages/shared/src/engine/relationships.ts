@@ -101,13 +101,15 @@ function minus(a: Directed, b: Directed, ka = 1, kb = 1): Directed {
  * to today's scale. The result is the exact change to apply; trust and tension are unscaled.
  */
 export function rereadChange(next: DeltaProposal, applied: DeltaProposal, appliedScale = 1): DeltaProposal {
-  // a pair the reading leaves out keeps what the scene gave it: silence about trust is not a verdict of "no trust gained"
-  const read = (a: Directed, b: Directed) => b.filter((d) => a.some((x) => x.from === d.from && x.to === d.to));
+  // A pair the reading leaves out keeps what the scene gave it (silence about trust is not "no trust gained"), except a
+  // warm gain for someone the reading says cooled on the speaker: "cute when you're mad" earned Shira's anger, not a spark.
+  const cooled = (d: Directed[number]) => next.affinityDeltas.some((x) => x.from === d.from && x.to === d.to && x.delta < 0);
+  const replaced = (a: Directed, b: Directed, warm: boolean) => b.filter((d) => a.some((x) => x.from === d.from && x.to === d.to) || (warm && d.delta > 0 && cooled(d)));
   return {
-    affinityDeltas: minus(next.affinityDeltas, read(next.affinityDeltas, applied.affinityDeltas), FEELING_SCALE, appliedScale),
-    romanceDeltas: minus(next.romanceDeltas, read(next.romanceDeltas, applied.romanceDeltas), FEELING_SCALE, appliedScale),
-    tensionDeltas: minus(next.tensionDeltas, read(next.tensionDeltas, applied.tensionDeltas)),
-    trustDeltas: minus(next.trustDeltas, read(next.trustDeltas, applied.trustDeltas)),
+    affinityDeltas: minus(next.affinityDeltas, replaced(next.affinityDeltas, applied.affinityDeltas, false), FEELING_SCALE, appliedScale),
+    romanceDeltas: minus(next.romanceDeltas, replaced(next.romanceDeltas, applied.romanceDeltas, true), FEELING_SCALE, appliedScale),
+    tensionDeltas: minus(next.tensionDeltas, replaced(next.tensionDeltas, applied.tensionDeltas, false)),
+    trustDeltas: minus(next.trustDeltas, replaced(next.trustDeltas, applied.trustDeltas, true)),
     newMemories: next.newMemories,
     moodDeltas: [], // ponytail: mood is not re-derived; add if re-reads should move moods too
   };
@@ -121,7 +123,8 @@ export function applyReread(s: GameState, sceneId: string, change: DeltaProposal
   for (const field of ['affinity', 'romance'] as const) for (const d of field === 'affinity' ? boardChange.affinityDeltas : boardChange.romanceDeltas) {
     // Keep the player's noisy estimate, correcting only the conversation they experienced.
     const known = s.beliefs[s.playerId]?.[`${d.from}>${d.to}`];
-    if (d.from !== s.playerId && (participants.includes(s.playerId) || (known?.conf ?? 0) >= 0.12)) {
+    const canFeel = field !== 'romance' || (s.characters[d.from] && s.characters[d.to] && attracted(s.characters[d.from], s.characters[d.to]));
+    if (canFeel && d.from !== s.playerId && (participants.includes(s.playerId) || (known?.conf ?? 0) >= 0.12)) {
       const be = belief(s, s.playerId, d.from, d.to);
       be[field] = clamp(be[field] + d.delta, field === 'affinity' ? -100 : 0, 100);
       be.conf = Math.max(be.conf, 0.45);

@@ -156,6 +156,13 @@ describe('time in a block', () => {
     const next = finishSlot(out);
     expect([next.world.slot, next.world.minutes]).toEqual(['slot2', 0]);
   });
+
+  it('shopping for food at the market or makolet stocks the shared fridge', () => {
+    const s0 = createGame({ seed: 1 });
+    s0.world.slot = 'slot1'; s0.world.minutes = 0; s0.house.fridge = {};
+    const out = planSlot(s0, { type: 'goOut', node: 'market', activity: 'shop' }).state;
+    expect(Object.values(out.house.fridge).reduce((a, b) => a + b, 0)).toBeGreaterThan(10);
+  });
 });
 
 describe('graduations and arrivals', () => {

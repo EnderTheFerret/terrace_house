@@ -1,5 +1,5 @@
 import { SLOTS, type DeltaProposal, type GameState, type PlayerAction, type Slot } from '../model';
-import type { Rng } from '../rng';
+import { hashSeed, type Rng } from '../rng';
 import { content } from '../content';
 import { clamp, uk } from '../util';
 import { addFact, addLog, addMemory, addRel, attracted, clockLabel, firstName, housemates, isRoom, learn, nextId, notePlan, npcs, placeName, planFactId, player, rel, SLOT_MINUTES, SLOT_START } from './core';
@@ -8,6 +8,7 @@ import { dayForEpisode, weekdayOf, WEEKDAY_NAMES } from './calendar';
 import { inviteDecision } from './talk';
 import { maybeDrink } from './drink';
 import { logInteraction, resolveColocation, resolveRemote } from './interactions';
+import { runMissions } from './matchmaker';
 import { applyProposal, sanitizeProposal, sharedTimeAffinity } from './relationships';
 import { apologize } from './social';
 import { resolveConfession } from './outcome';
@@ -51,8 +52,7 @@ export function scheduleActivity(s: GameState, c: GameState['characters'][string
 }
 
 export function addFeedPost(s: GameState, from: string, text: string, withId?: string, kind: 'photo' | 'story' = s.feed.length % 3 === 0 ? 'story' : 'photo') {
-  if (isShabbat(s, s.characters[from])) return;
-  const likes = npcs(s).filter((c) => c.id !== from && !isShabbat(s, c) && rel(s, c.id, from).affinity > 15).map((c) => c.id);
+  const likes = npcs(s).filter((c) => c.id !== from && rel(s, c.id, from).affinity > 15).map((c) => c.id);
   const people = [from, withId].filter((id): id is string => !!id && !!s.characters[id]).map((id) => {
     const c = s.characters[id];
     return { appearance: structuredClone(c.appearance), gender: c.gender, seed: c.portraitSeed };
@@ -60,7 +60,7 @@ export function addFeedPost(s: GameState, from: string, text: string, withId?: s
   s.feed.push({ id: nextId(s, 'post'), from, text, with: withId, kind, location: s.characters[from].location, people, likes, episode: s.world.episode, slot: s.world.slot });
   if (withId && from !== withId) {
     const f = addFact(s, { subject: from, about: withId, kind: 'event', content: `${firstName(s, from)} posted a photo with ${firstName(s, withId)}. A photo alone does not establish a romance.`, truth: true, sensitivity: 0.4 });
-    for (const c of housemates(s)) if (!isShabbat(s, c)) learn(s, c.id, f.id, 'groupchat', from, 0.8);
+    for (const c of housemates(s)) learn(s, c.id, f.id, 'groupchat', from, 0.8);
   }
   if (s.feed.length > 40) s.feed.splice(0, s.feed.length - 40);
 }
@@ -88,7 +88,7 @@ export function settlePlans(s: GameState) {
       if (kept && p.performance) rememberPerformance(s, p);
       // a private plan's outcome reaches only those who know about the plan (the log's fact gate)
       const secret = !!s.facts[planFactId(p)];
-      addLog(s, { kind: secret ? 'summary' : 'system', factId: secret ? planFactId(p) : undefined, text: `${firstName(s, a.id)} and ${firstName(s, b.id)} ${kept ? 'kept' : 'missed'} their plan at ${content().city.nodes.find((n) => n.id === p.node)?.name ?? p.node}.`, participants: [a.id, b.id], salience: 0.4 });
+      addLog(s, { kind: secret ? 'summary' : 'system', factId: secret ? planFactId(p) : undefined, text: `${firstName(s, a.id)} and ${firstName(s, b.id)} ${kept ? 'kept' : 'missed'} ${p.meeting ? 'the house meeting' : `their plan at ${content().city.nodes.find((n) => n.id === p.node)?.name ?? p.node}`}.`, participants: [a.id, b.id], salience: 0.4 });
     }
   }
 }
@@ -132,7 +132,10 @@ const COMPANY = /\bwith (?:the |some |a few |my |our |all the )?(?:others?|peopl
 const ASKS_YOU = /\b(?:(?:want|wanna|would|will|can|could|should|shall|do) you|you (?:want|wanna|should|can|could|free|coming|in)|join|come|let'?s|how about you|with me|meet (?:me|up))\b|(?<!\bI )\b(?:want to|wanna)\b/i;
 /** asking someone out rather than hanging out: the plan becomes a private date */
 const DATE_WORDS = /\b(?:a date|on a date|date night|just (?:the two of )?us|romantic)\b/i;
-export type TalkPlan = { node: string; episode: number; slot: Slot; date?: boolean };
+/** `meeting`: a house meeting for everyone, in `node` (a house room); the text is its topic ('' = not said). */
+export type TalkPlan = { node: string; episode: number; slot: Slot; date?: boolean; meeting?: string };
+const MEETING_TOPIC = 'what the house needs to talk about';
+const MEETING_WORDS =/\bhouse meeting\b|\bmeeting (?:with|for) (?:the (?:whole )?house|everyone|all of us)\b/i;
 const TIME_WORDS: [RegExp, Slot][] = [[/\b(?:late night|midnight)\b/i, 'lateNight'], [/\bbreakfast\b/i, 'morning'], [/\b(?:lunch|noon|afternoon)\b/i, 'slot2'], [/\b(?:after work|sunset)\b/i, 'slot3'], [/\b(?:evening|tonight|dinner)\b/i, 'evening'], [/\b(?:morning|brunch)\b/i, 'slot1']];
 
 /**
@@ -146,8 +149,10 @@ export function proposedPlan(s: GameState, text: string, to: string[] = []): Tal
   if (!asks) return null;
   // "I'm going out with the others tomorrow" tells them about a plan; it doesn't invite them
   const withOthers = COMPANY.test(text) || Object.values(s.characters).some((c) => !c.isPlayer && !to.includes(c.id) && new RegExp(`\\bwith ${firstName(s, c.id)}\\b`, 'i').test(text));
-  if (withOthers && !ASKS_YOU.test(text)) return null;
-  const node = planPlace(asks);
+  // "house meeting Tuesday evening?" is a meeting for everyone in the living room, not an outing with others
+  const meeting = MEETING_WORDS.test(asks);
+  if (withOthers && !ASKS_YOU.test(text) && !meeting) return null;
+  const node = meeting ? 'living' : planPlace(asks);
   if (!node) return null;
   const weekday = WEEKDAY_NAMES.findIndex((d) => new RegExp(`\\b${d}[a-z]*day\\b`, 'i').test(text));
   let ahead = /\btomorrow\b/i.test(text) ? 1 : /\b(?:today|tonight|later|this (?:morning|afternoon|evening))\b/i.test(text) ? 0
@@ -167,7 +172,27 @@ export function proposedPlan(s: GameState, text: string, to: string[] = []): Tal
   if (ahead === undefined) ahead = SLOTS.indexOf(slot!) > now ? 0 : 1;
   slot ??= ahead ? 'slot1' : SLOTS[now + 1];
   if (!slot || ahead === 0 && SLOTS.indexOf(slot) <= now) return null;
-  return { node, episode: s.world.episode + ahead, slot, ...(DATE_WORDS.test(text) ? { date: true } : {}) };
+  return { node, episode: s.world.episode + ahead, slot, ...(meeting ? { meeting: '' } : DATE_WORDS.test(text) ? { date: true } : {}) };
+}
+
+/** words that make a sentence an invitation to go somewhere together (a bare question about a place is not one) */
+const OUTING_CUE = /\b(?:want to|wanna|let'?s|shall we|should we|how about|what about|come (?:with|along)|join me|are you free|you free|up for|with me|together|head (?:to|over)|go (?:to|with)|walk (?:to|over))\b/i;
+
+/**
+ * Going somewhere together, asked in the player's own words with no time given ("Maybe head to Carmel market? I'm free
+ * right now"): the place and whether it was a date. Same answer as the invite button, so the housemate's reply and the
+ * go-out prompt agree. A plan for later ("tomorrow at 10") is proposedPlan's job and comes back null here.
+ * ponytail: English cue words plus the city's place names; add cues when a typed invitation slips through.
+ */
+export function proposedOuting(s: GameState, text: string, to: string[] = []): { node: string; date: boolean } | null {
+  const asks = (text.match(/[^.!?]+[.!?]*/g) ?? [text]).filter((t) => OUTING_CUE.test(t)).join(' ');
+  if (!asks) return null;
+  // "I'm going out with the others" tells them about a trip; it doesn't invite them
+  const withOthers = COMPANY.test(text) || Object.values(s.characters).some((c) => !c.isPlayer && !to.includes(c.id) && new RegExp(`\\bwith ${firstName(s, c.id)}\\b`, 'i').test(text));
+  if (withOthers && !ASKS_YOU.test(text)) return null;
+  const place = content().city.nodes.find((n) => n.id === planPlace(asks));
+  if (!place || !(place.activities.includes('invite') || place.activities.includes('date'))) return null;
+  return { node: place.id, date: place.activities.includes('date') && DATE_WORDS.test(text) };
 }
 
 /** Would housemate `id` agree to meet then? The same feelings read as a spot invitation, checked against that block's work, Shabbat and plans. */
@@ -196,11 +221,19 @@ export function planConflict(s: GameState, id: string, plan: TalkPlan, moving?: 
   return '';
 }
 
+/** Messages sent today: older texts were already read when they were sent, and re-reading them invents plans. */
+export function todaysMessages<T extends { tick: number }>(s: GameState, thread: T[]): T[] {
+  const dayStart = s.world.tick - SLOTS.indexOf(s.world.slot);
+  return thread.filter((m) => m.tick >= dayStart);
+}
+
 /** A place (id or name) and a "when" in words ("tomorrow at 10:00", "tonight at 21:30") as a calendar block still ahead. */
-export function planFromWords(s: GameState, place: string, when: string, date = false): TalkPlan | null {
-  const node = planPlace(place);
+export function planFromWords(s: GameState, place: string, when: string, date = false, meeting?: string): TalkPlan | null {
+  // a house meeting is always at home: the place they named if it is a room, else the living room
+  const named = planPlace(place);
+  const node = meeting === undefined ? named : named && isRoom(named) ? named : 'living';
   const p = node ? proposedPlan(s, `Want to meet at ${placeName(node)} ${when}?`) : null;
-  return p && { node: node!, episode: p.episode, slot: p.slot, ...(date ? { date: true } : {}) };
+  return p && { node: node!, episode: p.episode, slot: p.slot, ...(meeting !== undefined ? { meeting } : date ? { date: true } : {}) };
 }
 
 /** What the model read off a conversation: a meet-up both agreed to, or a call-off of their plans. */
@@ -213,7 +246,8 @@ export type PlanRead = { plan?: TalkPlan; cancel?: boolean };
 export function applyPlanRead(s0: GameState, a: string, b: string, read: PlanRead): GameState {
   const s = structuredClone(s0);
   const now = SLOTS.indexOf(s.world.slot);
-  const open = s.invitations.filter((p) => [p.from, p.to].includes(a) && [p.from, p.to].includes(b) && !p.performance && ['pending', 'accepted'].includes(p.status)
+  const pair = (p: GameState['invitations'][number]) => [p.from, p.to].includes(a) && [p.from, p.to].includes(b) && !p.performance;
+  const open = s.invitations.filter((p) => pair(p) && ['pending', 'accepted'].includes(p.status)
     && (p.episode > s.world.episode || (p.episode === s.world.episode && SLOTS.indexOf(p.slot) >= now)));
   if (read.cancel) {
     for (const p of open) p.status = 'declined';
@@ -222,11 +256,16 @@ export function applyPlanRead(s0: GameState, a: string, b: string, read: PlanRea
   }
   const plan = read.plan;
   if (!plan) return s0;
-  const moved = open.find((p) => p.node === plan.node && p.episode === plan.episode && p.slot === plan.slot)
-    ?? open.find((p) => p.node === plan.node || (p.episode === plan.episode && p.slot === plan.slot)) ?? (open.length === 1 ? open[0] : undefined);
+  // talk about a plan that is happening now, or that already happened today, is that plan, not a new one for later
+  const nowOrToday = s.invitations.find((p) => pair(p) && p.node === plan.node && p.episode === s.world.episode && SLOTS.indexOf(p.slot) <= now && p.status !== 'declined');
+  if (nowOrToday) return s0;
+  // only a plan that is still ahead can be moved; same place at a new time, or a new place at the same time
+  const ahead = open.filter((p) => !(p.episode === s.world.episode && p.slot === s.world.slot));
+  const moved = ahead.find((p) => p.node === plan.node && p.episode === plan.episode && p.slot === plan.slot)
+    ?? ahead.find((p) => p.node === plan.node || (p.episode === plan.episode && p.slot === plan.slot));
   if (!moved) return addTalkPlan(s, a, b, plan);
   if (moved.node === plan.node && moved.episode === plan.episode && moved.slot === plan.slot && moved.status === 'accepted') return s0;
-  Object.assign(moved, { node: plan.node, episode: plan.episode, slot: plan.slot, status: 'accepted' });
+  Object.assign(moved, { node: plan.node, episode: plan.episode, slot: plan.slot, status: 'accepted', ...(plan.meeting !== undefined ? { meeting: { topic: plan.meeting.slice(0, 120) || moved.meeting?.topic || MEETING_TOPIC } } : {}) });
   addLog(s, { kind: 'calendar', text: `${firstName(s, a)} and ${firstName(s, b)} settled on ${placeName(plan.node)} ${planWhen(s, plan)}.`, participants: [a, b], salience: 0.3 });
   return s;
 }
@@ -234,9 +273,27 @@ export function applyPlanRead(s0: GameState, a: string, b: string, read: PlanRea
 /** An agreed talk or text plan goes on the shared calendar; startPlans and settlePlans then run it like any other. */
 export function addTalkPlan(s0: GameState, from: string, to: string, plan: TalkPlan): GameState {
   const s = structuredClone(s0);
-  s.invitations.push({ id: nextId(s, 'plan'), from, to, ...plan, status: 'accepted' });
+  const { meeting, ...when } = plan;
+  const topic = meeting?.trim().slice(0, 120) || MEETING_TOPIC;
+  s.invitations.push({ id: nextId(s, 'plan'), from, to, ...when, status: 'accepted', ...(meeting !== undefined ? { meeting: { topic } } : {}) });
   notePlan(s, s.invitations.at(-1)!);
-  addLog(s, { kind: 'calendar', text: `${firstName(s, to)} agreed to meet ${firstName(s, from)} at ${placeName(plan.node)} ${planWhen(s, plan)}.`, participants: [from, to], salience: 0.3 });
+  if (meeting === undefined) {
+    addLog(s, { kind: 'calendar', text: `${firstName(s, to)} agreed to meet ${firstName(s, from)} at ${placeName(plan.node)} ${planWhen(s, plan)}.`, participants: [from, to], salience: 0.3 });
+    return s;
+  }
+  addLog(s, { kind: 'calendar', text: `${firstName(s, to)} and ${firstName(s, from)} agreed to hold a house meeting ${planWhen(s, plan)} in the ${placeName(plan.node).toLowerCase()}: ${topic}.`, participants: [from, to], salience: 0.5 });
+  // the housemate who took it on tells the house, so nobody can say they didn't know
+  const host = [from, to].find((id) => id !== s.playerId && s.characters[id]?.status === 'inHouse');
+  if (host) postGroupChat(s, host, `House meeting ${planWhen(s, plan)} in the ${placeName(plan.node).toLowerCase()}: ${topic}. Everyone, please be there.`);
+  return s;
+}
+
+/** A plan the housemate turned down stays on the calendar as declined, with their reason, so the player can see what happened. */
+export function declineTalkPlan(s0: GameState, from: string, to: string, plan: TalkPlan, reason: string): GameState {
+  const s = structuredClone(s0);
+  const { meeting: _meeting, ...when } = plan;
+  s.invitations.push({ id: nextId(s, 'plan'), from, to, ...when, status: 'declined', reason: reason.slice(0, 120) });
+  s.invitations = s.invitations.slice(-60);
   return s;
 }
 
@@ -244,13 +301,31 @@ export function addTalkPlan(s0: GameState, from: string, to: string, plan: TalkP
 export const isOutdoors = (place: string) =>
   ['backyard', 'balconyW', 'balconyM'].includes(place) || ['beach', 'park', 'scenic', 'harbor'].includes(content().city.nodes.find((n) => n.id === place)?.type ?? '');
 
+/**
+ * Why housemate `id` would sit a trip to `node` out in a heatwave or typhoon, or null when they'd come along.
+ * Only open-air places are affected (indoors is fine whatever the weather). Curious, outgoing, unflappable people
+ * sometimes say yes; most say no, and a typhoon halves the odds again.
+ * ponytail: a seeded roll on three traits, no mood or feelings. Add them here if refusals feel too random.
+ */
+export function weatherRefusal(s: GameState, id: string, node: string, seed: string): string | null {
+  const weather = s.world.weather;
+  const c = s.characters[id];
+  if (!c || c.isPlayer || (weather !== 'heatwave' && weather !== 'typhoon') || !isOutdoors(node)) return null;
+  const [O, , E, , N] = c.persona.traits;
+  const willing = (0.05 + 0.3 * O + 0.15 * E + 0.1 * (1 - N)) * (weather === 'typhoon' ? 0.5 : 1);
+  const roll = hashSeed(`${seed}:${id}:${node}`) % 1000 / 1000;
+  return roll < willing ? null : weather === 'typhoon' ? 'would rather stay in out of the storm' : 'would melt out there in this heat';
+}
+
 export function startPlans(s: GameState) {
   startPerformances(s);
   for (const p of s.invitations.filter((p) => !p.performance && p.status === 'accepted' && p.episode === s.world.episode && p.slot === s.world.slot)) {
     if (s.world.flags[`planStarted_${p.id}`]) continue;
     s.world.flags[`planStarted_${p.id}`] = true;
     if (!validPlanPlace(s, p.node, p.from, p.to)) { p.status = 'declined'; continue; }
-    if (isOutdoors(p.node) &&['rain', 'heatwave', 'typhoon'].includes(s.world.weather)) {
+    // rain cancels every open-air plan; in a heatwave or typhoon each housemate decides for themselves
+    const balky = [p.from, p.to].some((id) => weatherRefusal(s, id, p.node, p.id));
+    if (isOutdoors(p.node) && (s.world.weather === 'rain' || balky)) {
       p.status = 'declined';
       postGroupChat(s, p.from, `Let's postpone ${content().city.nodes.find((n) => n.id === p.node)?.name ?? p.node}: ${s.world.weather}. No hard feelings.`);
       addLog(s, { kind: 'system', text: `Weather postponed the plan with ${firstName(s, p.from)}.`, participants: [p.from, p.to], salience: 0.3 });
@@ -321,14 +396,15 @@ export function sendFollowUp(s0: GameState, id: string, text: string): GameState
   return s;
 }
 
-/** A housemate texts the player about a plan they share (on the way, waiting, sorry). Shabbat keeps phones away. */
+/** A housemate texts the player about a plan they share (on the way, waiting, sorry). */
 function planText(s: GameState, from: string, text: string) {
   const c = s.characters[from];
-  if (!c || c.isPlayer || isShabbat(s, c)) return;
+  if (!c || c.isPlayer) return;
   (s.chats[uk(from, s.playerId)] ??= []).push({ from, text, tick: s.world.tick, readBy: [], ignoredBy: [] });
 }
 
 function hourlyLife(s: GameState, rng: Rng) {
+  runMissions(s);
   offerPerformances(s, rng);
   const P = player(s);
   const actions: Record<string, AgentAction> = Object.fromEntries(npcs(s).map((c) => [c.id, { kind: (c.lastAction ?? 'retreat') as AgentAction['kind'], target: c.actionTarget, third: c.actionThird, node: c.actionNode, household: c.actionHousehold }]));
@@ -359,7 +435,7 @@ function hourlyLife(s: GameState, rng: Rng) {
       const p = { id: nextId(s, 'plan'), from: a.id, to: b.id, episode: s.world.episode + 1, slot: 'slot1' as const, node, status: b.isPlayer ? 'pending' as const : 'accepted' as const, ...(attracted(a, b) && rel(s, a.id, b.id).romance >= 30 ? { date: true } : {}) };
       s.invitations.push(p);
       notePlan(s, p);
-      if (b.isPlayer && !isShabbat(s, a)) {
+      if (b.isPlayer) {
         (s.chats[uk(a.id, b.id)] ??= []).push({ from: a.id, text: `${content().city.nodes.find((n) => n.id === node)?.name ?? node} tomorrow morning? Check your plans.`, tick: s.world.tick, readBy: [], ignoredBy: [] });
       }
     }
@@ -405,7 +481,7 @@ export function advanceLiving(s: GameState, rng: Rng, to: number, protectedIds: 
     s.world.minutes = next;
     completeHouseholds(s);
     if (s.world.minutes === 120 && s.world.slot === 'slot3') for (const c of npcs(s)) {
-      if (isShabbat(s, c) && ['cook', 'work', 'text', 'goOut'].includes(c.lastAction ?? '')) { c.activityUntil = s.world.minutes; c.actionNode = undefined; }
+      if (isShabbat(s, c) && ['cook', 'work', 'goOut'].includes(c.lastAction ?? '')) { c.activityUntil = s.world.minutes; c.actionNode = undefined; }
     }
     if (s.world.minutes < SLOT_MINUTES) reschedule();
     if (s.world.minutes % 60 === 0) hourlyLife(s, rng);
@@ -419,7 +495,7 @@ export function socialAction(s: GameState, a: PlayerAction): { talk?: string } {
   switch (a.type) {
     case 'plan': {
       const other = s.characters[a.target];
-      const accepted = rel(s, other.id, P.id).trust >= 20 && !isShabbat(s, other) && (!a.date || attracted(other, P));
+      const accepted = rel(s, other.id, P.id).trust >= 20 && (!a.date || attracted(other, P));
       s.invitations.push({ id: nextId(s, 'plan'), from: P.id, to: a.target, episode: a.episode, slot: a.slot, node: a.node, status: accepted ? 'accepted' : 'declined', ...(a.date ? { date: true } : {}) });
       notePlan(s, s.invitations.at(-1)!);
       addLog(s, { kind: 'system', text: `${firstName(s, other.id)} ${accepted ? 'accepted' : 'declined'} your invitation.`, participants: [P.id, other.id], salience: 0.3 });
@@ -461,12 +537,27 @@ export function socialAction(s: GameState, a: PlayerAction): { talk?: string } {
   return {};
 }
 
+/**
+ * Romance (felt, or guessed by an observer) only exists toward someone the person is attracted to. Clears what older
+ * saves accumulated before that was enforced everywhere; run when a save loads and at each day's end.
+ */
+export function clearUnattractedRomance(s: GameState) {
+  for (const [a, row] of Object.entries(s.rel)) for (const [b, r] of Object.entries(row)) {
+    if (r.romance > 0 && s.characters[a] && s.characters[b] && !attracted(s.characters[a], s.characters[b])) r.romance = 0;
+  }
+  for (const beliefs of Object.values(s.beliefs)) for (const [pair, be] of Object.entries(beliefs)) {
+    const [a, b] = pair.split('>');
+    if (be.romance > 0 && s.characters[a] && s.characters[b] && !attracted(s.characters[a], s.characters[b])) be.romance = 0;
+  }
+}
+
 export function relationshipUpkeep(s: GameState) {
   for (const a of housemates(s)) for (const b of housemates(s)) {
     if (a.id === b.id) continue;
     const spentTime = (s.memory[a.id] ?? []).some((m) => m.episode === s.world.episode && m.participants.includes(b.id));
     if (!spentTime) addRel(s, a.id, b.id, 'closeness', -0.6);
   }
+  clearUnattractedRomance(s);
   for (const c of housemates(s)) if (s.world.weather === 'heatwave') c.mood = clamp(c.mood - 0.05, -1, 1);
 }
 

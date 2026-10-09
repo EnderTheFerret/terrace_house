@@ -3,9 +3,11 @@ import { eventTemplate } from '../content';
 import { mulberry32 } from '../rng';
 import { chooseAction, routineNow, weeklyRoutine } from './agents';
 import { evalCond } from './conditions';
-import { housemates, rel, traitsOf } from './core';
+import { addRel, housemates, rel, traitsOf } from './core';
+import { debugPlan } from './debugedit';
 import { soberUp } from './drink';
-import { followUpsDue, planConflict, queueFollowUps, sendFollowUp } from './living';
+import { observe } from './knowledge';
+import { clearUnattractedRomance, followUpsDue, planConflict, queueFollowUps, relationshipUpkeep, sendFollowUp } from './living';
 import { createGame, makeEvent, resolveScene } from './loop';
 
 const empty = () => ({ affinityDeltas: [], romanceDeltas: [], tensionDeltas: [], trustDeltas: [], newMemories: [], moodDeltas: [] });
@@ -58,6 +60,50 @@ describe('follow-up texts', () => {
     expect(followUpsDue(sent)).toEqual([]);
     queueFollowUps(sent, ev, { ...empty(), affinityDeltas: [{ from: fan.id, to: P, delta: 5 }] });
     expect(followUpsDue(sent)).toEqual([]);
+  });
+});
+
+describe('romance needs attraction, and nobody reads a spark into nothing', () => {
+  it('blocks romance gains without attraction from any system, and clears old leftovers at day end', () => {
+    const s = createGame({ seed: 5 });
+    const P = s.characters[s.playerId];
+    const sameSex = housemates(s).find((h) => !h.isPlayer && !P.interestedIn.includes(h.gender))!;
+    addRel(s, P.id, sameSex.id, 'romance', 5);
+    expect(rel(s, P.id, sameSex.id).romance).toBe(0);
+    rel(s, sameSex.id, P.id).romance = sameSex.interestedIn.includes(P.gender) ? 0 : 4; // an older save's leftover
+    relationshipUpkeep(s);
+    expect(rel(s, sameSex.id, P.id).romance).toBe(0);
+    // loading clears leftovers right away, felt and guessed
+    rel(s, sameSex.id, P.id).romance = 3;
+    (s.beliefs[P.id] ??= {})[`${sameSex.id}>${P.id}`] = { affinity: 10, romance: 3, conf: 1 };
+    clearUnattractedRomance(s);
+    expect(rel(s, sameSex.id, P.id).romance).toBe(0);
+    expect(s.beliefs[P.id][`${sameSex.id}>${P.id}`].romance).toBe(0);
+  });
+
+  it('a housemate with no romance toward the player never reads as a spark, however often they are watched', () => {
+    const s = createGame({ seed: 5 });
+    const x = housemates(s).find((h) => !h.isPlayer)!;
+    rel(s, x.id, s.playerId).romance = 0;
+    s.characters[s.playerId].persona.attachment = 'secure';
+    const rng = mulberry32(3);
+    for (let i = 0; i < 40; i++) observe(s, rng, s.playerId, x.id, s.playerId);
+    expect(s.beliefs[s.playerId][`${x.id}>${s.playerId}`].romance).toBe(0);
+  });
+});
+
+describe('debug plan edits', () => {
+  it('removes a plan and undoes what settling it did, or re-dates it', () => {
+    const s = createGame({ seed: 5 });
+    const P = s.playerId;
+    const other = housemates(s).find((h) => !h.isPlayer)!;
+    s.invitations.push({ id: 'plan-x', from: P, to: other.id, episode: 1, slot: 'evening', node: 'bar', status: 'broken' }, { id: 'plan-y', from: P, to: other.id, episode: 2, slot: 'slot1', node: 'cafe', status: 'accepted' });
+    const trust = rel(s, other.id, P).trust;
+    const removed = debugPlan(s, { id: 'plan-x', remove: true });
+    expect(removed.invitations.map((p) => p.id)).toEqual(['plan-y']);
+    expect(rel(removed, other.id, P).trust).toBe(Math.min(100, trust + 5));
+    expect(debugPlan(s, { id: 'plan-y', episode: 3, slot: 'slot3' }).invitations.find((p) => p.id === 'plan-y')).toMatchObject({ episode: 3, slot: 'slot3' });
+    expect(() => debugPlan(s, { id: 'nope' })).toThrow(/unknown plan/);
   });
 });
 
